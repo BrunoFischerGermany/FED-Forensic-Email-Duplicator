@@ -67,6 +67,7 @@ def main(argv: list[str] | None = None) -> int:
         case = Case.create(args.target, CaseInfo(args.case, examiner, args.notes))
         info = syscheck.collect(args.target, cfg.programm.ntp_server if cfg.programm.ntp else None, cfg.proxy_url)
         case.record_system_check(info.as_dict())
+        case.store_config_snapshot(cfg.raw_text, cfg.logo_path())
         print(f"Case angelegt: {case.root}")
         print(f"System: {info.user} @ {info.hostname} · online={info.online} · extern={info.target_removable} "
               f"· frei {info.free_bytes / 1e9:.1f} GB · NTP-Abweichung {info.ntp_offset_s}")
@@ -74,6 +75,24 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "acquire":
         return _acquire(args)
+    if args.command == "finish":
+        from fed.core import config as cfgmod
+        from fed.core.case import Case
+        from fed.core.finalize import finish_case
+
+        cfg = cfgmod.load(args.config) if args.config else cfgmod.Config()
+        case = Case.open(args.case_dir)
+        try:
+            res = finish_case(case, cfg)
+        finally:
+            case.close()
+        print(f"ZIP: {res.zip.path}  ({res.zip.files} Mails, verifiziert: {res.zip.verified})")
+        for k, v in res.zip.hashes.items():
+            print(f"  {k.upper():<7} {v}")
+        print(f"Berichte: {res.report_txt.name}, {res.report_pdf.name}")
+        for p in res.zip.problems:
+            print(f"  HINWEIS: {p}")
+        return 0
     if args.command == "verify":
         from fed.core.case import Case
 

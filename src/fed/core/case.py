@@ -120,6 +120,46 @@ class Case:
             prev = entry_hash
         return True, None
 
+    # ------------------------------------------------------------ Config und Logo
+    MAX_LOGO_BYTES = 2 * 1024 * 1024
+
+    def store_config_snapshot(self, toml_text: str, logo_path: Path | None) -> None:
+        """Kopie der Config und des Logos (als BLOB) – spätere Änderungen betreffen diesen Case nicht."""
+        blob = mime = sha = name = None
+        if logo_path and logo_path.exists():
+            blob = logo_path.read_bytes()
+            if len(blob) > self.MAX_LOGO_BYTES:
+                raise ValueError("Logo größer als 2 MB")
+            if blob[:8] == b"\x89PNG\r\n\x1a\n":
+                mime = "image/png"
+            elif blob[:3] == b"\xff\xd8\xff":
+                mime = "image/jpeg"
+            else:
+                raise ValueError("Logo muss PNG oder JPG sein")
+            sha = hashlib.sha256(blob).hexdigest()
+            name = logo_path.name
+        with self.conn:
+            self.conn.execute(
+                "INSERT INTO config_snapshot (id, toml_text, logo_file, logo_mime, logo_blob, logo_sha256) "
+                "VALUES (1, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET toml_text = excluded.toml_text, "
+                "logo_file = excluded.logo_file, logo_mime = excluded.logo_mime, logo_blob = excluded.logo_blob, "
+                "logo_sha256 = excluded.logo_sha256",
+                (toml_text, name, mime, blob, sha),
+            )
+        self.log("INFO", "config_snapshot", {"logo": name, "logo_sha256": sha})
+
+    def logo(self) -> tuple[bytes, str, str] | None:
+        row = self.conn.execute("SELECT logo_blob, logo_mime, logo_sha256 FROM config_snapshot WHERE id = 1").fetchone()
+        return (row[0], row[1], row[2]) if row and row[0] else None
+
+    def info(self) -> dict:
+        cur = self.conn.execute("SELECT * FROM case_info WHERE id = 1")
+        return dict(zip([c[0] for c in cur.description], cur.fetchone(), strict=True))
+
+    @property
+    def closed(self) -> bool:
+        return self.info()["closed_utc"] is not None
+
     def record_system_check(self, info: dict) -> None:
         cols = ["ts_utc", "user", "hostname", "os", "local_time", "utc_time", "tz", "ntp_offset_s", "online",
                 "proxy", "target_path", "target_removable", "free_bytes"]

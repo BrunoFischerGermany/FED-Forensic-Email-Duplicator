@@ -133,6 +133,14 @@ def set_selection(case: Case, account_id: int, selected_names: set[str]) -> None
     case.log("INFO", "selection_set", {"account_id": account_id, "selected": sorted(selected_names)})
 
 
+def set_date_filter(case: Case, account_id: int, date_from: datetime | None, date_to: datetime | None) -> None:
+    with case.conn:
+        case.conn.execute("UPDATE account SET date_from = ?, date_to = ? WHERE id = ?",
+                          (date_from.date().isoformat() if date_from else None,
+                           date_to.date().isoformat() if date_to else None, account_id))
+    case.log("INFO", "date_filter_set", {"account_id": account_id, "from": str(date_from), "to": str(date_to)})
+
+
 # ---------------------------------------------------------------- Versuch
 def run_attempt(
     case: Case,
@@ -147,6 +155,8 @@ def run_attempt(
 ) -> AttemptResult:
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
+    if case.closed:
+        raise ValueError("Case ist abgeschlossen – keine weiteren Versuche möglich")
     conn = case.conn
     acc = conn.execute("SELECT email, date_from, date_to FROM account WHERE id = ?", (account_id,)).fetchone()
     if not acc:
@@ -401,7 +411,3 @@ def summary(case: Case, account_id: int) -> dict:
 __all__ = ["AccountSpec", "AttemptResult", "Mode", "ResumeNotPossible", "register_account", "run_attempt",
            "scan", "set_selection", "summary"]
 
-
-def build_zip(case: Case, cancel: CancelToken, progress: ProgressCallback | None = None) -> None:
-    """Packt alle Konten aus ``arbeit/`` in ein ZIP und verifiziert es."""
-    raise NotImplementedError("folgt in Meilenstein 4")

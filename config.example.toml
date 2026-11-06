@@ -15,6 +15,8 @@ nummer_muster = "{jahr}-{lfd:04}"   # Vorschlag für neue Casenumber
 
 [programm]
 sprache          = "de"         # de | en
+bericht_sprache  = ""           # leer = wie Oberfläche, sonst de | en
+design           = "system"     # system | hell | dunkel
 zielpfad         = ""           # leer = Laufwerk des Programms
 ntp              = true         # Zeitabgleich beim Start
 ntp_server       = "ptbtime1.ptb.de"

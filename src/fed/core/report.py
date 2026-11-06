@@ -1,20 +1,324 @@
-"""TXT- und PDF-Bericht aus der Case-Datei (PDF mit fpdf2, Logo im Kopf)."""
+"""TXT- und PDF-Bericht aus der Case-Datei.
+
+Beide Berichte haben denselben Inhalt; das PDF trägt das Agentur-Logo aus der
+Case-Datei (BLOB, nicht die aktuelle Config) und eine eingebettete Unicode-Schrift.
+"""
 
 from __future__ import annotations
 
+import io
+import json
+import tomllib
+from importlib import resources
 from pathlib import Path
 
+from fed import APP_NAME, __version__
 from fed.core.case import Case
+
+LABELS = {
+    "de": {
+        "title": "Sicherungsbericht E-Mail-Postfach", "case": "Grunddaten", "case_number": "Casenumber",
+        "examiner": "Examiner", "notes": "Notes", "created": "Case angelegt", "closed": "Case abgeschlossen",
+        "tool": "Werkzeug", "tool_sha": "SHA-256 Programm", "system": "System", "user": "Benutzer",
+        "host": "Rechner", "os": "Betriebssystem", "time": "Uhrzeit (lokal / UTC)", "ntp": "NTP-Abweichung",
+        "online": "Internet", "target": "Ziel", "removable": "Externer Datenträger", "free": "Freier Speicher",
+        "account": "Konto", "evidence": "Evidence", "server": "Server", "auth": "Anmeldung",
+        "source": "Herkunft der Einstellungen", "cert": "TLS-Zertifikat SHA-256", "server_id": "Server (ID)",
+        "range": "Zeitraum-Filter", "partial": "Teilsicherung", "attempts": "Versuche", "nr": "Nr.",
+        "mode": "Modus", "reason": "Grund", "start": "Start (UTC)", "end": "Ende (UTC)", "status": "Status",
+        "folders": "Ordner", "selected": "gewählt", "server_count": "Server", "saved": "gesichert",
+        "diff": "Differenz", "before_after": "Vorher/Nachher (MESSAGES, UNSEEN, UIDNEXT, UIDVALIDITY)",
+        "unchanged": "unverändert", "changed": "GEÄNDERT", "issues": "Warnungen und Fehler", "none": "keine",
+        "outputs": "Erzeugte Dateien und Hashes", "logchain": "Log-Kette", "entries": "Einträge",
+        "head": "Hash letzter Eintrag", "ok": "unverändert", "broken": "GEBROCHEN", "mails": "Gesicherte Mails",
+        "received": "Eingang (UTC)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
+        "att": "Anl.", "signature": "Ort, Datum, Unterschrift Examiner", "page": "Seite", "of": "von",
+        "yes": "ja", "no": "nein", "unknown": "unbekannt", "file": "Datei", "size": "Größe",
+    },
+    "en": {
+        "title": "Email Mailbox Acquisition Report", "case": "Case", "case_number": "Case number",
+        "examiner": "Examiner", "notes": "Notes", "created": "Case created", "closed": "Case closed",
+        "tool": "Tool", "tool_sha": "SHA-256 of program", "system": "System", "user": "User",
+        "host": "Computer", "os": "Operating system", "time": "Time (local / UTC)", "ntp": "NTP offset",
+        "online": "Internet", "target": "Target", "removable": "External drive", "free": "Free space",
+        "account": "Account", "evidence": "Evidence", "server": "Server", "auth": "Authentication",
+        "source": "Settings source", "cert": "TLS certificate SHA-256", "server_id": "Server (ID)",
+        "range": "Date filter", "partial": "partial acquisition", "attempts": "Attempts", "nr": "No.",
+        "mode": "Mode", "reason": "Reason", "start": "Start (UTC)", "end": "End (UTC)", "status": "Status",
+        "folders": "Folders", "selected": "selected", "server_count": "server", "saved": "saved",
+        "diff": "difference", "before_after": "Before/after (MESSAGES, UNSEEN, UIDNEXT, UIDVALIDITY)",
+        "unchanged": "unchanged", "changed": "CHANGED", "issues": "Warnings and errors", "none": "none",
+        "outputs": "Output files and hashes", "logchain": "Log chain", "entries": "entries",
+        "head": "Hash of last entry", "ok": "intact", "broken": "BROKEN", "mails": "Acquired messages",
+        "received": "Received (UTC)", "from": "From", "to": "To", "subject": "Subject",
+        "att": "Att.", "signature": "Place, date, signature of examiner", "page": "Page", "of": "of",
+        "yes": "yes", "no": "no", "unknown": "unknown", "file": "File", "size": "Size",
+    },
+}
+
+
+def _q(case: Case, sql: str, args=()) -> list[dict]:
+    cur = case.conn.execute(sql, args)
+    cols = [c[0] for c in cur.description]
+    return [dict(zip(cols, r, strict=True)) for r in cur]
+
+
+def collect(case: Case) -> dict:
+    """Alle Berichtsdaten aus der Case-Datei."""
+    info = case.info()
+    snap = _q(case, "SELECT toml_text, logo_file, logo_sha256 FROM config_snapshot WHERE id = 1")
+    agency = {}
+    if snap:
+        try:
+            agency = tomllib.loads(snap[0]["toml_text"]).get("agentur", {})
+        except tomllib.TOMLDecodeError:
+            agency = {}
+    ok, bad = case.verify_log()
+    log_count, head = case.conn.execute(
+        "SELECT COUNT(*), (SELECT entry_hash FROM log ORDER BY id DESC LIMIT 1) FROM log").fetchone()
+    from fed.core.finalize import message_rows
+
+    return {
+        "info": info,
+        "agency": agency,
+        "logo": snap[0] if snap else {},
+        "system": _q(case, "SELECT * FROM system_check ORDER BY id DESC LIMIT 1"),
+        "accounts": _q(case, "SELECT * FROM account ORDER BY id"),
+        "attempts": _q(case, "SELECT t.*, a.email FROM attempt t JOIN account a ON a.id = t.account_id ORDER BY t.id"),
+        "folders": _q(case, "SELECT f.*, a.email FROM folder f JOIN account a ON a.id = f.account_id "
+                            "ORDER BY f.account_id, f.id"),
+        "issues": _q(case, "SELECT ts_utc, level, event, details FROM log WHERE level IN ('WARNING','ERROR') "
+                           "ORDER BY id"),
+        "outputs": _q(case, "SELECT * FROM output ORDER BY id"),
+        "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
+        "messages": message_rows(case),
+    }
+
+
+def _fmt_bytes(n: int | None) -> str:
+    if n is None:
+        return "–"
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return str(n)
+
+
+def _status_pair(f: dict, L: dict) -> str:
+    if not f.get("status_before"):
+        return "–"
+    b, a = json.loads(f["status_before"]), json.loads(f["status_after"] or "{}")
+    return L["unchanged"] if b == a else f"{L['changed']}: {b} -> {a}"
+
+
+def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Gemeinsame Schlüssel/Wert-Abschnitte für TXT und PDF."""
+    i = d["info"]
+    yn = {1: L["yes"], 0: L["no"], None: L["unknown"]}
+    secs = [(L["case"], [
+        (L["case_number"], i["case_number"]), (L["examiner"], i["examiner"]), (L["notes"], i["notes"] or "–"),
+        (L["created"], i["created_utc"]), (L["closed"], i["closed_utc"] or "–"),
+        (L["tool"], f"{APP_NAME} {i['tool_version']}"), (L["tool_sha"], i["tool_sha256"] or "–"),
+    ])]
+    if d["system"]:
+        s = d["system"][0]
+        secs.append((L["system"], [
+            (L["user"], s["user"]), (L["host"], s["hostname"]), (L["os"], s["os"]),
+            (L["time"], f"{s['local_time']} / {s['utc_time']} ({s['tz']})"),
+            (L["ntp"], f"{s['ntp_offset_s']:+.3f} s" if s["ntp_offset_s"] is not None else L["unknown"]),
+            (L["online"], yn.get(s["online"], "?")), (L["target"], s["target_path"]),
+            (L["removable"], yn.get(s["target_removable"], "?")), (L["free"], _fmt_bytes(s["free_bytes"])),
+        ]))
+    for a in d["accounts"]:
+        rng = "–"
+        if a["date_from"] or a["date_to"]:
+            rng = f"{a['date_from'] or '…'} – {a['date_to'] or '…'} ({L['partial']})"
+        secs.append((f"{L['account']} {a['email']}", [
+            (L["evidence"], a["evidence_number"]), (L["server"], f"{a['server']}:{a['port']} ({a['security']})"),
+            (L["auth"], a["auth_method"]), (L["source"], a["autoconfig_source"] or "–"),
+            (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
+        ]))
+    lg = d["log"]
+    secs.append((L["logchain"], [
+        (L["status"], L["ok"] if lg["ok"] else f"{L['broken']} (#{lg['bad']})"),
+        (L["entries"], str(lg["count"])), (L["head"], lg["head"] or "–"),
+    ]))
+    return secs
+
+
+# ---------------------------------------------------------------- TXT
+def render_txt(case: Case, language: str = "de") -> str:
+    L = LABELS[language]
+    d = collect(case)
+    out = []
+    ag = d["agency"]
+    if ag.get("name"):
+        out += [ag["name"], ag.get("adresse", ""), ""]
+    out += [L["title"], "=" * len(L["title"]), ""]
+    for title, items in _sections(d, L):
+        out += [title, "-" * len(title)]
+        w = max(len(k) for k, _ in items)
+        out += [f"{k:<{w}}  {v}" for k, v in items] + [""]
+    out += [L["attempts"], "-" * len(L["attempts"])]
+    for t in d["attempts"]:
+        out.append(f"{t['email']} #{t['nr']}  {t['mode']:<8} {t['status']:<10} {t['started_utc']} – "
+                   f"{t['ended_utc'] or '…'}  {t['reason'] or ''}{'  -> ' + t['moved_to'] if t['moved_to'] else ''}")
+    out += ["", L["folders"], "-" * len(L["folders"])]
+    for f in d["folders"]:
+        diff = (f["count_saved"] or 0) - (f["count_server"] or 0) if f["selected"] else ""
+        out.append(f"{f['email']}/{f['display_name']:<34} {L['selected'] if f['selected'] else '-':<9} "
+                   f"{L['server_count']} {f['count_server'] or 0:>6}  {L['saved']} {f['count_saved'] or 0:>6}  "
+                   f"{L['diff']} {diff!s:>4}  {_status_pair(f, L)}")
+    out += ["", L["issues"], "-" * len(L["issues"])]
+    out += [f"{x['ts_utc']} {x['level']:<7} {x['event']}: {x['details']}" for x in d["issues"]] or [L["none"]]
+    out += ["", L["outputs"], "-" * len(L["outputs"])]
+    for o in d["outputs"]:
+        out += [f"{o['file_name']}  ({_fmt_bytes(o['size'])})", f"  SHA-256  {o['sha256']}"]
+        if o["md5"]:
+            out.append(f"  MD5      {o['md5']}")
+        if o["sha512"]:
+            out.append(f"  SHA-512  {o['sha512']}")
+    out += ["", f"{L['mails']} ({len(d['messages'])})", "-" * 20]
+    for n, m in enumerate(d["messages"], 1):
+        out.append(f"{n:>5}  {m['Eingangszeit_UTC']}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
+                   f"{L['to']}: {m['An'] or m['CC'] or m['Empfaenger_Hinweis']}  {L['att']} {m['Anlagen']}  "
+                   f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
+    out += ["", "", f"{L['signature']}: ______________________________", ""]
+    return "\n".join(out)
 
 
 def write_txt(case: Case, path: Path, language: str = "de") -> None:
-    raise NotImplementedError("folgt in Meilenstein 4")
+    path.write_text(render_txt(case, language), encoding="utf-8")
 
 
-def write_pdf(case: Case, path: Path, logo: Path | None = None, language: str = "de") -> None:
-    raise NotImplementedError("folgt in Meilenstein 4")
+# ---------------------------------------------------------------- PDF
+def write_pdf(case: Case, path: Path, language: str = "de") -> None:
+    from fpdf import FPDF
+    from fpdf.fonts import FontFace
+
+    L = LABELS[language]
+    d = collect(case)
+    fonts = resources.files("fed.resources") / "fonts"
+    logo = case.logo()
+    ag = d["agency"]
+    info = d["info"]
+
+    class Report(FPDF):
+        def header(self):
+            if logo:
+                self.image(io.BytesIO(logo[0]), x=15, y=10, h=16, keep_aspect_ratio=True, w=40)
+            self.set_font("DejaVu", "B", 10)
+            self.set_xy(110, 10)
+            self.cell(85, 5, ag.get("name", ""), align="R", new_x="LMARGIN", new_y="NEXT")
+            self.set_font("DejaVu", "", 8)
+            self.set_x(110)
+            self.cell(85, 4, ag.get("adresse", ""), align="R", new_x="LMARGIN", new_y="NEXT")
+            self.set_x(110)
+            self.cell(85, 4, f"{L['case_number']} {info['case_number']}", align="R")
+            self.set_draw_color(200, 205, 214)
+            self.line(15, 29, 195, 29)
+            self.set_y(33)
+
+        def footer(self):
+            self.set_y(-12)
+            self.set_font("DejaVu", "", 7)
+            self.set_text_color(90, 98, 112)
+            self.cell(0, 5, f"{APP_NAME} {__version__} · {info['case_number']}", align="L")
+            self.set_x(15)
+            self.cell(0, 5, f"{L['page']} {self.page_no()} {L['of']} {{nb}}", align="R")
+            self.set_text_color(0, 0, 0)
+
+    pdf = Report(format="A4")
+    pdf.set_margins(15, 15, 15)
+    pdf.set_auto_page_break(True, 18)
+    pdf.add_font("DejaVu", "", str(fonts / "DejaVuSans.ttf"))
+    pdf.add_font("DejaVu", "B", str(fonts / "DejaVuSans-Bold.ttf"))
+    pdf.add_font("Mono", "", str(fonts / "DejaVuSansMono.ttf"))
+    pdf.set_title(f"{L['title']} {info['case_number']}")
+    pdf.set_creator(f"{APP_NAME} {__version__}")
+    pdf.add_page()
+    pdf.set_font("DejaVu", "B", 16)
+    pdf.cell(0, 10, L["title"], new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    head = FontFace(emphasis="BOLD", fill_color=(234, 240, 252))
+
+    def h2(text):
+        pdf.ln(3)
+        pdf.set_font("DejaVu", "B", 11)
+        pdf.cell(0, 7, text, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DejaVu", "", 8.5)
+
+    def kv(items):
+        with pdf.table(col_widths=(55, 125), first_row_as_headings=False, line_height=4.6,
+                       borders_layout="HORIZONTAL_LINES") as t:
+            for k, v in items:
+                r = t.row()
+                r.cell(k)
+                r.cell(str(v))
+
+    for title, items in _sections(d, L):
+        h2(title)
+        kv(items)
+
+    h2(L["attempts"])
+    with pdf.table(col_widths=(10, 22, 20, 38, 38, 52), headings_style=head, line_height=4.4) as t:
+        t.row([L["nr"], L["mode"], L["status"], L["start"], L["end"], L["reason"]])
+        for a in d["attempts"]:
+            t.row([str(a["nr"]), a["mode"], a["status"], a["started_utc"][:19], (a["ended_utc"] or "…")[:19],
+                   (a["reason"] or "") + (f" -> {a['moved_to']}" if a["moved_to"] else "")])
+
+    h2(L["folders"])
+    with pdf.table(col_widths=(50, 15, 15, 17, 19, 64), headings_style=head, line_height=4.4) as t:
+        t.row([L["folders"], L["selected"], L["server_count"], L["saved"], L["diff"], L["before_after"]])
+        for f in d["folders"]:
+            diff = str((f["count_saved"] or 0) - (f["count_server"] or 0)) if f["selected"] else ""
+            t.row([f["display_name"], L["yes"] if f["selected"] else L["no"], str(f["count_server"] or 0),
+                   str(f["count_saved"] or 0), diff, _status_pair(f, L)])
+
+    h2(L["issues"])
+    if d["issues"]:
+        with pdf.table(col_widths=(36, 18, 126), headings_style=head, line_height=4.2) as t:
+            t.row(["UTC", L["status"], ""])
+            for x in d["issues"]:
+                t.row([x["ts_utc"][:19], x["level"], f"{x['event']}: {x['details']}"[:400]])
+    else:
+        pdf.cell(0, 6, L["none"], new_x="LMARGIN", new_y="NEXT")
+
+    h2(L["outputs"])
+    for o in d["outputs"]:
+        pdf.set_font("DejaVu", "B", 8.5)
+        pdf.cell(0, 5, f"{o['file_name']}  ({_fmt_bytes(o['size'])})", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Mono", "", 7)
+        for label, key in (("SHA-256", "sha256"), ("MD5", "md5"), ("SHA-512", "sha512")):
+            if o[key]:
+                pdf.multi_cell(0, 3.6, f"{label:<8} {o[key]}", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+    if logo:
+        pdf.set_font("DejaVu", "", 7.5)
+        pdf.cell(0, 5, f"Logo SHA-256: {logo[2]}", new_x="LMARGIN", new_y="NEXT")
+
+    pdf.ln(14)
+    pdf.set_font("DejaVu", "", 9)
+    pdf.cell(100, 0, "", border="T", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 5, L["signature"], new_x="LMARGIN", new_y="NEXT")
+
+    pdf.add_page()
+    pdf.set_font("DejaVu", "B", 11)
+    pdf.cell(0, 7, f"{L['mails']} ({len(d['messages'])})", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("DejaVu", "", 6.5)
+    with pdf.table(col_widths=(8, 30, 40, 102), headings_style=head, line_height=3.3) as t:
+        t.row([L["nr"], f"{L['received']} / UID", f"{L['folders']} / {L['from']}",
+               f"{L['subject']} · {L['to']} · {L['att']} / {L['file']} / SHA-256"])
+        for n, m in enumerate(d["messages"], 1):
+            to = m["An"] or (f"CC: {m['CC']}" if m["CC"] else m["Empfaenger_Hinweis"] or "–")
+            t.row([str(n), f"{m['Eingangszeit_UTC'][:19]}\nUID {m['UID']}", f"{m['Ordner']}\n{m['Absender']}",
+                   f"{m['Betreff']} · {to} · {L['att']} {m['Anlagen']}\n{m['Datei']}\n{m['SHA256']}"])
+    pdf.output(str(path))
 
 
-def write_log_csv(case: Case, path: Path) -> None:
-    """Liste aller gesicherten Mails (Ordner, UID, Eingangszeit, Absender, Betreff, Hashes)."""
-    raise NotImplementedError("folgt in Meilenstein 4")
+def write_reports(case: Case, language: str = "de") -> tuple[Path, Path]:
+    txt, pdfp = case.root / "bericht.txt", case.root / "bericht.pdf"
+    write_txt(case, txt, language)
+    write_pdf(case, pdfp, language)
+    return txt, pdfp

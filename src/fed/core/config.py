@@ -26,6 +26,8 @@ class Agentur:
 @dataclass
 class Programm:
     sprache: str = "de"
+    bericht_sprache: str = ""  # leer = wie Oberfläche
+    design: str = "system"  # system | hell | dunkel
     zielpfad: str = ""
     ntp: bool = True
     ntp_server: str = "ptbtime1.ptb.de"
@@ -99,6 +101,10 @@ def validate(cfg: Config) -> None:
         raise ConfigError(f"zip_zeit_quelle muss eins von {sorted(ALLOWED_ZIP_TIME_SOURCES)} sein")
     if cfg.programm.sprache not in {"de", "en"}:
         raise ConfigError("sprache muss 'de' oder 'en' sein")
+    if cfg.programm.bericht_sprache not in {"", "de", "en"}:
+        raise ConfigError("bericht_sprache muss leer, 'de' oder 'en' sein")
+    if cfg.programm.design not in {"system", "hell", "dunkel"}:
+        raise ConfigError("design muss 'system', 'hell' oder 'dunkel' sein")
 
 
 def save(cfg: Config, path: Path) -> None:
