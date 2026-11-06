@@ -1,4 +1,6 @@
-# FED – Forensic Email Downloader
+# FED – Forensic Email Duplicator
+
+*Forensische Sicherung von E-Mail-Postfächern*
 
 > **Branch `v1.0` – in Entwicklung.** Neuaufbau mit GUI. Das bisherige Kommandozeilen-Skript v0.4-beta liegt unter [`legacy/`](legacy/) (MIT-Lizenz).
 

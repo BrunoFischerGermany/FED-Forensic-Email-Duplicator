@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fed"
 version = "1.0.0.dev0"
-description = "FED - Forensic Email Downloader: forensische Sicherung von IMAP-Postfächern"
+description = "FED - Forensic Email Duplicator: forensische Sicherung von E-Mail-Postfächern"
 readme = "README.md"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]

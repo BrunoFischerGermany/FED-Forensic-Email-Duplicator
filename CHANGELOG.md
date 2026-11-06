@@ -2,6 +2,7 @@
 
 ## 1.0.0 (in Entwicklung)
 
+- Neuer Name: **FED – Forensic Email Duplicator** (vorher „Forensic Email Downloader“)
 - Neuaufbau als Python-3.14-Paket mit PySide6-Oberfläche und Kommandozeile
 - Lizenz GPL-3.0-only (v0.4 unter `legacy/` bleibt MIT)
 - Config-Datei `config.toml` für Agentur, Logo, Examiner, OAuth, Proxy
