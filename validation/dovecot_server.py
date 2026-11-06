@@ -33,7 +33,7 @@ ssl = required
 ssl_cert = <{d}/cert.pem
 ssl_key = <{d}/key.pem
 disable_plaintext_auth = yes
-auth_mechanisms = plain login
+auth_mechanisms = plain login{mechs}
 first_valid_uid = 0
 default_internal_user = {iuser}
 default_internal_group = {igroup}
@@ -42,7 +42,7 @@ passdb {{
   driver = passwd-file
   args = scheme=PLAIN username_format=%u {d}/users
 }}
-userdb {{
+{oauth_passdb}userdb {{
   driver = static
   args = uid={uid} gid={gid} home={d}/home/%u
 }}
@@ -104,7 +104,7 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def start(root: Path | None = None) -> Server:
+def start(root: Path | None = None, oauth_introspection_url: str | None = None) -> Server:
     d = Path(root or tempfile.mkdtemp(prefix="fed-dovecot-")).resolve()
     for sub in ("run", "state", "home"):
         (d / sub).mkdir(parents=True, exist_ok=True)
@@ -129,8 +129,16 @@ def start(root: Path | None = None) -> Server:
             os.chown(dirpath, uid, gid)
             for f in files:
                 os.chown(os.path.join(dirpath, f), uid, gid)
+    oauth_passdb, mechs = "", ""
+    if oauth_introspection_url:
+        mechs = " xoauth2 oauthbearer"
+        (d / "oauth2.conf").write_text(
+            f"introspection_mode = post\nintrospection_url = {oauth_introspection_url}\n"
+            "username_attribute = email\nactive_attribute = active\nactive_value = true\n"
+            "force_introspection = yes\n", encoding="utf-8")
+        oauth_passdb = f"passdb {{\n  driver = oauth2\n  mechanisms = xoauth2 oauthbearer\n  args = {d}/oauth2.conf\n}}\n"
     conf = CONF.format(
-        d=d, port=port, uid=uid, gid=gid,
+        d=d, port=port, uid=uid, gid=gid, mechs=mechs, oauth_passdb=oauth_passdb,
         iuser="dovecot" if root_mode else me, igroup="dovecot" if root_mode else me,
         luser="dovenull" if root_mode else me,
     )

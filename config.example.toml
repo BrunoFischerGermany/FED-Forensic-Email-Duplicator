@@ -32,7 +32,8 @@ tsa_url = ""                    # RFC-3161-Zeitstempeldienst, leer = aus
 [oauth.google]
 client_id     = ""
 client_secret = ""              # bei Google-Desktop-Apps vorgesehen, gilt nicht als geheim
+# Einrichtung: docs/oauth-einrichtung.md
 
 [oauth.microsoft]
 client_id = ""
-tenant    = "organizations"     # oder Tenant-ID
+tenant    = "organizations"     # Arbeits-/Schulkonten; "common" = auch Outlook.com; oder Tenant-ID

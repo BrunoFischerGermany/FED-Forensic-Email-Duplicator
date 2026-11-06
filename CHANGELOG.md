@@ -14,6 +14,11 @@
   mit Hashes, Eingangszeit als Dateizeit, Empfänger/Anlagen, Vorher/Nachher-Status,
   Versuche mit Fortsetzen, Neubeginn (verschieben/löschen) und Abbrechen, `fed acquire`
 - Testpostfach (Dovecot) mit erwarteten Hashes, Integrationstests in der CI
+- Meilenstein 3: OAuth2 für Google und Microsoft 365 (Authorization Code + PKCE mit
+  Loopback-Redirect, Gerätecode für Microsoft, automatische Token-Erneuerung bei
+  Reconnect, Protokoll des zustimmenden Kontos, Warnung bei Abweichung), XOAUTH2-Login,
+  `fed acquire --auth/--device-code/--login-as`, Anleitung docs/oauth-einrichtung.md;
+  Tests mit nachgebautem OAuth-Anbieter und echtem XOAUTH2 gegen Dovecot
 
 ## 0.4-beta
 

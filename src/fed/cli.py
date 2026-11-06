@@ -42,6 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
     acq.add_argument("--user", help="Benutzername (Standard: Adresse)")
     acq.add_argument("--cafile", help="eigene CA-Datei (z. B. Behörden-CA oder Testserver)")
     acq.add_argument("--exclude", action="append", default=[], metavar="ORDNER", help="Ordner auslassen (mehrfach)")
+    acq.add_argument("--auth", choices=["auto", "password", "google", "microsoft"], default="auto",
+                     help="Anmeldeart (auto: Google/Microsoft per OAuth, sonst Passwort)")
+    acq.add_argument("--device-code", action="store_true", help="Microsoft: Anmeldung per Gerätecode")
+    acq.add_argument("--login-as", help="OAuth: Konto, mit dem angemeldet wird (z. B. bei geteiltem Postfach)")
 
     fin = sub.add_parser("finish", help="Case abschließen: ZIP, Hashes, Berichte")
     fin.add_argument("--case-dir", type=Path, required=True)
@@ -89,17 +93,18 @@ def _acquire(args) -> int:
     from datetime import UTC, datetime
 
     from fed.core import acquisition as acqmod
-    from fed.core import autoconfig
+    from fed.core import autoconfig, oauth
     from fed.core import config as cfgmod
+    from fed.core.auth import OAuthSession, log_oauth_login, make_connector
     from fed.core.cancel import CancelToken
     from fed.core.case import Case
-    from fed.core.imap_reader import ReadOnlyImap
 
     cfg = cfgmod.load(args.config) if args.config else cfgmod.Config()
     case = Case.open(args.case_dir)
     try:
         row = case.conn.execute("SELECT id, server, port, security, username FROM account WHERE email = ?",
                                 (args.account,)).fetchone()
+        found = None
         if row:
             acc_id, server, port, security, user = row
         else:
@@ -114,17 +119,51 @@ def _acquire(args) -> int:
                     return 1
                 server, port, security, source = found.host, found.port, found.security, found.source
             user = args.user or args.account
-        password = os.environ.get("FED_PASSWORD") or getpass.getpass(f"Passwort für {user}: ")
-
-        def connect() -> ReadOnlyImap:
-            c = ReadOnlyImap(server, port, security, timeout=cfg.programm.socket_timeout_s, cafile=args.cafile)
-            c.connect()
-            c.login_password(user, password)
-            return c
+        provider_hint = found.provider if found else None
+        method = args.auth
+        if method == "auto":
+            if row:
+                stored = case.conn.execute("SELECT auth_method FROM account WHERE id = ?", (acc_id,)).fetchone()[0]
+                method = {"oauth_google": "google", "oauth_microsoft": "microsoft"}.get(stored, "password")
+            elif server.lower() == "imap.gmail.com" or str(provider_hint) == "google":
+                method = "google"
+            elif server.lower() == "outlook.office365.com" or str(provider_hint) == "microsoft":
+                method = "microsoft"
+            else:
+                method = "password"
+        auth_method = {"google": "oauth_google", "microsoft": "oauth_microsoft"}.get(method, "password")
+        timeout = cfg.programm.socket_timeout_s
+        if method == "password":
+            password = os.environ.get("FED_PASSWORD") or getpass.getpass(f"Passwort für {user}: ")
+            connect = make_connector(server, port, security, user, password=password, timeout=timeout,
+                                     cafile=args.cafile)
+        else:
+            if method == "google":
+                prov, cid, secret = oauth.GOOGLE, cfg.oauth_google.client_id, cfg.oauth_google.client_secret
+            else:
+                prov, cid, secret = oauth.microsoft(cfg.oauth_microsoft.tenant), cfg.oauth_microsoft.client_id, ""
+            sess = OAuthSession(prov, cid, secret, cfg.proxy_url)
+            print(f"Anmeldung bei {method.title()} – " + ("Gerätecode folgt …" if args.device_code
+                                                          else "Browser wird geöffnet …"))
+            try:
+                token = sess.login_interactive(
+                    login_hint=args.login_as or args.account, device_code=args.device_code,
+                    show_device_code=lambda dc: print(dc.message or f"Öffne {dc.verification_uri} und gib {dc.user_code} ein"))
+            except oauth.OAuthError as e:
+                case.log("ERROR", "oauth_failed", str(e))
+                print(f"Anmeldung fehlgeschlagen: {e}", file=sys.stderr)
+                return 1
+            warning = log_oauth_login(case, token, args.account)
+            print(f"Angemeldet als {token.account or '?'}")
+            if warning:
+                print(f"  WARNUNG: {warning}")
+            connect = make_connector(server, port, security, user, oauth_session=sess, timeout=timeout,
+                                     cafile=args.cafile)
 
         if not row:
             spec = acqmod.AccountSpec(
-                args.account, args.evidence, server, port, security, user, autoconfig_source=source,
+                args.account, args.evidence, server, port, security, user, auth_method=auth_method,
+                autoconfig_source=source,
                 date_from=datetime.fromisoformat(args.date_from).replace(tzinfo=UTC) if args.date_from else None,
                 date_to=datetime.fromisoformat(args.date_to).replace(tzinfo=UTC) if args.date_to else None,
             )
