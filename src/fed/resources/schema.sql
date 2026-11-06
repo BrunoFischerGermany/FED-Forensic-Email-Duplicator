@@ -116,7 +116,14 @@ CREATE TABLE IF NOT EXISTS message (
     gm_labels       TEXT,
     message_id      TEXT,
     msg_from        TEXT,
-    msg_to          TEXT,
+    msg_to          TEXT,                    -- JSON-Liste, dekodiert
+    msg_cc          TEXT,                    -- JSON-Liste
+    msg_bcc         TEXT,                    -- JSON-Liste (meist nur in gesendeten Mails vorhanden)
+    delivered_to    TEXT,                    -- Delivered-To / X-Original-To / Envelope-To, falls vorhanden
+    recipient_note  TEXT,                    -- z. B. 'nur BCC', 'kein To/CC', 'undisclosed-recipients'
+    attachment_count INTEGER NOT NULL DEFAULT 0, -- echte Anlagen inkl. angehängter Mails
+    inline_count    INTEGER NOT NULL DEFAULT 0,  -- eingebettete Bilder (Content-ID, inline)
+    attachments     TEXT,                    -- JSON: [{name, mime, size, sha256}]
     subject         TEXT,
     subject_raw     TEXT,
     saved_utc       TEXT NOT NULL,
