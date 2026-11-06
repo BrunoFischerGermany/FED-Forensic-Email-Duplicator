@@ -23,5 +23,5 @@ jobs:
           sudo apt-get install -y -q dovecot-imapd
           sudo systemctl stop dovecot || true
       - run: pip install -e ".[dev]"
-      - run: ruff check src tests
+      - run: ruff check src tests validation
       - run: pytest -q
