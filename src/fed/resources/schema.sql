@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS case_info (
 CREATE TABLE IF NOT EXISTS config_snapshot (
     id          INTEGER PRIMARY KEY CHECK (id = 1),
     toml_text   TEXT NOT NULL,
-    logo_file   TEXT,
+    logo_file   TEXT,                       -- Original-Dateiname
+    logo_mime   TEXT,                       -- image/png | image/jpeg
+    logo_blob   BLOB,                       -- Logo selbst (max. 2 MB), Bericht nutzt nur diese Kopie
     logo_sha256 TEXT
 );
 
