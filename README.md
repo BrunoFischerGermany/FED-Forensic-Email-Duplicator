@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/fed-logo.svg" width="140" alt="FED-Logo"></p>
+
 # FED – Forensic Email Duplicator
 
 *Forensische Sicherung von E-Mail-Postfächern*

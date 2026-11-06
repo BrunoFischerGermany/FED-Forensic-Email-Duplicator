@@ -25,8 +25,14 @@ def main() -> int:
     QSettings.setDefaultFormat(QSettings.Format.IniFormat)
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(program_dir()))
 
+    from importlib import resources
+
+    from PySide6.QtGui import QIcon
+
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
+    icon_dir = resources.files("fed.resources")
+    app.setWindowIcon(QIcon(str(icon_dir.joinpath("fed-icon-256.png"))))
     cfg = cfgmod.load_default(program_dir())
     win = MainWindow(cfg)
     win.show()
