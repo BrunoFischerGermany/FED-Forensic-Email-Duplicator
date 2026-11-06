@@ -120,6 +120,14 @@ class Case:
             prev = entry_hash
         return True, None
 
+    def record_system_check(self, info: dict) -> None:
+        cols = ["ts_utc", "user", "hostname", "os", "local_time", "utc_time", "tz", "ntp_offset_s", "online",
+                "proxy", "target_path", "target_removable", "free_bytes"]
+        with self.conn:
+            self.conn.execute(f"INSERT INTO system_check ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+                              [info.get(c) for c in cols])
+        self.log("INFO", "system_check", info)
+
     # ------------------------------------------------------------ Pfade
     @property
     def work_dir(self) -> Path:

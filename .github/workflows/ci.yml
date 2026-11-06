@@ -16,6 +16,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+      - name: Dovecot für Integrationstests (nur Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q dovecot-imapd
+          sudo systemctl stop dovecot || true
       - run: pip install -e ".[dev]"
       - run: ruff check src tests
       - run: pytest -q

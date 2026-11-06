@@ -80,11 +80,81 @@ def ntp_offset(server: str, timeout: float = 3.0) -> float | None:
 
 
 def is_removable(path: Path) -> bool | None:
-    """Liegt ``path`` auf einem Wechseldatenträger? ``None`` = unbekannt.
+    """Liegt ``path`` auf einem externen/Wechseldatenträger? ``None`` = unbekannt."""
+    try:
+        if sys.platform == "win32":
+            return _removable_windows(path)
+        if sys.platform == "darwin":
+            return _removable_macos(path)
+        return _removable_linux(path)
+    except Exception:  # noqa: BLE001 - unbekannt statt Absturz
+        return None
 
-    TODO: Windows ``GetDriveTypeW``, Linux ``/sys/block/*/removable``,
-    macOS ``diskutil info``.
-    """
+
+def _removable_windows(path: Path) -> bool | None:
+    import ctypes
+
+    drive = Path(path).resolve().anchor  # z. B. "E:\\"
+    drive_type = ctypes.windll.kernel32.GetDriveTypeW(ctypes.c_wchar_p(drive))
+    # 2 = DRIVE_REMOVABLE (USB-Stick), 3 = DRIVE_FIXED (auch USB-Festplatten!), 4 = Netzlaufwerk
+    if drive_type == 2:
+        return True
+    if drive_type == 3:
+        return _windows_bus_is_usb(drive)
+    return False
+
+
+def _windows_bus_is_usb(drive: str) -> bool | None:
+    """Fragt per PowerShell den Bustyp ab (USB-Festplatten melden sich als „fixed“)."""
+    import subprocess
+
+    letter = drive[0]
+    cmd = ["powershell", "-NoProfile", "-Command",
+           f"(Get-Partition -DriveLetter {letter} | Get-Disk).BusType"]
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return out.upper() == "USB" if out else None
+
+
+def _removable_macos(path: Path) -> bool | None:
+    import plistlib
+    import subprocess
+
+    out = subprocess.run(["diskutil", "info", "-plist", str(path)], capture_output=True, timeout=10, check=False).stdout
+    info = plistlib.loads(out)
+    if info.get("RemovableMedia") or info.get("Ejectable"):
+        return True
+    if "Internal" in info:
+        return not info["Internal"]
+    return None
+
+
+def _removable_linux(path: Path) -> bool | None:
+    import os
+
+    target = os.path.realpath(path)
+    best = ("", "")
+    with open("/proc/mounts", encoding="utf-8") as f:
+        for line in f:
+            dev, mnt = line.split()[:2]
+            mnt = mnt.replace("\\040", " ")
+            if (target == mnt or target.startswith(mnt.rstrip("/") + "/")) and len(mnt) > len(best[1]):
+                best = (dev, mnt)
+    dev = best[0]
+    if not dev.startswith("/dev/"):
+        return None
+    name = os.path.basename(os.path.realpath(dev))
+    sys_path = os.path.realpath(f"/sys/class/block/{name}")
+    if os.path.exists(os.path.join(sys_path, "partition")):
+        sys_path = os.path.dirname(sys_path)
+    if "/usb" in sys_path:
+        return True
+    rem = os.path.join(sys_path, "removable")
+    if os.path.exists(rem):
+        with open(rem) as f:
+            return f.read().strip() == "1"
     return None
 
 

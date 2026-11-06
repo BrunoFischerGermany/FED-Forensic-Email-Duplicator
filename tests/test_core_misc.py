@@ -57,3 +57,16 @@ def test_oauth_helpers():
     verifier, challenge = pkce_pair()
     assert 43 <= len(verifier) <= 128 and "=" not in challenge
     assert xoauth2_string("a@b.de", "T") == b"user=a@b.de\x01auth=Bearer T\x01\x01"
+
+
+def test_expected_hashes_in_sync():
+    import csv
+    import hashlib
+    import sys
+
+    sys.path.insert(0, str(ROOT / "validation"))
+    import testmailbox
+
+    with (ROOT / "validation" / "expected_hashes.csv").open(encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert [r["sha256"] for r in rows] == [hashlib.sha256(m.raw).hexdigest() for m in testmailbox.mails()]

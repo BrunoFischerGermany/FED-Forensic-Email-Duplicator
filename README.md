@@ -21,7 +21,7 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 | Meilenstein | Inhalt | Status |
 | --- | --- | --- |
 | 1 | Projektstruktur, Config, Case-Datei mit Hash-Kette, Dateinamen, Hashes, GUI-Gerüst | ✅ |
-| 2 | Systemprüfung, Autoerkennung, IMAP nur lesend, Scan, Download in Arbeitsordner | ⏳ |
+| 2 | Systemprüfung, Autoerkennung, IMAP nur lesend, Scan, Download in Arbeitsordner, Testpostfach | ✅ |
 | 3 | OAuth2 Google / Microsoft 365 | ⏳ |
 | 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Historie-Tab | ⏳ |
 | 5 | RFC-3161, Validierungs-Postfach, Nuitka-Builds | ⏳ |
@@ -37,6 +37,19 @@ pytest
 fed-gui                    # Oberfläche
 fed --help                 # Kommandozeile
 ```
+
+Beispiel Kommandozeile:
+
+```bash
+fed new-case --target E:/FED-Cases --case 2026-0042 --examiner "Max Mustermann"
+fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidence A-01
+#   Passwort wird abgefragt (oder Umgebungsvariable FED_PASSWORD)
+#   erneut aufrufen = Fortsetzen; --force --reason "…" = Neubeginn
+fed verify --case-dir E:/FED-Cases/2026-0042
+```
+
+Tests gegen einen echten IMAP-Server: `apt install dovecot-imapd`, dann `pytest`
+(startet automatisch einen lokalen Dovecot mit dem Testpostfach aus `validation/`).
 
 Konfiguration: `config.example.toml` nach `config.toml` neben das Programm kopieren und anpassen.
 

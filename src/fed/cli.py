@@ -35,6 +35,13 @@ def build_parser() -> argparse.ArgumentParser:
     mode.add_argument("--resume", action="store_true", help="Fortsetzen (Standard)")
     mode.add_argument("--force", action="store_true", help="Neubeginn")
     acq.add_argument("--reason", default="", help="Grund für Neubeginn")
+    acq.add_argument("--delete-old", action="store_true", help="bei Neubeginn Altstand löschen statt verschieben")
+    acq.add_argument("--server", help="IMAP-Server (sonst Autoerkennung)")
+    acq.add_argument("--port", type=int, default=993)
+    acq.add_argument("--security", choices=["ssl", "starttls"], default="ssl")
+    acq.add_argument("--user", help="Benutzername (Standard: Adresse)")
+    acq.add_argument("--cafile", help="eigene CA-Datei (z. B. Behörden-CA oder Testserver)")
+    acq.add_argument("--exclude", action="append", default=[], metavar="ORDNER", help="Ordner auslassen (mehrfach)")
 
     fin = sub.add_parser("finish", help="Case abschließen: ZIP, Hashes, Berichte")
     fin.add_argument("--case-dir", type=Path, required=True)
@@ -48,14 +55,21 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "new-case":
         from fed.core import config as cfgmod
+        from fed.core import syscheck
         from fed.core.case import Case, CaseInfo
 
         cfg = cfgmod.load(args.config) if args.config else cfgmod.Config()
         examiner = args.examiner or cfg.examiner_name
         case = Case.create(args.target, CaseInfo(args.case, examiner, args.notes))
+        info = syscheck.collect(args.target, cfg.programm.ntp_server if cfg.programm.ntp else None, cfg.proxy_url)
+        case.record_system_check(info.as_dict())
         print(f"Case angelegt: {case.root}")
+        print(f"System: {info.user} @ {info.hostname} · online={info.online} · extern={info.target_removable} "
+              f"· frei {info.free_bytes / 1e9:.1f} GB · NTP-Abweichung {info.ntp_offset_s}")
         case.close()
         return 0
+    if args.command == "acquire":
+        return _acquire(args)
     if args.command == "verify":
         from fed.core.case import Case
 
@@ -66,6 +80,91 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if ok else 2
     print(f"Befehl '{args.command}' ist noch nicht umgesetzt.", file=sys.stderr)
     return 1
+
+
+def _acquire(args) -> int:
+    import getpass
+    import os
+    import time
+    from datetime import UTC, datetime
+
+    from fed.core import acquisition as acqmod
+    from fed.core import autoconfig
+    from fed.core import config as cfgmod
+    from fed.core.cancel import CancelToken
+    from fed.core.case import Case
+    from fed.core.imap_reader import ReadOnlyImap
+
+    cfg = cfgmod.load(args.config) if args.config else cfgmod.Config()
+    case = Case.open(args.case_dir)
+    try:
+        row = case.conn.execute("SELECT id, server, port, security, username FROM account WHERE email = ?",
+                                (args.account,)).fetchone()
+        if row:
+            acc_id, server, port, security, user = row
+        else:
+            if args.server:
+                server, port, security, source = args.server, args.port, args.security, "manuell"
+            else:
+                found, log = autoconfig.discover(args.account, proxy=cfg.proxy_url)
+                for line in log:
+                    print("  " + line)
+                if not found:
+                    print("Keine IMAP-Einstellungen gefunden – bitte --server angeben.", file=sys.stderr)
+                    return 1
+                server, port, security, source = found.host, found.port, found.security, found.source
+            user = args.user or args.account
+        password = os.environ.get("FED_PASSWORD") or getpass.getpass(f"Passwort für {user}: ")
+
+        def connect() -> ReadOnlyImap:
+            c = ReadOnlyImap(server, port, security, timeout=cfg.programm.socket_timeout_s, cafile=args.cafile)
+            c.connect()
+            c.login_password(user, password)
+            return c
+
+        if not row:
+            spec = acqmod.AccountSpec(
+                args.account, args.evidence, server, port, security, user, autoconfig_source=source,
+                date_from=datetime.fromisoformat(args.date_from).replace(tzinfo=UTC) if args.date_from else None,
+                date_to=datetime.fromisoformat(args.date_to).replace(tzinfo=UTC) if args.date_to else None,
+            )
+            imap = connect()
+            acc_id = acqmod.register_account(case, spec, imap)
+            folders = acqmod.scan(case, acc_id, imap)
+            imap.logout()
+            for f in folders:
+                print(f"  {f['name']:<40} {f['messages']:>7} Mails {f['size'] / 1e6:>9.1f} MB")
+        if args.exclude:
+            names = {r[0] for r in case.conn.execute(
+                "SELECT display_name FROM folder WHERE account_id = ? AND selected = 1", (acc_id,))}
+            acqmod.set_selection(case, acc_id, names - set(args.exclude))
+
+        token = CancelToken()
+        last = [0.0]
+
+        def show(p) -> None:
+            if time.monotonic() - last[0] >= 1 or p.mails_done == p.mails_total:
+                last[0] = time.monotonic()
+                bps, mpm = p.speed()
+                eta = p.eta_seconds()
+                print(f"\r  {p.mails_done}/{p.mails_total} Mails · {p.bytes_done / 1e6:.1f}/{p.bytes_total / 1e6:.1f} MB "
+                      f"· {bps / 1e6:.1f} MB/s · {mpm:.0f} Mails/min · Rest {int(eta) if eta else '?'} s · {p.folder[:30]:<30}",
+                      end="", flush=True)
+
+        mode = acqmod.Mode.RESTART if args.force else acqmod.Mode.RESUME
+        try:
+            res = acqmod.run_attempt(case, acc_id, connect, mode, token, show, args.reason, args.delete_old, cfg)
+        except KeyboardInterrupt:
+            token.cancel()
+            raise
+        print()
+        print(f"Versuch {res.nr}: {res.status} · gesichert {res.saved} · bereits vorhanden {res.skipped_existing} "
+              f"· erwartet {res.expected}")
+        for w in res.warnings:
+            print(f"  WARNUNG: {w}")
+        return 0 if res.status == "done" else 3
+    finally:
+        case.close()
 
 
 if __name__ == "__main__":
