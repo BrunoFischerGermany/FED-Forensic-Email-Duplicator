@@ -1,66 +1,72 @@
+# FED – Forensic Email Downloader
 
-# FED - ForensicEmailDownloader
+> **Branch `v1.0` – in Entwicklung.** Neuaufbau mit GUI. Das bisherige Kommandozeilen-Skript v0.4-beta liegt unter [`legacy/`](legacy/) (MIT-Lizenz).
+
+FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
+
+- jede Mail unverändert als `.eml`, benannt nach Eingangszeit und UID (`20261106T143012Z_UID00004711.eml`)
+- SHA-256 (zusätzlich MD5 und SHA-512) pro Mail und für das ZIP-Archiv
+- ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse
+- Case-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
+- TXT- und PDF-Bericht mit Agentur-Logo, optional RFC-3161-Zeitstempel
+- Gmail/Google Workspace und Microsoft 365 per OAuth2
+- Deutsch und Englisch, Windows/macOS/Linux, portabel ohne Installation
+
+## Stand
+
+| Meilenstein | Inhalt | Status |
+| --- | --- | --- |
+| 1 | Projektstruktur, Config, Case-Datei mit Hash-Kette, Dateinamen, Hashes, GUI-Gerüst | ✅ |
+| 2 | Systemprüfung, Autoerkennung, IMAP nur lesend, Scan, Download in Arbeitsordner | ⏳ |
+| 3 | OAuth2 Google / Microsoft 365 | ⏳ |
+| 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Historie-Tab | ⏳ |
+| 5 | RFC-3161, Validierungs-Postfach, Nuitka-Builds | ⏳ |
+
+## Entwicklung
+
+Python 3.14 wird vorausgesetzt.
+
+```bash
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+pytest
+fed-gui                    # Oberfläche
+fed --help                 # Kommandozeile
 ```
-   ____                              _         ____                _    __   ___                       __                __           
-  / __/ ___   ____ ___   ___   ___  (_) ____  / __/  __ _  ___ _  (_)  / /  / _ \ ___  _    __  ___   / / ___  ___ _ ___/ / ___   ____
- / _/  / _ \ / __// -_) / _ \ (_-< / / / __/ / _/   /  ' \/ _ `/ / /  / /  / // // _ \| |/|/ / / _ \ / / / _ \/ _ `// _  / / -_) / __/
-/_/    \___//_/   \__/ /_//_//___//_/  \__/ /___/  /_/_/_/\_,_/ /_/  /_/  /____/ \___/|__,__/ /_//_//_/  \___/\_,_/ \_,_/  \__/ /_/V0.4-beta   
-                                                                                                                                      
-```
 
-It's a Python based Forensic IMAP Download Script. 
+Konfiguration: `config.example.toml` nach `config.toml` neben das Programm kopieren und anpassen.
 
-## What should thePython script FED-ForensicEmailDownloader do?
-The script can be started with commandline options. After entering the email address, it tries to retrieve the required data from the auto-conficuration database (https://autoconfig.thunderbird.net/v1.1/). 
-Download all emails of the mailbox to a local folder (default is ./) while keeping the folder structure of the mailbox. 
-A folder with the current timestamp is created in the local folder. The backup of the emails and a log file will be placed here. 
-The email files are saved as .eml files and contain the subject in the file name. Duplicate files are incremented. 
-With the commandline options rangebegin and rangeend a period can be retrieved. Note that rangeend is the same as BEFORE. That is, if you want to retrieve all emails of a year, specify --rangebegin 2022-01-01 rangeend 2023-01-01.
-
-## Screenshot
-![Model](https://raw.githubusercontent.com/BrunoFischerGermany/FED-ForensicEmailDownloader/main/programm-main.png)
-
-## Usage/Examples
+## Aufbau
 
 ```
-python3 ForensicEmailDownloader.py --username user@example.com --password mypassword --imapurl imap.example.com --output C:\\tmp --rangeend 2023-01-01
-python3 ForensicEmailDownloader.py -u user@example.com -p mypassword -i imap.example.com -o /tmp/mails --rangebegin 2022-01-01
-
---username / -u             Username/Emai-Adress
---password / -p             Password 
---imapurl  / -i             Url to IMAP-Server
---sslport  / -s             Port for SSL on IMAP-Server
---output   / -o             Path for Folder where the data downloaded to
---examiner / -x             Name of examiner
---case     / -c             Name of case
---evidence / -e             evidence number
---rangebegin                Begin of the timerange  (YYYY-MM-DD)
---rangeend                  End of the timerange    (YYYY-MM-DD)
+src/fed/
+├─ core/            Kern ohne GUI (testbar, auch für CLI)
+│  ├─ config.py     config.toml laden/prüfen/speichern
+│  ├─ case.py       Case-Datei, Log mit Hash-Kette
+│  ├─ syscheck.py   Benutzer, Zeit/NTP, Internet, Datenträger, Speicher
+│  ├─ autoconfig.py Thunderbird-Autoerkennung
+│  ├─ oauth.py      Google / Microsoft 365
+│  ├─ imap_reader.py nur lesender IMAP-Zugriff (schreibende Befehle blockiert)
+│  ├─ acquisition.py Versuche, Download, ZIP, Verifikation
+│  ├─ naming.py     Dateinamen, Pfade, Modified UTF-7
+│  ├─ hashing.py    SHA-256 + MD5/SHA-512
+│  ├─ cancel.py     Abbrechen, Fortschritt, Geschwindigkeit, Restzeit
+│  ├─ report.py     TXT/PDF/log.csv
+│  └─ timestamp.py  RFC 3161
+├─ gui/             PySide6: Assistent, Historie, Statusleiste
+├─ i18n/            Übersetzungen (Qt Linguist)
+├─ resources/       SQL-Schema
+└─ cli.py           Kommandozeilen-Modus
+docs/               Konzept-Zusammenfassung, OAuth-Einrichtung
+validation/         Test-Postfach + erwartete Hashes
+tests/
 ```
-## Known Errors
-- email addresses with german umlauts like ä,ö,ü in the domain are not accepted
-- no 2FA
 
-## Create an own exe
-```pyinstaller.exe --onefile .\ForensicEmailDownloader.py --name "ForensicEmailDownloader" --icon .\favicon.ico```
+## Lizenz
 
-## Malware Alert
-I know this, but its a false positive for my releases. Feel free to create your own exe. see above. 
+GPL-3.0-only, siehe [LICENSE](LICENSE). Der Code unter `legacy/` bleibt unter MIT ([legacy/LICENSE-MIT](legacy/LICENSE-MIT)).
 
-## Future
-- tidy up the code
-- extract date from email and set it to eml file (Creation, modification and access timestamps) 
-- split log-file to log-file and a summary report
-- csv file with exported eml files
-- Make 2FA possible
-- Maybe HTML report
+## Autoren
 
-## Authors
-
-- [@BrunoFischerGermany](https://www.github.com/BrunoFischerGermany)
-- [@ma-fox](https://github.com/ma-fox)
-
-## License
-
-[MIT](https://choosealicense.com/licenses/mit/)
-
+- [@BrunoFischerGermany](https://github.com/BrunoFischerGermany)
+- [@ma-fox](https://github.com/ma-fox) (v0.4)

@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fed"
+version = "1.0.0.dev0"
+description = "FED - Forensic Email Downloader: forensische Sicherung von IMAP-Postfächern"
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.14"
+authors = [{ name = "Bruno Fischer" }]
+keywords = ["forensics", "imap", "email", "eml", "dfir"]
+classifiers = [
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+    "Intended Audience :: Legal Industry",
+]
+dependencies = [
+    "PySide6>=6.10",
+    "dnspython>=2.7",
+    "fpdf2>=2.8",
+    "tomli-w>=1.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8"]
+build = ["nuitka>=4.2"]
+
+[project.scripts]
+fed = "fed.cli:main"
+
+[project.gui-scripts]
+fed-gui = "fed.gui.app:main"
+
+[project.urls]
+Homepage = "https://github.com/BrunoFischerGermany/FED-ForensicEmailDownloader"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+fed = ["resources/*", "i18n/*.qm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"

@@ -1,0 +1,38 @@
+# FED - Konfiguration
+# Kopieren nach config.toml (neben das Programm) und anpassen.
+# Keine Passwörter oder Tokens in dieser Datei!
+
+[agentur]
+name    = "Muster Forensik GmbH"
+adresse = "Musterstr. 1, 12345 Musterstadt"
+logo    = "logo.png"            # PNG/JPG, relativ zum Programmordner; leer = kein Logo
+
+[examiner]
+name = ""                       # Vorbelegung, im Case änderbar
+
+[case]
+nummer_muster = "{jahr}-{lfd:04}"   # Vorschlag für neue Casenumber
+
+[programm]
+sprache          = "de"         # de | en
+zielpfad         = ""           # leer = Laufwerk des Programms
+ntp              = true         # Zeitabgleich beim Start
+ntp_server       = "ptbtime1.ptb.de"
+hash_extra       = ["md5", "sha512"]   # zusätzlich zu SHA-256
+zip_zeit_quelle  = "internaldate"      # internaldate | date_header
+socket_timeout_s = 30
+chunk_mb         = 10           # große Mails stückweise laden ab dieser Größe
+
+[proxy]
+url = ""                        # z. B. "http://proxy.behoerde.local:8080" oder "socks5://..."
+
+[zeitstempel]
+tsa_url = ""                    # RFC-3161-Zeitstempeldienst, leer = aus
+
+[oauth.google]
+client_id     = ""
+client_secret = ""              # bei Google-Desktop-Apps vorgesehen, gilt nicht als geheim
+
+[oauth.microsoft]
+client_id = ""
+tenant    = "organizations"     # oder Tenant-ID
