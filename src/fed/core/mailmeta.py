@@ -102,7 +102,7 @@ def parse(raw: bytes) -> MailMeta:
             meta.recipient_note = "kein To/CC"
 
     for part in msg.walk():
-        if part is msg or part.is_multipart() and part.get_content_type() != "message/rfc822":
+        if part is msg or (part.is_multipart() and part.get_content_type() != "message/rfc822"):
             continue
         disposition = part.get_content_disposition()
         filename = part.get_filename()

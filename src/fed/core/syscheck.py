@@ -35,7 +35,7 @@ class SystemInfo:
 def current_user() -> str:
     try:
         user = getpass.getuser()
-    except Exception:  # noqa: BLE001 - z. B. ohne Login-Terminal
+    except Exception:
         user = "unbekannt"
     if sys.platform == "win32":
         import os
@@ -87,7 +87,7 @@ def is_removable(path: Path) -> bool | None:
         if sys.platform == "darwin":
             return _removable_macos(path)
         return _removable_linux(path)
-    except Exception:  # noqa: BLE001 - unbekannt statt Absturz
+    except Exception:
         return None
 
 

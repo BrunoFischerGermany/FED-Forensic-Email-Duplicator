@@ -80,7 +80,7 @@ def _http_get(url: str, proxy: str, timeout: float) -> bytes | None:
         with opener.open(req, timeout=timeout) as r:
             if r.status == 200:
                 return r.read(512 * 1024)
-    except Exception:  # noqa: BLE001 - jeder Fehler = nicht gefunden, wird geloggt
+    except Exception:
         return None
     return None
 
@@ -92,7 +92,7 @@ def _dns(name: str, rtype: str) -> list:
         return []
     try:
         return list(dns.resolver.resolve(name, rtype, lifetime=5))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return []
 
 

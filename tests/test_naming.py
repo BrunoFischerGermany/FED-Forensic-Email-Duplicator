@@ -19,7 +19,7 @@ def test_eml_filename_utc():
 
 def test_eml_filename_requires_tz():
     with pytest.raises(ValueError):
-        eml_filename(datetime(2026, 1, 1), 1)  # noqa: DTZ001
+        eml_filename(datetime(2026, 1, 1), 1)
 
 
 def test_decode_imap_utf7():

@@ -62,6 +62,7 @@ def test_full_acquisition(tmp_path, connect, imap_server, test_mails, cfg):
     assert {r[1] for r in rows} == set(exp)
     for zip_path, sha, md5, idate, *_ in rows:
         p = case.work_dir / zip_path
+        assert datetime.fromisoformat(idate) == exp[sha].received
         assert hashlib.sha256(p.read_bytes()).hexdigest() == sha
         assert hashlib.md5(p.read_bytes()).hexdigest() == md5
         assert int(os.stat(p).st_mtime) == int(exp[sha].received.timestamp())  # Zeitstempel = Eingangszeit

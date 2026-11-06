@@ -6,8 +6,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "validation"))
 
-import dovecot_server
-import testmailbox
+import dovecot_server  # noqa: E402
+import testmailbox  # noqa: E402
 
 
 @pytest.fixture(scope="session")
