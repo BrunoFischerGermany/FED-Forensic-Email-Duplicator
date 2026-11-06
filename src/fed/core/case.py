@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib import resources
@@ -25,6 +26,7 @@ from fed import __version__
 from fed.core.naming import sanitize_component
 
 SCHEMA_VERSION = "1"
+_LOG_LOCK = threading.Lock()
 GENESIS_HASH = "0" * 64
 CASE_DB = "case.sqlite"
 
@@ -45,7 +47,22 @@ class Case:
 
     def __init__(self, root: Path, conn: sqlite3.Connection) -> None:
         self.root = root
-        self.conn = conn
+        self._db = root / CASE_DB
+        self._local = threading.local()
+        self._local.conn = conn
+        self._all = [conn]
+        self._lock = threading.Lock()
+
+    @property
+    def conn(self) -> sqlite3.Connection:
+        """Eine Verbindung je Thread (WAL: GUI liest, während der Download schreibt)."""
+        c = getattr(self._local, "conn", None)
+        if c is None:
+            c = _connect(self._db)
+            self._local.conn = c
+            with self._lock:
+                self._all.append(c)
+        return c
 
     # ------------------------------------------------------------ anlegen/öffnen
     @classmethod
@@ -91,14 +108,22 @@ class Case:
         return case
 
     def close(self) -> None:
-        self.conn.close()
+        with self._lock:
+            for c in self._all:
+                try:
+                    c.close()
+                except sqlite3.ProgrammingError:
+                    pass
+            self._all.clear()
+        self._local = threading.local()
 
     # ------------------------------------------------------------ Log
     def log(self, level: str, event: str, details: dict | str = "", attempt_id: int | None = None) -> None:
         """Hängt einen Eintrag an das Log an (Hash-Kette, Commit sofort)."""
         text = details if isinstance(details, str) else json.dumps(details, ensure_ascii=False, sort_keys=True)
         ts = utc_now()
-        with self.conn:
+        with _LOG_LOCK, self.conn:
+            self.conn.execute("BEGIN IMMEDIATE")
             row = self.conn.execute("SELECT entry_hash FROM log ORDER BY id DESC LIMIT 1").fetchone()
             prev = row[0] if row else GENESIS_HASH
             entry = _entry_hash(ts, attempt_id, level, event, text, prev)
@@ -179,7 +204,7 @@ class Case:
 
 
 def _connect(db: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(db)
+    conn = sqlite3.connect(db, timeout=15, check_same_thread=False)
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = FULL")
     conn.execute("PRAGMA foreign_keys = ON")

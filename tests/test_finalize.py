@@ -58,7 +58,7 @@ def test_finish_creates_verified_zip_and_reports(acquired, test_mails):
             # klassische ZIP-Zeit: 2-Sekunden-Raster; die genaue Zeit steht im Extended Timestamp
             assert info.date_time == (exp.year, exp.month, exp.day, exp.hour, exp.minute, exp.second // 2 * 2)
             tag, size, flags, mtime = struct.unpack("<HHBl", info.extra[:9])
-            assert (tag, flags) == (0x5455, 1) and datetime.fromtimestamp(mtime, UTC) == exp
+            assert (tag, size, flags) == (0x5455, 5, 1) and datetime.fromtimestamp(mtime, UTC) == exp
         csv_text = zf.read("log.csv").decode("utf-8-sig")
     assert "nur BCC" in csv_text and "Rechnung.pdf" in csv_text and csv_text.count("\n") == len(test_mails) + 1
 

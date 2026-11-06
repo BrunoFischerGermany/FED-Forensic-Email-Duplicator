@@ -6,6 +6,7 @@ from PySide6.QtCore import QThreadPool, QTimer, Signal
 from PySide6.QtWidgets import QLabel
 
 from fed.core.syscheck import is_online
+from fed.gui import theme
 
 
 class ConnectionStatus(QLabel):
@@ -29,14 +30,19 @@ class ConnectionStatus(QLabel):
         self._online = online
         self._render()
 
+    def refresh_style(self) -> None:
+        self._render()
+
     def _render(self) -> None:
+        t = theme.tokens()
         match self._online:
             case True:
                 self.setText("● " + self.tr("Internet: online"))
-                self.setStyleSheet("color: #1a7f37;")
+                color = t["ok"]
             case False:
                 self.setText("● " + self.tr("Internet: offline"))
-                self.setStyleSheet("color: #cf222e;")
-            case None:
+                color = t["danger"]
+            case _:
                 self.setText("● " + self.tr("Internet: prüfe …"))
-                self.setStyleSheet("color: gray;")
+                color = t["muted"]
+        self.setStyleSheet(f"color: {color}; font-weight: 600; font-size: 12px;")

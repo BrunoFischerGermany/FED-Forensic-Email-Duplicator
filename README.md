@@ -23,7 +23,7 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 | 1 | Projektstruktur, Config, Case-Datei mit Hash-Kette, Dateinamen, Hashes, GUI-Gerüst | ✅ |
 | 2 | Systemprüfung, Autoerkennung, IMAP nur lesend, Scan, Download in Arbeitsordner, Testpostfach | ✅ |
 | 3 | OAuth2 Google / Microsoft 365 (Browser + PKCE, Gerätecode, Token-Erneuerung) | ✅ |
-| 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Historie-Tab | ⏳ |
+| 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Oberfläche (Assistent, Historie, Einstellungen, Hell/Dunkel) | ✅ |
 | 5 | RFC-3161, Validierungs-Postfach, Nuitka-Builds | ⏳ |
 
 ## Entwicklung
@@ -47,6 +47,7 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidenc
 #   erneut aufrufen = Fortsetzen; --force --reason "…" = Neubeginn
 #   Gmail / Microsoft 365: Anmeldung automatisch per OAuth im Browser
 #   (Einrichtung der Client-IDs: docs/oauth-einrichtung.md)
+fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + bericht.pdf/.txt, Case abschließen
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```
 

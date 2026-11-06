@@ -14,7 +14,10 @@ def program_dir() -> Path:
 
 
 def main() -> int:
+    from importlib import resources
+
     from PySide6.QtCore import QSettings
+    from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication
 
     from fed import APP_NAME
@@ -25,16 +28,18 @@ def main() -> int:
     QSettings.setDefaultFormat(QSettings.Format.IniFormat)
     QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, str(program_dir()))
 
-    from importlib import resources
-
-    from PySide6.QtGui import QIcon
-
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
-    icon_dir = resources.files("fed.resources")
-    app.setWindowIcon(QIcon(str(icon_dir.joinpath("fed-icon-256.png"))))
-    cfg = cfgmod.load_default(program_dir())
-    win = MainWindow(cfg)
+    app.setStyle("Fusion")
+    app.setWindowIcon(QIcon(str(resources.files("fed.resources").joinpath("fed-icon-256.png"))))
+    try:
+        cfg = cfgmod.load_default(program_dir())
+    except cfgmod.ConfigError as e:
+        from PySide6.QtWidgets import QMessageBox
+
+        QMessageBox.critical(None, APP_NAME, f"config.toml ungültig: {e}")
+        cfg = cfgmod.Config()
+    win = MainWindow(cfg, program_dir())
     win.show()
     return app.exec()
 

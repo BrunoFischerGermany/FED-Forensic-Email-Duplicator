@@ -19,6 +19,12 @@
   Reconnect, Protokoll des zustimmenden Kontos, Warnung bei Abweichung), XOAUTH2-Login,
   `fed acquire --auth/--device-code/--login-as`, Anleitung docs/oauth-einrichtung.md;
   Tests mit nachgebautem OAuth-Anbieter und echtem XOAUTH2 gegen Dovecot
+- Meilenstein 4: ZIP (nur gültige Mails, leere Ordner, ZIP-Zeit UTC + Extended Timestamp,
+  ZIP64) mit Verifikation und Hashes, log.csv, Berichte TXT/PDF mit Logo aus der Case-Datei,
+  `fed finish`; Oberfläche nach Mockup: Assistent (Case/Systemprüfung, Konto mit
+  Autoerkennung/Passwort/OAuth/Verbindungstest, Ordnerbaum mit Zeitraum, Sicherung mit
+  Fortschritt/Abbrechen/Fortsetzen/Neubeginn, Abschluss), Historie, Einstellungen,
+  Hell/Dunkel; Case-Datei mit einer SQLite-Verbindung je Thread
 
 ## 0.4-beta
 
