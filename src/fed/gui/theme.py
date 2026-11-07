@@ -49,10 +49,20 @@ def _check_icon() -> str:
     return p.as_posix()
 
 
+def _fonts() -> tuple[str, str]:
+    """Systemschriften (Oberfläche, Festbreite) – immer vorhanden, kein Suchen nach Ersatzschriften."""
+    from PySide6.QtGui import QFontDatabase
+
+    ui = QFontDatabase.systemFont(QFontDatabase.SystemFont.GeneralFont).family()
+    mono = QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont).family()
+    return ui, mono
+
+
 def stylesheet(t: dict) -> str:
+    ui_font, mono_font = _fonts()
     check = _check_icon()
     return f"""
-* {{ font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif; font-size: 14px; color: {t['text']}; }}
+* {{ font-family: "{ui_font}"; font-size: 14px; color: {t['text']}; }}
 QMainWindow, QWidget#Page, QStackedWidget, QScrollArea, QScrollArea > QWidget > QWidget {{ background: {t['bg']}; }}
 QWidget#Header {{ background: {t['header']}; }}
 QWidget#Header QLabel {{ color: #FFFFFF; background: transparent; }}
@@ -76,7 +86,7 @@ QLabel#Hint {{ font-size: 12px; }}
 QLabel#Ok {{ color: {t['ok']}; font-weight: 600; }}
 QLabel#Warn {{ color: {t['warn']}; font-weight: 600; }}
 QLabel#Error {{ color: {t['danger']}; font-weight: 600; }}
-QLabel#Mono, QPlainTextEdit#Mono {{ font-family: "JetBrains Mono", "Consolas", "Menlo", monospace; font-size: 12px; }}
+QLabel#Mono, QPlainTextEdit#Mono {{ font-family: "{mono_font}"; font-size: 12px; }}
 QLabel#Big {{ font-size: 22px; font-weight: 700; }}
 QLabel#Huge {{ font-size: 28px; font-weight: 700; }}
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QDateEdit, QSpinBox {{ background: {t['surface']};
