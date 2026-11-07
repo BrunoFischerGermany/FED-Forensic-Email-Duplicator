@@ -81,9 +81,12 @@ def main(argv: list[str] | None = None) -> int:
         from fed.core.finalize import finish_case
 
         cfg = cfgmod.load(args.config) if args.config else cfgmod.Config()
+        from fed.core.keepawake import KeepAwake
+
         case = Case.open(args.case_dir)
         try:
-            res = finish_case(case, cfg)
+            with KeepAwake() if cfg.programm.wach_halten else _nullctx():
+                res = finish_case(case, cfg)
         finally:
             case.close()
         print(f"ZIP: {res.zip.path}  ({res.zip.files} Mails, verifiziert: {res.zip.verified})")
@@ -103,6 +106,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if ok else 2
     print(f"Befehl '{args.command}' ist noch nicht umgesetzt.", file=sys.stderr)
     return 1
+
+
+def _nullctx():
+    import contextlib
+
+    return contextlib.nullcontext()
 
 
 def _acquire(args) -> int:
@@ -210,11 +219,20 @@ def _acquire(args) -> int:
                       end="", flush=True)
 
         mode = acqmod.Mode.RESTART if args.force else acqmod.Mode.RESUME
+        from fed.core.keepawake import KeepAwake
+
+        awake = KeepAwake()
+        if cfg.programm.wach_halten:
+            method = awake.acquire()
+            case.log("INFO" if method else "WARNING", "keep_awake_on",
+                     {"for": "sicherung", "method": method or "nicht verfügbar"})
         try:
             res = acqmod.run_attempt(case, acc_id, connect, mode, token, show, args.reason, args.delete_old, cfg)
         except KeyboardInterrupt:
             token.cancel()
             raise
+        finally:
+            awake.release()
         print()
         print(f"Versuch {res.nr}: {res.status} · gesichert {res.saved} · bereits vorhanden {res.skipped_existing} "
               f"· erwartet {res.expected}")

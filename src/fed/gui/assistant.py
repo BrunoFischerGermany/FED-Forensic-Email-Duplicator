@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFo
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from fed.core import acquisition as acq
-from fed.core import autoconfig, oauth, syscheck
+from fed.core import autoconfig, keepawake, oauth, syscheck
 from fed.core.auth import OAuthSession, log_oauth_login, make_connector
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
@@ -27,6 +27,25 @@ from fed.gui.widgets import Card, KeyValues, PasswordField, Segmented, label, re
 UROLE = Qt.ItemDataRole.UserRole
 CHECKED, UNCHECKED = Qt.CheckState.Checked, Qt.CheckState.Unchecked
 RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+
+
+def stay_awake(st, what: str) -> None:
+    if not st.cfg.programm.wach_halten:
+        return
+    method = keepawake.shared().acquire()
+    if st.case:
+        st.case.log("INFO" if method else "WARNING", "keep_awake_on",
+                    {"for": what, "method": method or "nicht verfügbar"})
+
+
+def allow_sleep(st) -> None:
+    if not st.cfg.programm.wach_halten:
+        return
+    ka = keepawake.shared()
+    if ka.active:
+        ka.release()
+        if st.case and not ka.active:
+            st.case.log("INFO", "keep_awake_off", "")
 
 
 @dataclass
@@ -754,6 +773,7 @@ class AcquirePage(QWidget):
         def work(cancel, report):
             return acq.run_attempt(st.case, st.account_id, st.connect, mode, cancel, report, reason, delete_old, st.cfg)
 
+        stay_awake(st, "sicherung")
         self.worker = run_async(work, self._done, self._failed, self._progress, parent=self)
 
     def _progress(self, p) -> None:
@@ -791,6 +811,7 @@ class AcquirePage(QWidget):
             self.sub.setText(self.tr("Wird abgebrochen …"))
 
     def _done(self, res) -> None:
+        allow_sleep(self.st)
         self.timer.stop()
         self._tail_log()
         self.cancel_btn.setEnabled(True)
@@ -811,6 +832,7 @@ class AcquirePage(QWidget):
         self.finished.emit(res)
 
     def _failed(self, err: str, tb: str) -> None:
+        allow_sleep(self.st)
         self.timer.stop()
         self._tail_log()
         self.cancel_btn.setVisible(False)
@@ -900,9 +922,11 @@ class FinishPage(QWidget):
         def progress(p):
             self.check_kv.set(self.tr("Fortschritt"), f"{p.phase}: {p.mails_done} / {p.mails_total}")
 
+        stay_awake(st, "abschluss")
         run_async(work, self._done, self._failed, progress, parent=self)
 
     def _done(self, res) -> None:
+        allow_sleep(self.st)
         self.st.finish = res
         z = res.zip
         total = sum(r for (r,) in self.st.case.conn.execute("SELECT COUNT(*) FROM message WHERE status='valid'"))
@@ -932,6 +956,7 @@ class FinishPage(QWidget):
         self.open_pdf.setEnabled(True)
 
     def _failed(self, err, tb) -> None:
+        allow_sleep(self.st)
         self.title.setText(self.tr("Abschluss fehlgeschlagen"))
         self.sub.setText(err)
         restyle(self.sub, "Error")

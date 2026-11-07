@@ -116,6 +116,10 @@ class MainWindow(QMainWindow):
                 return
             self.assistant.p_acq.worker.cancel.cancel()
             self.assistant.p_acq.worker.thread.wait(15000)
+        from fed.core import keepawake
+
+        while keepawake.shared().active:
+            keepawake.shared().release()
         if self.assistant.st.case:
             self.assistant.st.case.close()
         e.accept()

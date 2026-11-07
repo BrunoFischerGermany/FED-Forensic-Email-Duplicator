@@ -37,6 +37,7 @@ class Programm:
     zip_zeit_quelle: str = "internaldate"
     socket_timeout_s: int = 30
     chunk_mb: int = 10
+    wach_halten: bool = True  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 
 
 @dataclass

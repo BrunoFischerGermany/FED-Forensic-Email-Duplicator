@@ -25,6 +25,9 @@
   Autoerkennung/Passwort/OAuth/Verbindungstest, Ordnerbaum mit Zeitraum, Sicherung mit
   Fortschritt/Abbrechen/Fortsetzen/Neubeginn, Abschluss), Historie, Einstellungen,
   Hell/Dunkel; Case-Datei mit einer SQLite-Verbindung je Thread
+- Rechner bleibt während Sicherung und Abschluss wach (keine Leerlauf-Sperre, kein Ruhezustand):
+  Windows SetThreadExecutionState, macOS caffeinate, Linux gnome-session-inhibit/systemd-inhibit;
+  abschaltbar (`wach_halten`), Verfahren wird im Log festgehalten
 
 ## 0.4-beta
 

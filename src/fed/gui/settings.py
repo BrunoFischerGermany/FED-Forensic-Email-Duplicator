@@ -133,6 +133,8 @@ class SettingsTab(QWidget):
         f.addRow(self.tr("Netzwerk-Timeout"), self.timeout)
         f.addRow(self.tr("Stückweise laden ab"), self.chunk)
         s.add(f)
+        self.awake = QCheckBox(self.tr("Rechner während Sicherung und Abschluss nicht sperren / nicht schlafen lassen"))
+        s.add(self.awake)
         grid.addWidget(s, 1, 1)
 
         n = Card(self.tr("Netzwerk und Zeit"))
@@ -200,6 +202,7 @@ class SettingsTab(QWidget):
         self.h_sha512.setChecked("sha512" in p.hash_extra)
         (self.zt_int if p.zip_zeit_quelle == "internaldate" else self.zt_date).setChecked(True)
         self.timeout.setValue(p.socket_timeout_s)
+        self.awake.setChecked(p.wach_halten)
         self.chunk.setValue(p.chunk_mb)
         self.ntp.setChecked(p.ntp)
         self.ntp_server.setText(p.ntp_server)
@@ -258,6 +261,7 @@ class SettingsTab(QWidget):
                         if cb.isChecked()]
         p.zip_zeit_quelle = "internaldate" if self.zt_int.isChecked() else "date_header"
         p.socket_timeout_s, p.chunk_mb = self.timeout.value(), self.chunk.value()
+        p.wach_halten = self.awake.isChecked()
         p.ntp, p.ntp_server = self.ntp.isChecked(), self.ntp_server.text()
         c.proxy_url, c.tsa_url = self.proxy.text(), self.tsa.text()
         c.oauth_google.client_id, c.oauth_google.client_secret = self.g_id.text().strip(), self.g_secret.text().strip()
