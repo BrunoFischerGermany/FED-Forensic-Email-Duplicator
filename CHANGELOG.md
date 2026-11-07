@@ -63,6 +63,13 @@
   angehängt, die Validierungstabelle an die Notizen angefügt; Selbsttest jedes Pakets
   (`packaging/selftest.py`), Version aus dem Tag; Nightly-Vorabversion bei neuen Commits;
   Anleitung `docs/releases.md`
+- Mehrere Konten im Case: Übersicht „Bereits in diesem Case“ (Evidence, Konto, Status, Mails
+  gesichert/Server, Größe, Ordner, Versuche, zuletzt) beim Einrichten des nächsten Kontos und nach
+  jeder Sicherung, Kurzliste „Konten im Case“ in der linken Leiste; Doppelklick übernimmt ein Konto
+  zum Fortsetzen; Warnung beim Abschließen, wenn ein Konto nicht vollständig gesichert ist
+- Evidence-Nummer wird vorgeschlagen: letzte Zahl der zuletzt vergebenen Nummer +1
+  (`A-01` -> `A-02`, `VG-2026-009` -> `VG-2026-010`), vergebene Nummern werden übersprungen,
+  doppelte Vergabe für ein anderes Konto abgelehnt
 
 ## 0.4-beta
 

@@ -51,6 +51,28 @@ def email_domain(address: str) -> str:
     return idna_host(address.rsplit("@", 1)[-1])
 
 
+def next_evidence(existing: list[str]) -> str:
+    """Vorschlag für die nächste Evidence-Nummer: letzte Zahl im zuletzt vergebenen Wert hochzählen.
+
+    ``A-01`` -> ``A-02``, ``VG-2026-009`` -> ``VG-2026-010``, ``Asservat 3a`` -> ``Asservat 4a``,
+    ``A-99`` -> ``A-100``. Führende Nullen bleiben erhalten; schon vergebene Werte werden übersprungen.
+    Ohne Ziffer im letzten Wert: leerer Vorschlag.
+    """
+    used = {e.strip().casefold() for e in existing if e.strip()}
+    last = next((e.strip() for e in reversed(existing) if e.strip()), "")
+    m = list(re.finditer(r"\d+", last))
+    if not m:
+        return ""
+    m = m[-1]
+    n, width = int(m.group()), len(m.group())
+    for _ in range(10_000):
+        n += 1
+        cand = f"{last[:m.start()]}{n:0{width}d}{last[m.end():]}"
+        if cand.casefold() not in used:
+            return cand
+    return ""
+
+
 def eml_filename(internaldate: datetime, uid: int) -> str:
     """Dateiname einer Mail aus Eingangszeit und UID."""
     if internaldate.tzinfo is None:

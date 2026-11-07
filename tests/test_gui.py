@@ -190,3 +190,70 @@ def test_google_app_password_method(app, tmp_path):
     win.close()
     win.deleteLater()
     app.processEvents()
+
+
+def test_accounts_overview_and_evidence_suggestion(app, imap_server, tmp_path, monkeypatch):
+    from fed.core import config as cfgmod
+    from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan
+    from fed.core.case import Case, CaseInfo
+    from fed.core.imap_reader import ReadOnlyImap
+    from fed.gui.main_window import MainWindow
+    from validation import testmailbox
+
+    def connect(user=imap_server.user, pw=imap_server.password):
+        c = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+        c.connect()
+        c.login_password(user, pw)
+        return c
+
+    case = Case.create(tmp_path, CaseInfo("2026-0007", "Tester"))
+    imap = connect()
+    a1 = register_account(case, AccountSpec(imap_server.user, "VG-2026-009", imap_server.host, imap_server.port), imap)
+    scan(case, a1, imap)
+    imap.logout()
+    run_attempt(case, a1, connect, cfg=cfgmod.Config())
+    imap = connect(testmailbox.UMLAUT_USER, testmailbox.UMLAUT_PASSWORD)
+    a2 = register_account(case, AccountSpec(testmailbox.UMLAUT_USER, "VG-2026-010", imap_server.host,
+                                            imap_server.port), imap)
+    scan(case, a2, imap)  # gescannt, aber noch nicht gesichert
+    imap.logout()
+
+    cfg = cfgmod.Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    w = MainWindow(cfg, tmp_path)
+    _pump(app, lambda: w.assistant.st.system is not None)
+    a = w.assistant
+    a.st.case = case
+    a._after_case()
+    p = a.p_acc
+    assert p.accounts_card.isVisibleTo(w) and len(p.accounts.rows) == 2
+    assert p.evidence.text() == "VG-2026-011"  # Vorschlag nach der letzten Nummer
+    states = {o["email"]: o["state"] for o in p.accounts.rows}
+    assert states == {imap_server.user: "done", testmailbox.UMLAUT_USER: "new"}
+    assert len(a.rail_accounts.items) == 2 and a.rail_accounts.items[0].full_text().startswith("✓")
+
+    # Doppelklick übernimmt ein Konto aus der Übersicht
+    p.accounts.table.cellDoubleClicked.emit(1, 0)
+    assert p.email.text() == testmailbox.UMLAUT_USER and p.server.text() == imap_server.host
+    assert p.port.value() == imap_server.port
+    # bekannte Adresse -> Hinweis und deren Evidence-Nummer
+    p.email.setText(testmailbox.UMLAUT_USER)
+    p._check_known()
+    assert p.evidence.text() == "VG-2026-010" and "fortgesetzt" in p.evidence_hint.text()
+    # vergebene Evidence-Nummer für eine andere Adresse wird abgelehnt
+    p.email.setText("neu@example.de")
+    p.evidence.setText("VG-2026-009")
+    p.server.setText(imap_server.host)
+    p._test()
+    assert "schon für" in p.error.text()
+
+    asked = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: asked.append(a[2]) or QtWidgets.QMessageBox.StandardButton.No))
+    a._finish()
+    assert asked and testmailbox.UMLAUT_USER in asked[0] and a.stack.currentWidget() is not a.p_fin
+    w.close()
+    w.deleteLater()
+    app.processEvents()
+    case.close()

@@ -191,3 +191,34 @@ def test_server_refuses_extra_connections(tmp_path, connect, imap_server, test_m
     refused = case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'connection_refused'").fetchone()[0]
     assert refused >= 1
     case.close()
+
+
+def test_accounts_overview_and_next_evidence(tmp_path, connect, imap_server, test_mails, cfg):
+    from fed.core.acquisition import accounts_overview
+    from fed.core.naming import next_evidence
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+    ov = accounts_overview(case)
+    assert [(o["email"], o["evidence"], o["state"], o["attempts"]) for o in ov] == [
+        (imap_server.user, "A-01", "new", 0)]
+    assert ov[0]["expected"] == len(test_mails) and ov[0]["saved"] == 0
+    token = CancelToken()
+    token.cancel()
+    run_attempt(case, acc, connect, cancel=token, cfg=cfg)
+    assert accounts_overview(case)[0]["state"] == "cancelled"
+    run_attempt(case, acc, connect, cfg=cfg)
+    ov = accounts_overview(case)[0]
+    assert (ov["state"], ov["saved"], ov["attempts"]) == ("done", len(test_mails), 2)
+    assert ov["bytes"] > 4_000_000 and ov["last_utc"]
+    assert next_evidence([o["evidence"] for o in accounts_overview(case)]) == "A-02"
+    case.close()
+
+
+@pytest.mark.parametrize(("existing", "expected"), [
+    (["A-01"], "A-02"), (["VG-2026-009"], "VG-2026-010"), (["Asservat 3a"], "Asservat 4a"), (["A-99"], "A-100"),
+    (["A-01", "A-03", "A-02"], "A-04"), (["ohne Ziffer"], ""), ([], ""), (["A-01", "a-02", "A-01"], "A-03"),
+])
+def test_next_evidence(existing, expected):
+    from fed.core.naming import next_evidence
+
+    assert next_evidence(existing) == expected
