@@ -107,7 +107,7 @@ def test_restart_moves_previous(tmp_path, connect, imap_server, test_mails, cfg)
         run_attempt(case, acc, connect, mode=Mode.RESTART, cfg=cfg)
     r = run_attempt(case, acc, connect, mode=Mode.RESTART, reason="Test Neubeginn", cfg=cfg)
     assert r.status == "done" and r.saved == len(test_mails)
-    moved = case.root / "verworfen" / "Versuch_1" / "test@example.de"
+    moved = case.root / "discarded" / "attempt_1" / "test@example.de"
     assert moved.is_dir() and len(list(moved.rglob("*.eml"))) == len(test_mails)
     counts = dict(case.conn.execute("SELECT status, COUNT(*) FROM message GROUP BY status").fetchall())
     assert counts == {"valid": len(test_mails), "discarded": len(test_mails)}
@@ -118,7 +118,7 @@ def test_restart_delete_old(tmp_path, connect, imap_server, cfg):
     case, acc = _setup(tmp_path, connect, imap_server)
     run_attempt(case, acc, connect, cfg=cfg)
     run_attempt(case, acc, connect, mode=Mode.RESTART, reason="löschen", delete_old=True, cfg=cfg)
-    assert not (case.root / "verworfen" / "Versuch_1").exists()
+    assert not (case.root / "discarded" / "attempt_1").exists()
     assert case.conn.execute("SELECT deleted FROM attempt WHERE nr = 2").fetchone()[0] == 1
     case.close()
 

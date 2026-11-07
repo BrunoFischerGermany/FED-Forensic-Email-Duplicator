@@ -42,7 +42,7 @@ Homepage = "https://github.com/BrunoFischerGermany/FED-ForensicEmailDownloader"
 where = ["src"]
 
 [tool.setuptools.package-data]
-fed = ["resources/*.sql", "resources/*.svg", "resources/*.png", "i18n/*.qm"]
+fed = ["resources/*.sql", "resources/*.svg", "resources/*.png", "resources/fonts/*", "i18n/*.qm"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -4,7 +4,7 @@ Ein Versuch:
 1. Versuch anlegen (Fortsetzen oder Neubeginn mit Grund)
 2. Bei Fortsetzen: UIDVALIDITY prüfen, vorhandene Dateien nachhashen
 3. Vorher-Status je gewähltem Ordner (MESSAGES, UNSEEN, UIDNEXT, UIDVALIDITY)
-4. Je Ordner fehlende UIDs laden -> ``arbeit/`` (``.part``, fsync, umbenennen),
+4. Je Ordner fehlende UIDs laden -> ``work/`` (``.part``, fsync, umbenennen),
    Hashes, Zeitstempel = Eingangszeit, Metadaten, Commit je Mail
 5. Nachher-Status je Ordner, Soll/Ist
 
@@ -516,7 +516,7 @@ def _discard_previous(case: Case, account_id: int, account_dir: Path, nr: int, a
         with case.conn:
             case.conn.execute("UPDATE attempt SET deleted = 1 WHERE id = ?", (attempt_id,))
     else:
-        dest = case.discarded_dir / f"Versuch_{nr - 1}" / account_dir.name
+        dest = case.discarded_dir / f"attempt_{nr - 1}" / account_dir.name
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(account_dir), str(dest))
         rel = str(dest.relative_to(case.root))

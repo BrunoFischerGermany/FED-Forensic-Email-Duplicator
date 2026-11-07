@@ -27,11 +27,11 @@
 ```
 <Casenumber>/
 ├─ case.sqlite
-├─ arbeit/<adresse>/<ordner>/*.eml
-├─ verworfen/Versuch_<n>/
+├─ work/<adresse>/<ordner>/*.eml
+├─ discarded/attempt_<n>/
 ├─ <Casenumber>_<zeit>.zip  (+ .sha256, .tsr)
 ├─ log.csv
-└─ bericht.txt / bericht.pdf
+└─ report.txt / report.pdf
 ```
 
 Im ZIP: `<adresse>/<IMAP-Ordner>/...` je Konto, dazu `log.csv`.

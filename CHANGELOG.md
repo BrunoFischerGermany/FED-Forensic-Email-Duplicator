@@ -31,6 +31,12 @@
 - Schnellerer Download: mehrere gleichzeitige IMAP-Verbindungen (`verbindungen`, Standard 3),
   große Ordner in Pakete geteilt, kleine Mails gebündelt (bis 50 Mails/8 MB je FETCH);
   lehnt der Server weitere Verbindungen ab, geht es mit weniger weiter
+- Feste Namen im Case-Ordner auf Englisch, unabhängig von der Sprache: `work/`,
+  `discarded/attempt_<n>/`, `report.txt`, `report.pdf`
+- Ersteinrichtung: fehlt die `config.toml` oder sind Agentur/Examiner leer, fragt die
+  Oberfläche beim Start die Grunddaten ab (Agentur, Anschrift, Logo, Examiner, Sprache, Zielordner)
+- Fertige Programme per GitHub Actions (`Build`): Windows x64, macOS Apple Silicon,
+  macOS Intel, Linux x64; bei Tag `v*` automatisch als GitHub-Release mit SHA256SUMS
 
 ## 0.4-beta
 

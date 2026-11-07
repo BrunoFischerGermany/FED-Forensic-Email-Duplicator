@@ -67,7 +67,7 @@ def test_finish_creates_verified_zip_and_reports(acquired, test_mails):
     assert "Muster Forensik GmbH" in txt and z.hashes["sha256"] in txt and "Entwürfe" in txt
     assert res.report_pdf.read_bytes()[:5] == b"%PDF-"
     outputs = {r[0] for r in case.conn.execute("SELECT file_name FROM output")}
-    assert {z.path.name, "log.csv", "bericht.txt", "bericht.pdf"} <= outputs
+    assert {z.path.name, "log.csv", "report.txt", "report.pdf"} <= outputs
     with pytest.raises(ValueError):
         run_attempt(case, 1, lambda: None)
     with pytest.raises(ValueError):
@@ -123,7 +123,7 @@ def test_delete_work_dir_after_verified_zip(acquired, test_mails):
     case = acquired
     res = finish_case(case, Config(), delete_work=True)
     assert res.zip.verified and not case.work_dir.exists()
-    assert (case.root / "verworfen").exists()
+    assert (case.root / "discarded").exists()
     det = case.conn.execute("SELECT details FROM log WHERE event = 'work_dir_deleted'").fetchone()[0]
     assert f'"files": {len(test_mails)}' in det
     txt = render_txt(case)

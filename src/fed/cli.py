@@ -50,8 +50,8 @@ def build_parser() -> argparse.ArgumentParser:
     fin = sub.add_parser("finish", help="Case abschließen: ZIP, Hashes, Berichte")
     fin.add_argument("--case-dir", type=Path, required=True)
     wd = fin.add_mutually_exclusive_group()
-    wd.add_argument("--delete-work", action="store_true", help="arbeit/ nach verifiziertem ZIP löschen")
-    wd.add_argument("--keep-work", action="store_true", help="arbeit/ behalten")
+    wd.add_argument("--delete-work", action="store_true", help="work/ nach verifiziertem ZIP löschen")
+    wd.add_argument("--keep-work", action="store_true", help="work/ behalten")
 
     ver = sub.add_parser("verify", help="Hash-Kette und Dateien prüfen")
     ver.add_argument("--case-dir", type=Path, required=True)

@@ -106,7 +106,7 @@ def _work_dir_state(case: Case) -> str:
         det = json.loads(row[1])
         return (f"gelöscht nach erfolgreicher ZIP-Verifikation ({det['files']} Dateien, "
                 f"{_fmt_bytes(det['bytes'])}) · {tf.both(row[2])}")
-    return "behalten (arbeit/)"
+    return "behalten (work/)"
 
 
 def include_mail_list(count: int, mode: str = "auto", limit: int = 500) -> bool:
@@ -381,7 +381,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
 
 def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
                   mail_list_max: int = 500) -> tuple[Path, Path]:
-    txt, pdfp = case.root / "bericht.txt", case.root / "bericht.pdf"
+    txt, pdfp = case.root / "report.txt", case.root / "report.pdf"
     write_txt(case, txt, language, mail_list, mail_list_max)
     write_pdf(case, pdfp, language, mail_list, mail_list_max)
     return txt, pdfp

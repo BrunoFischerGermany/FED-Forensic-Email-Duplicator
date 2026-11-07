@@ -47,14 +47,28 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidenc
 #   erneut aufrufen = Fortsetzen; --force --reason "…" = Neubeginn
 #   Gmail / Microsoft 365: Anmeldung automatisch per OAuth im Browser
 #   (Einrichtung der Client-IDs: docs/oauth-einrichtung.md)
-fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + bericht.pdf/.txt, Case abschließen
+fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + report.pdf/.txt, Case abschließen
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```
 
 Tests gegen einen echten IMAP-Server: `apt install dovecot-imapd`, dann `pytest`
 (startet automatisch einen lokalen Dovecot mit dem Testpostfach aus `validation/`).
 
-Konfiguration: `config.example.toml` nach `config.toml` neben das Programm kopieren und anpassen.
+Konfiguration: `config.example.toml` nach `config.toml` neben das Programm kopieren und anpassen –
+oder einfach starten: ohne Grunddaten fragt die Oberfläche sie beim ersten Start ab.
+
+## Fertige Programme bauen
+
+| Weg | So geht's |
+|---|---|
+| Per Klick | GitHub → **Actions** → **Build** → **Run workflow**; die Dateien liegen danach unter *Artifacts* des Laufs |
+| Release | `git tag v1.0.0 && git push origin v1.0.0` – baut alle Plattformen und legt das Release mit Dateien und `SHA256SUMS.txt` an |
+| Lokal | `pip install -e .[build]` und `python packaging/build.py` (baut für das eigene System nach `dist/`) |
+
+Ergebnis: `FED-<version>-windows-x64.zip`, `-macos-arm64.zip`, `-macos-x64.zip`, `-linux-x64.tar.gz`.
+Die `config.toml` gehört neben `FED.exe` bzw. `FED` bzw. neben `FED.app`.
+Die Programme sind nicht signiert: macOS meldet „nicht verifizierter Entwickler“
+(Rechtsklick → Öffnen, oder `xattr -cr FED.app`), Windows SmartScreen „Weitere Informationen → Trotzdem ausführen“.
 
 ## Aufbau
 

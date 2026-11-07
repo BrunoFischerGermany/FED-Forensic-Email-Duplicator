@@ -71,3 +71,21 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     assert w.history.mails.model.rowCount() == len(test_mails)
     w.toggle_theme()
     w.close()
+
+
+def test_setup_dialog_saves_config(app, tmp_path):
+    from fed.core import config as cfgmod
+    from fed.gui.setup_dialog import SetupDialog, needs_setup
+
+    cfg = cfgmod.load_default(tmp_path)
+    assert needs_setup(cfg)
+    d = SetupDialog(cfg, tmp_path / cfgmod.CONFIG_FILENAME)
+    assert not d.ok.isEnabled()
+    d.name.setText("PP Musterstadt")
+    d.examiner.setText("KOK Muster")
+    d.lang.setCurrentIndex(d.lang.findData("en"))
+    assert d.ok.isEnabled()
+    d.save()
+    loaded = cfgmod.load(tmp_path / cfgmod.CONFIG_FILENAME)
+    assert (loaded.agentur.name, loaded.examiner_name, loaded.programm.sprache) == ("PP Musterstadt", "KOK Muster", "en")
+    assert not needs_setup(loaded)

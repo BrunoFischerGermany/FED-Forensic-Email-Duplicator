@@ -853,7 +853,7 @@ class AcquirePage(QWidget):
         if not ok or not reason.strip():
             return
         r = QMessageBox.question(self, self.tr("Altstand"), self.tr(
-            "Bisherigen Stand nach „verworfen/“ verschieben (empfohlen)?\n\nNein = endgültig löschen."),
+            "Bisherigen Stand nach „discarded/“ verschieben (empfohlen)?\n\nNein = endgültig löschen."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel)
         if r == QMessageBox.StandardButton.Cancel:
             return
@@ -920,7 +920,7 @@ class FinishPage(QWidget):
         if mode == "fragen":
             r = QMessageBox.question(
                 self, self.tr("Arbeitsordner"),
-                self.tr("Den Arbeitsordner „arbeit/“ nach erfolgreicher ZIP-Verifikation löschen?\n\n"
+                self.tr("Den Arbeitsordner „work/“ nach erfolgreicher ZIP-Verifikation löschen?\n\n"
                         "Alle Mails sind dann nur noch im geprüften ZIP enthalten; das spart den doppelten "
                         "Speicherplatz. Gelöscht wird nur, wenn jede Mail im ZIP denselben Hash hat. "
                         "Die Löschung wird protokolliert und im Bericht vermerkt."),
@@ -961,7 +961,7 @@ class FinishPage(QWidget):
         deleted = not self.st.case.work_dir.exists()
         k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
               else self.tr("behalten"), "ok" if deleted else None)
-        k.set(self.tr("Berichte erzeugt"), "bericht.pdf · bericht.txt · log.csv", "ok")
+        k.set(self.tr("Berichte erzeugt"), "report.pdf · report.txt · log.csv", "ok")
         for p in z.problems:
             k.set(self.tr("Hinweis"), p, "warn")
         h = self.hash_kv

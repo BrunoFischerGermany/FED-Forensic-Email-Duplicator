@@ -222,7 +222,7 @@ class FinishResult:
 
 
 def delete_work_dir(case: Case, zip_result: ZipResult) -> dict:
-    """Löscht ``arbeit/`` – nur nach erfolgreicher ZIP-Verifikation. ``verworfen/`` bleibt erhalten."""
+    """Löscht ``work/`` – nur nach erfolgreicher ZIP-Verifikation. ``discarded/`` bleibt erhalten."""
     import shutil
 
     if not zip_result.verified:

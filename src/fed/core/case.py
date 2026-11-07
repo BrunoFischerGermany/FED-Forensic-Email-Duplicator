@@ -4,11 +4,11 @@ Ablage auf dem Ziel-Datenträger::
 
     <Casenumber>/
     ├─ case.sqlite
-    ├─ arbeit/       .eml während der Sicherung
-    ├─ verworfen/    Altstände bei Neubeginn
+    ├─ work/         .eml während der Sicherung
+    ├─ discarded/    Altstände bei Neubeginn
     ├─ <Casenumber>_<zeit>.zip (+ .sha256, .tsr)
     ├─ log.csv
-    ├─ bericht.txt / bericht.pdf
+    ├─ report.txt / report.pdf
 """
 
 from __future__ import annotations
@@ -74,8 +74,8 @@ class Case:
         root = base_dir / sanitize_component(info.case_number.strip())
         if (root / CASE_DB).exists():
             raise FileExistsError(f"Case existiert bereits: {root}")
-        (root / "arbeit").mkdir(parents=True, exist_ok=True)
-        (root / "verworfen").mkdir(exist_ok=True)
+        (root / "work").mkdir(parents=True, exist_ok=True)
+        (root / "discarded").mkdir(exist_ok=True)
         conn = _connect(root / CASE_DB)
         conn.executescript(resources.files("fed.resources").joinpath("schema.sql").read_text("utf-8"))
         now = datetime.now(UTC)
@@ -196,11 +196,11 @@ class Case:
     # ------------------------------------------------------------ Pfade
     @property
     def work_dir(self) -> Path:
-        return self.root / "arbeit"
+        return self.root / "work"
 
     @property
     def discarded_dir(self) -> Path:
-        return self.root / "verworfen"
+        return self.root / "discarded"
 
 
 def _connect(db: Path) -> sqlite3.Connection:
