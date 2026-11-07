@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QDate, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QFontDatabase
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout, QGridLayout,
                                QHBoxLayout, QHeaderView, QInputDialog, QLineEdit, QMessageBox, QPlainTextEdit,
@@ -987,7 +987,10 @@ class FinishPage(QWidget):
 
 
 # ====================================================================== Assistent
-STEPS = ["Case anlegen", "Systemprüfung", "Konto", "Postfach scannen", "Ordner wählen", "Sicherung", "Abschluss"]
+STEPS = [QT_TRANSLATE_NOOP("Assistant", "Case anlegen"), QT_TRANSLATE_NOOP("Assistant", "Systemprüfung"),
+         QT_TRANSLATE_NOOP("Assistant", "Konto"), QT_TRANSLATE_NOOP("Assistant", "Postfach scannen"),
+         QT_TRANSLATE_NOOP("Assistant", "Ordner wählen"), QT_TRANSLATE_NOOP("Assistant", "Sicherung"),
+         QT_TRANSLATE_NOOP("Assistant", "Abschluss")]
 
 
 class Assistant(QWidget):

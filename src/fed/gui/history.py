@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 
-from PySide6.QtCore import QSortFilterProxyModel, Qt, QTimer
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QSortFilterProxyModel, Qt, QTimer
 from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox, QPushButton,
                                QTableView, QTabWidget, QVBoxLayout, QWidget)
@@ -15,12 +15,53 @@ from fed.core.case import Case
 from fed.core.hashing import hash_file
 from fed.gui.widgets import Card, label, restyle, run_async
 
-MAIL_COLS = ["Ordner", "Eingangszeit (UTC)", "Eingangszeit (lokal)", "Absender", "Empfänger", "Anlagen", "Betreff", "Datei", "SHA-256",
-             "Versuch", "Status"]
-ATTEMPT_COLS = ["Versuch", "Konto", "Modus", "Start (UTC)", "Start (lokal)", "Ende (UTC)", "Ende (lokal)", "Status", "Gesichert", "Ø MB/s",
-                "Grund / Hinweis"]
-LOG_COLS = ["Zeit (UTC)", "Zeit (lokal)", "Versuch", "Stufe", "Ereignis", "Details"]
-FOLDER_COLS = ["Konto", "Ordner", "gewählt", "Server", "gesichert", "Differenz", "Vorher/Nachher"]
+MAIL_COLS = [
+    QT_TRANSLATE_NOOP("HistoryTab", "Ordner"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Eingangszeit (UTC)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Eingangszeit (lokal)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Absender"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Empfänger"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Anlagen"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Betreff"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Datei"),
+    "SHA-256",
+    QT_TRANSLATE_NOOP("HistoryTab", "Versuch"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Status"),
+]
+ATTEMPT_COLS = [
+    QT_TRANSLATE_NOOP("HistoryTab", "Versuch"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Konto"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Modus"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Start (UTC)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Start (lokal)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Ende (UTC)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Ende (lokal)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Status"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Gesichert"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Ø MB/s"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Grund / Hinweis"),
+]
+LOG_COLS = [
+    QT_TRANSLATE_NOOP("HistoryTab", "Zeit (UTC)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Zeit (lokal)"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Versuch"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Stufe"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Ereignis"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Details"),
+]
+FOLDER_COLS = [
+    QT_TRANSLATE_NOOP("HistoryTab", "Konto"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Ordner"),
+    QT_TRANSLATE_NOOP("HistoryTab", "gewählt"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Server"),
+    QT_TRANSLATE_NOOP("HistoryTab", "gesichert"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Differenz"),
+    QT_TRANSLATE_NOOP("HistoryTab", "Vorher/Nachher"),
+]
+
+
+def _tr(text: str) -> str:
+    return QCoreApplication.translate("HistoryTab", text)
 
 
 def _recipient(to, cc, bcc, note, delivered) -> str:
@@ -30,17 +71,17 @@ def _recipient(to, cc, bcc, note, delivered) -> str:
     if cc:
         return "CC: " + cc[0]
     if bcc:
-        return f"nur BCC: {len(bcc)} Empfänger"
+        return QCoreApplication.translate("HistoryTab", "nur BCC: {0} Empfänger").format(len(bcc))
     if dl:
-        return f"kein To/CC · Delivered-To: {dl[0]}"
-    return note or "kein Empfänger"
+        return QCoreApplication.translate("HistoryTab", "kein To/CC · Delivered-To: {0}").format(dl[0])
+    return note or QCoreApplication.translate("HistoryTab", "kein Empfänger")
 
 
 class Table(QWidget):
     def __init__(self, cols: list[str], search: bool = True) -> None:
         super().__init__()
         self.model = QStandardItemModel(0, len(cols))
-        self.model.setHorizontalHeaderLabels(cols)
+        self.model.setHorizontalHeaderLabels([_tr(c) for c in cols])
         self.proxy = QSortFilterProxyModel()
         self.proxy.setSourceModel(self.model)
         self.proxy.setFilterKeyColumn(-1)
@@ -160,9 +201,9 @@ class HistoryTab(QWidget):
             for r in c.execute("SELECT a.email, f.display_name, f.selected, f.count_server, f.count_saved, "
                                "f.status_before, f.status_after FROM folder f JOIN account a ON a.id = f.account_id "
                                "ORDER BY f.account_id, f.id"):
-                ba = "–" if not r[5] else ("unverändert" if json.loads(r[5]) == json.loads(r[6] or "{}") else
-                                           f"GEÄNDERT {r[5]} → {r[6]}")
-                rows.append([r[0], r[1], "ja" if r[2] else "nein", r[3] or 0, r[4] or 0,
+                ba = "–" if not r[5] else (self.tr("unverändert") if json.loads(r[5]) == json.loads(r[6] or "{}") else
+                                           self.tr("GEÄNDERT {0} → {1}").format(r[5], r[6]))
+                rows.append([r[0], r[1], self.tr("ja") if r[2] else self.tr("nein"), r[3] or 0, r[4] or 0,
                              (r[4] or 0) - (r[3] or 0) if r[2] else "", ba])
             self.folders.fill(rows)
 

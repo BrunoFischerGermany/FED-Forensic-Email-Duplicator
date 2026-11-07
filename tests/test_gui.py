@@ -91,3 +91,40 @@ def test_setup_dialog_saves_config(app, tmp_path):
     assert not needs_setup(loaded)
     d.deleteLater()
     app.processEvents()
+
+
+def test_english_interface(app, tmp_path):
+    from fed.core import config as cfgmod
+    from fed.gui import i18n
+    from fed.gui.main_window import MainWindow
+
+    cfg = cfgmod.Config()
+    cfg.programm.sprache = "en"
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    try:
+        assert i18n.install("en") == "en"
+        win = MainWindow(cfg, tmp_path)
+        _pump(app, lambda: win.assistant.st.system is not None)
+        texts = {b.text().strip() for b in win.findChildren(type(win.findChild(type(win.settings.save_btn))))}
+        assert {"Acquisition", "History", "Settings"} <= texts
+        assert win.settings.save_btn.text() == "Save"
+        win.close()
+        win.deleteLater()
+        app.processEvents()
+    finally:
+        i18n.install("de")
+
+
+def test_translations_complete():
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    r = subprocess.run([sys.executable, str(root / "packaging" / "i18n.py"), "--check"], capture_output=True,
+                       text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert json.loads((root / "src" / "fed" / "i18n" / "en.json").read_text(encoding="utf-8"))
+    assert (root / "src" / "fed" / "i18n" / "fed_en.qm").stat().st_size > 1000

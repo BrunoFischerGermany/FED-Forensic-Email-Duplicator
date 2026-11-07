@@ -27,9 +27,10 @@ FED acquires email mailboxes via IMAP, forensically and strictly read-only:
 | 3 | OAuth2 Google / Microsoft 365 (browser + PKCE, device code, token refresh) | ✅ |
 | 4 | ZIP with timestamps, verification, TXT/PDF reports, GUI (assistant, history, settings, light/dark) | ✅ |
 | 5 | Ready-to-run programs (Nuitka) for Windows, macOS, Linux | ✅ |
-| 6 | RFC 3161 timestamps, validation report, English user interface | ⏳ |
+| 6 | RFC 3161 timestamps, validation report, English user interface | ✅ |
 
-The user interface is currently German only; reports can already be generated in German or English (`bericht_sprache = "en"`).
+Interface and reports are available in German and English (`sprache`, `bericht_sprache` in `config.toml`;
+on first start the system language is used). Messages from the program core and the log remain German.
 
 ## Development
 
@@ -55,6 +56,9 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account jane@example.com --evide
 fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + hashes + report.pdf/.txt, close the case
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```
+
+Validation report (PDF/TXT, German/English) against the test mailbox: `python -m validation.run`
+(see [validation/README.md](validation/README.md), German; also attached to every release).
 
 Tests against a real IMAP server: `apt install dovecot-imapd`, then `pytest`
 (automatically starts a local Dovecot with the test mailbox from `validation/`).
@@ -83,6 +87,7 @@ The programs are not signed: macOS reports an "unidentified developer"
 ├─ discarded/attempt_<n>/           previous state after a restart
 ├─ case.sqlite                      case file with log and hash chain
 ├─ <case>_<time>.zip + .zip.sha256  final archive
+├─ <case>_<time>.zip.tsr / .tsq     RFC 3161 timestamp (if configured)
 ├─ log.csv
 └─ report.txt / report.pdf
 ```
@@ -105,12 +110,13 @@ src/fed/
 │  ├─ naming.py     file names, paths, modified UTF-7
 │  ├─ hashing.py    SHA-256 + MD5/SHA-512
 │  ├─ cancel.py     cancel, progress, speed, remaining time
-│  └─ report.py     TXT/PDF reports
+│  ├─ report.py     TXT/PDF reports
+│  └─ timestamp.py  RFC 3161 timestamps
 ├─ gui/             PySide6: assistant, history, settings, first-start setup
 ├─ i18n/            translations (Qt Linguist)
 ├─ resources/       SQL schema, icons, fonts
 └─ cli.py           command-line mode
-packaging/          Nuitka build script
+packaging/          Nuitka build script, translation tool (i18n.py)
 docs/               architecture, OAuth setup (German)
 validation/         test mailbox + expected hashes
 tests/

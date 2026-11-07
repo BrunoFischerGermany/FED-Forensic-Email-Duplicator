@@ -249,7 +249,7 @@ class SettingsTab(QWidget):
         self._show_logo()
 
     def pick_logo(self) -> None:
-        f, _ = QFileDialog.getOpenFileName(self, self.tr("Logo wählen"), str(self.path.parent), "Bilder (*.png *.jpg *.jpeg)")
+        f, _ = QFileDialog.getOpenFileName(self, self.tr("Logo wählen"), str(self.path.parent), self.tr("Bilder (*.png *.jpg *.jpeg)"))
         if not f:
             return
         if Path(f).stat().st_size > 2 * 1024 * 1024:
@@ -264,6 +264,7 @@ class SettingsTab(QWidget):
     def save(self) -> None:
         c = self.cfg
         p = c.programm
+        old_language = p.sprache
         c.agentur.name, c.agentur.adresse, c.agentur.logo = self.ag_name.text(), self.ag_addr.text(), self._logo
         c.examiner_name, c.case_nummer_muster, p.zielpfad = self.examiner.text(), self.pattern.text(), self.target.text()
         p.design = self.design.value()
@@ -289,3 +290,6 @@ class SettingsTab(QWidget):
             return
         self.cfg.raw_text, self.cfg.source_path = new.raw_text, new.source_path
         self.saved.emit(self.cfg)
+        if p.sprache != old_language:
+            QMessageBox.information(self, "FED", "Die neue Sprache gilt ab dem nächsten Start von FED.\n"
+                                                 "The new language takes effect the next time FED is started.")

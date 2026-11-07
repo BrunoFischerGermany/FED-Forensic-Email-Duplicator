@@ -27,7 +27,7 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 | 3 | OAuth2 Google / Microsoft 365 (Browser + PKCE, Gerätecode, Token-Erneuerung) | ✅ |
 | 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Oberfläche (Assistent, Historie, Einstellungen, Hell/Dunkel) | ✅ |
 | 5 | Fertige Programme (Nuitka) für Windows, macOS, Linux | ✅ |
-| 6 | RFC-3161-Zeitstempel, Validierungsbericht, englische Oberfläche | ⏳ |
+| 6 | RFC-3161-Zeitstempel, Validierungsprotokoll, englische Oberfläche | ✅ |
 
 ## Entwicklung
 
@@ -53,6 +53,9 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidenc
 fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + report.pdf/.txt, Case abschließen
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```
+
+Validierungsprotokoll (PDF/TXT, de/en) gegen das Testpostfach: `python -m validation.run`
+(siehe [validation/README.md](validation/README.md); hängt auch an jedem Release).
 
 Tests gegen einen echten IMAP-Server: `apt install dovecot-imapd`, dann `pytest`
 (startet automatisch einen lokalen Dovecot mit dem Testpostfach aus `validation/`).

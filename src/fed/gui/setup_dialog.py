@@ -111,7 +111,7 @@ class SetupDialog(QDialog):
 
     def _pick_logo(self) -> None:
         f, _ = QFileDialog.getOpenFileName(self, self.tr("Logo wählen"), str(self.path.parent),
-                                           "Bilder (*.png *.jpg *.jpeg)")
+                                           self.tr("Bilder (*.png *.jpg *.jpeg)"))
         if not f:
             return
         if Path(f).stat().st_size > MAX_LOGO:

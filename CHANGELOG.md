@@ -37,6 +37,14 @@
   Oberfläche beim Start die Grunddaten ab (Agentur, Anschrift, Logo, Examiner, Sprache, Zielordner)
 - Fertige Programme per GitHub Actions (`Build`): Windows x64, macOS Apple Silicon,
   macOS Intel, Linux x64; bei Tag `v*` automatisch als GitHub-Release mit SHA256SUMS
+- Meilenstein 6:
+  - Zeitstempel nach RFC 3161 für den ZIP-Hash (`tsa_url`), Antwort als `.tsr` neben dem ZIP,
+    Prüfung von Hash und Nonce, Abschnitt im Bericht mit `openssl ts -verify`-Befehl
+  - Validierungsprotokoll `python -m validation.run`: 12 Prüfungen gegen das Testpostfach,
+    PDF/TXT auf Deutsch und Englisch plus JSON; hängt an jedem Release
+  - Englische Oberfläche (`sprache = "en"`), beim ersten Start nach Systemsprache;
+    Übersetzungen in `src/fed/i18n/en.json`, Werkzeug `packaging/i18n.py`
+  - SHA-256 des Programms wird je Case festgehalten (bisher leer)
 
 ## 0.4-beta
 
