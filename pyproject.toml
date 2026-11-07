@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "PySide6>=6.10",
     "dnspython>=2.7",
+    "idna>=3.7",
     "fpdf2>=2.8",
     "tomli-w>=1.2",
 ]
@@ -46,7 +47,7 @@ fed = ["resources/*.sql", "resources/*.svg", "resources/*.png", "resources/fonts
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100

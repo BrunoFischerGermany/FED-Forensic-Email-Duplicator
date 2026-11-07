@@ -41,3 +41,24 @@ def hash_file(path: Path, extra: Iterable[str] = ()) -> dict[str, str]:
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def tool_fingerprint() -> str:
+    """SHA-256, der die laufende Programmversion kennzeichnet.
+
+    Gebautes Programm (Nuitka): Hash der Programmdatei. Aus dem Quelltext: Hash über alle
+    Dateien des Pakets ``fed`` (relativer Pfad + Inhalt, sortiert), ohne ``__pycache__``.
+    """
+    import sys
+
+    import fed
+
+    if "__compiled__" in vars(fed) or getattr(sys, "frozen", False):
+        return hash_file(Path(sys.argv[0]).resolve())["sha256"]
+    root = Path(fed.__file__).resolve().parent
+    h = hashlib.sha256()
+    for p in sorted(root.rglob("*")):
+        if p.is_file() and "__pycache__" not in p.parts and p.suffix not in {".pyc", ".pyo"}:
+            h.update(p.relative_to(root).as_posix().encode() + b"\0")
+            h.update(p.read_bytes())
+    return h.hexdigest()

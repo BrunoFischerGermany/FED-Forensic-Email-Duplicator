@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QDate, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QDate, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QFontDatabase
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout, QGridLayout,
                                QHBoxLayout, QHeaderView, QInputDialog, QLineEdit, QMessageBox, QPlainTextEdit,
@@ -21,6 +21,7 @@ from fed.core.auth import OAuthSession, log_oauth_login, make_connector
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
 from fed.core.finalize import finish_case
+from fed.core.naming import normalize_email
 from fed.core.report import _fmt_bytes
 from fed.gui.widgets import Card, KeyValues, PasswordField, Segmented, label, restyle, run_async, vbox
 
@@ -373,7 +374,7 @@ class AccountPage(QWidget):
         self.go.setEnabled(False)
 
     def _discover(self) -> None:
-        email = self.email.text().strip()
+        email = normalize_email(self.email.text())
         if "@" not in email or (self.found and self.found.username == email):
             return
         self.discover_info.setText(self.tr("Suche Einstellungen …"))
@@ -408,7 +409,7 @@ class AccountPage(QWidget):
 
     def _connector(self):
         m = self.method.value()
-        user = self.user.text().strip() or self.email.text().strip()
+        user = normalize_email(self.user.text()) or normalize_email(self.email.text())
         kw = {"timeout": self.st.cfg.programm.socket_timeout_s}
         if m == "password":
             return make_connector(self.server.text().strip(), self.port.value(), self.security.currentText(), user,
@@ -418,7 +419,7 @@ class AccountPage(QWidget):
 
     def _test(self) -> None:
         self.error.setText("")
-        if not self.email.text().strip() or not self.evidence.text().strip() or not self.server.text().strip():
+        if not normalize_email(self.email.text()) or not self.evidence.text().strip() or not self.server.text().strip():
             self.error.setText(self.tr("E-Mail-Adresse, Evidence-Nummer und Server sind Pflicht."))
             return
         m = self.method.value()
@@ -428,9 +429,9 @@ class AccountPage(QWidget):
         cfg = self.st.cfg
         # alle Eingaben im GUI-Thread lesen – der Worker fasst keine Widgets an
         host, port, sec = self.server.text().strip(), self.port.value(), self.security.currentText()
-        user = self.user.text().strip() or self.email.text().strip()
+        user = normalize_email(self.user.text()) or normalize_email(self.email.text())
         password = self.password.text()
-        hint = self.login_as.text().strip() or self.email.text().strip()
+        hint = normalize_email(self.login_as.text()) or normalize_email(self.email.text())
         device = self.device.isChecked()
         timeout = cfg.programm.socket_timeout_s
         st = self.st
@@ -488,7 +489,7 @@ class AccountPage(QWidget):
 
     def _go(self) -> None:
         self.password.hide_text()
-        self.st.email = self.email.text().strip()
+        self.st.email = normalize_email(self.email.text())
         self.st.connect = self._connector()
         case = self.st.case
         if self.st.oauth_session and self.st.oauth_session.token:
@@ -499,7 +500,7 @@ class AccountPage(QWidget):
         self.st.account_id = row[0] if row else None
         self.st.spec = acq.AccountSpec(
             self.st.email, self.evidence.text().strip(), self.server.text().strip(), self.port.value(),
-            self.security.currentText(), self.user.text().strip() or self.st.email,
+            self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
             {"password": "password", "google": "oauth_google", "microsoft": "oauth_microsoft"}[self.method.value()],
             self.found.source if self.found else "manuell")
         self.next.emit()
@@ -961,6 +962,11 @@ class FinishPage(QWidget):
         deleted = not self.st.case.work_dir.exists()
         k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
               else self.tr("behalten"), "ok" if deleted else None)
+        if res.timestamp is not None:
+            k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("{0} UTC · Seriennr. {1}").format(
+                res.timestamp.gen_time.replace("T", " ").rstrip("Z"), res.timestamp.serial), "ok")
+        elif res.timestamp_error:
+            k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("fehlgeschlagen: {0}").format(res.timestamp_error), "warn")
         k.set(self.tr("Berichte erzeugt"), "report.pdf · report.txt · log.csv", "ok")
         for p in z.problems:
             k.set(self.tr("Hinweis"), p, "warn")
@@ -982,7 +988,10 @@ class FinishPage(QWidget):
 
 
 # ====================================================================== Assistent
-STEPS = ["Case anlegen", "Systemprüfung", "Konto", "Postfach scannen", "Ordner wählen", "Sicherung", "Abschluss"]
+STEPS = [QT_TRANSLATE_NOOP("Assistant", "Case anlegen"), QT_TRANSLATE_NOOP("Assistant", "Systemprüfung"),
+         QT_TRANSLATE_NOOP("Assistant", "Konto"), QT_TRANSLATE_NOOP("Assistant", "Postfach scannen"),
+         QT_TRANSLATE_NOOP("Assistant", "Ordner wählen"), QT_TRANSLATE_NOOP("Assistant", "Sicherung"),
+         QT_TRANSLATE_NOOP("Assistant", "Abschluss")]
 
 
 class Assistant(QWidget):

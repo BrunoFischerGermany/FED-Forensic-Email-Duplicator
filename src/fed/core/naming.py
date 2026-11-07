@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import re
+import unicodedata
 from datetime import UTC, datetime
 
 # In Windows ungültige Zeichen und Steuerzeichen
@@ -19,6 +20,35 @@ _RESERVED = {
     *(f"COM{i}" for i in range(1, 10)),
     *(f"LPT{i}" for i in range(1, 10)),
 }
+
+
+def normalize_email(address: str) -> str:
+    """Leerzeichen entfernen, Unicode-Normalform NFC (macOS liefert Umlaute teils zerlegt)."""
+    return unicodedata.normalize("NFC", address.strip())
+
+
+def idna_host(host: str) -> str:
+    """Hostname/Domain mit Umlauten in die ASCII-Form für DNS und TLS (IDNA 2008/UTS 46).
+
+    ``ärzte.de`` -> ``xn--rzte-koa.de``, ``straße.de`` -> ``xn--strae-oqa.de`` (IDNA 2003
+    würde fälschlich ``strasse.de`` liefern). Reine ASCII-Namen bleiben unverändert.
+    """
+    host = unicodedata.normalize("NFC", host.strip()).rstrip(".")
+    if host.isascii():
+        return host.lower()
+    try:
+        import idna
+
+        return idna.encode(host, uts46=True).decode("ascii")
+    except ImportError:
+        return host.encode("idna").decode("ascii").lower()
+    except idna.IDNAError as e:
+        raise ValueError(f"Ungültiger Domainname: {host} ({e})") from e
+
+
+def email_domain(address: str) -> str:
+    """ASCII-Domain einer E-Mail-Adresse (für DNS, Autoconfig, Serversuche)."""
+    return idna_host(address.rsplit("@", 1)[-1])
 
 
 def eml_filename(internaldate: datetime, uid: int) -> str:

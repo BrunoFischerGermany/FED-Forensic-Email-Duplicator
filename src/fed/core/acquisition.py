@@ -61,6 +61,12 @@ class AccountSpec:
     date_from: datetime | None = None
     date_to: datetime | None = None  # einschließlich
 
+    def __post_init__(self) -> None:
+        from fed.core.naming import normalize_email
+
+        self.email = normalize_email(self.email)
+        self.username = normalize_email(self.username)
+
 
 @dataclass
 class AttemptResult:

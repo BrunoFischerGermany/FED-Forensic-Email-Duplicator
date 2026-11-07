@@ -37,6 +37,19 @@
   Oberfläche beim Start die Grunddaten ab (Agentur, Anschrift, Logo, Examiner, Sprache, Zielordner)
 - Fertige Programme per GitHub Actions (`Build`): Windows x64, macOS Apple Silicon,
   macOS Intel, Linux x64; bei Tag `v*` automatisch als GitHub-Release mit SHA256SUMS
+- Meilenstein 6:
+  - Zeitstempel nach RFC 3161 für den ZIP-Hash (`tsa_url`), Antwort als `.tsr` neben dem ZIP,
+    Prüfung von Hash und Nonce, Abschnitt im Bericht mit `openssl ts -verify`-Befehl
+  - Validierungsprotokoll `python -m validation.run`: 12 Prüfungen gegen das Testpostfach,
+    PDF/TXT auf Deutsch und Englisch plus JSON; hängt an jedem Release
+  - Englische Oberfläche (`sprache = "en"`), beim ersten Start nach Systemsprache;
+    Übersetzungen in `src/fed/i18n/en.json`, Werkzeug `packaging/i18n.py`
+  - SHA-256 des Programms wird je Case festgehalten (bisher leer)
+- Umlaute in E-Mail-Adressen: Anmeldung mit Umlauten in Benutzername/Passwort per
+  `AUTHENTICATE PLAIN` (vorher Programmfehler bei LOGIN), Domains und Hostnamen nach
+  IDNA 2008 (`straße.de` -> `xn--strae-oqa.de`, vorher fälschlich `strasse.de`),
+  Adresse in Autoconfig-URLs kodiert, Eingaben in Unicode-Normalform NFC;
+  Testkonto `bärbel.böhmer@ärzte.de` und Validierungspunkt V13
 
 ## 0.4-beta
 

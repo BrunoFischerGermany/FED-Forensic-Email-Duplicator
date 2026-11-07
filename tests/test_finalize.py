@@ -135,3 +135,34 @@ def test_keep_work_dir_by_default(acquired):
     case = acquired
     finish_case(case, Config())
     assert case.work_dir.exists()
+
+
+def test_finish_with_rfc3161_timestamp(acquired):
+    from validation.fake_tsa import FakeTsa, available
+
+    if not available():
+        pytest.skip("openssl ts nicht verfügbar")
+    case = acquired
+    cfg = Config()
+    with FakeTsa() as tsa:
+        cfg.tsa_url = tsa.url
+        res = finish_case(case, cfg, language="en")
+    assert res.timestamp and not res.timestamp_error
+    assert res.timestamp.hashed_message == res.zip.hashes["sha256"]
+    tsr = res.zip.path.with_name(res.zip.path.name + ".tsr")
+    assert tsr.exists()
+    outputs = {r[0] for r in case.conn.execute("SELECT file_name FROM output")}
+    assert tsr.name in outputs
+    txt = res.report_txt.read_text(encoding="utf-8")
+    assert "Timestamp (RFC 3161)" in txt and res.timestamp.serial in txt and "openssl ts -verify" in txt
+
+
+def test_finish_continues_when_timestamp_fails(acquired):
+    case = acquired
+    cfg = Config()
+    cfg.tsa_url = "http://127.0.0.1:9/"
+    cfg.programm.socket_timeout_s = 2
+    res = finish_case(case, cfg)
+    assert res.zip.verified and res.timestamp is None and "nicht erreichbar" in res.timestamp_error
+    assert case.closed
+    assert "fehlgeschlagen" in res.report_txt.read_text(encoding="utf-8")

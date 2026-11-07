@@ -35,7 +35,9 @@ wach_halten      = true         # Ruhezustand/Bildschirmsperre während Sicherun
 url = ""                        # z. B. "http://proxy.behoerde.local:8080" oder "socks5://..."
 
 [zeitstempel]
-tsa_url = ""                    # RFC-3161-Zeitstempeldienst, leer = aus
+tsa_url = ""                    # RFC-3161-Zeitstempeldienst für den ZIP-Hash, leer = aus
+                                # z. B. "https://freetsa.org/tsr" (kostenlos, nicht qualifiziert);
+                                # für gerichtsfeste Zeitstempel einen qualifizierten Dienst (eIDAS) eintragen
 
 [oauth.google]
 client_id     = ""

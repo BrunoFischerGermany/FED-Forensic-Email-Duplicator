@@ -46,14 +46,18 @@ def main() -> int:
         cfg = cfgmod.Config()
         config_broken = True  # ungültige Datei nicht durch die Ersteinrichtung überschreiben
 
-    from fed.gui import theme
+    from fed.gui import i18n, theme
     from fed.gui.setup_dialog import SetupDialog, needs_setup
 
+    if cfg.source_path is None:  # erster Start: Sprache des Systems vorschlagen
+        cfg.programm.sprache = i18n.system_language()
+    i18n.install(cfg.programm.sprache)
     if not config_broken and needs_setup(cfg):
         theme.apply(app, "dunkel" if theme.is_dark(cfg.programm.design) else "hell")
         dlg = SetupDialog(cfg, program_dir() / cfgmod.CONFIG_FILENAME)
         dlg.exec()
         dlg.deleteLater()
+        i18n.install(cfg.programm.sprache)  # in der Ersteinrichtung gewählte Sprache
     win = MainWindow(cfg, program_dir())
     win.show()
     return app.exec()
