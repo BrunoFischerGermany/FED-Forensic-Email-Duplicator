@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Dovecot für Integrationstests (nur Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q dovecot-imapd libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+          sudo systemctl stop dovecot || true
+      - run: pip install -e ".[dev]"
+      - run: ruff check src tests validation
+      - run: pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen

@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fed"
+version = "1.0.0.dev0"
+description = "FED - Forensic Email Duplicator: forensische Sicherung von E-Mail-Postfächern"
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.14"
+authors = [{ name = "Bruno Fischer" }]
+keywords = ["forensics", "imap", "email", "eml", "dfir"]
+classifiers = [
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+    "Intended Audience :: Legal Industry",
+]
+dependencies = [
+    "PySide6>=6.10",
+    "dnspython>=2.7",
+    "fpdf2>=2.8",
+    "tomli-w>=1.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8", "tzdata; sys_platform == 'win32'"]
+build = ["nuitka>=4.2"]
+
+[project.scripts]
+fed = "fed.cli:main"
+
+[project.gui-scripts]
+fed-gui = "fed.gui.app:main"
+
+[project.urls]
+Homepage = "https://github.com/BrunoFischerGermany/FED-ForensicEmailDownloader"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+fed = ["resources/*.sql", "resources/*.svg", "resources/*.png", "resources/fonts/*", "i18n/*.qm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP", "RUF"]
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]  # Zeilenlänge; deutsche Typografie („…“, –) ist gewollt

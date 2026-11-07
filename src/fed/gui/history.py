@@ -1,0 +1,226 @@
+"""Tab „Historie“: alles nur lesend aus der case.sqlite."""
+
+from __future__ import annotations
+
+import csv
+import json
+
+from PySide6.QtCore import QSortFilterProxyModel, Qt, QTimer
+from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox, QPushButton,
+                               QTableView, QTabWidget, QVBoxLayout, QWidget)
+
+from fed.core import timefmt as tf
+from fed.core.case import Case
+from fed.core.hashing import hash_file
+from fed.gui.widgets import Card, label, restyle, run_async
+
+MAIL_COLS = ["Ordner", "Eingangszeit (UTC)", "Eingangszeit (lokal)", "Absender", "Empfänger", "Anlagen", "Betreff", "Datei", "SHA-256",
+             "Versuch", "Status"]
+ATTEMPT_COLS = ["Versuch", "Konto", "Modus", "Start (UTC)", "Start (lokal)", "Ende (UTC)", "Ende (lokal)", "Status", "Gesichert", "Ø MB/s",
+                "Grund / Hinweis"]
+LOG_COLS = ["Zeit (UTC)", "Zeit (lokal)", "Versuch", "Stufe", "Ereignis", "Details"]
+FOLDER_COLS = ["Konto", "Ordner", "gewählt", "Server", "gesichert", "Differenz", "Vorher/Nachher"]
+
+
+def _recipient(to, cc, bcc, note, delivered) -> str:
+    to, cc, bcc, dl = (json.loads(x or "[]") for x in (to, cc, bcc, delivered))
+    if to:
+        return to[0] + (f" +{len(to) - 1}" if len(to) > 1 else "") + (f" +{len(cc)} CC" if cc else "")
+    if cc:
+        return "CC: " + cc[0]
+    if bcc:
+        return f"nur BCC: {len(bcc)} Empfänger"
+    if dl:
+        return f"kein To/CC · Delivered-To: {dl[0]}"
+    return note or "kein Empfänger"
+
+
+class Table(QWidget):
+    def __init__(self, cols: list[str], search: bool = True) -> None:
+        super().__init__()
+        self.model = QStandardItemModel(0, len(cols))
+        self.model.setHorizontalHeaderLabels(cols)
+        self.proxy = QSortFilterProxyModel()
+        self.proxy.setSourceModel(self.model)
+        self.proxy.setFilterKeyColumn(-1)
+        self.proxy.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        self.view = QTableView()
+        self.view.setModel(self.proxy)
+        self.view.setSortingEnabled(True)
+        self.view.setAlternatingRowColors(True)
+        self.view.verticalHeader().setVisible(False)
+        self.view.setEditTriggers(QTableView.EditTrigger.NoEditTriggers)
+        self.view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.view.horizontalHeader().setStretchLastSection(True)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 8, 0, 0)
+        if search:
+            self.search = QLineEdit()
+            self.search.setPlaceholderText(self.tr("Suche: Betreff, Absender, Hash …"))
+            self.search.textChanged.connect(self.proxy.setFilterFixedString)
+            lay.addWidget(self.search)
+        lay.addWidget(self.view)
+        self.count = label("", "Hint")
+        lay.addWidget(self.count)
+
+    def fill(self, rows: list[list]) -> None:
+        self.model.setRowCount(0)
+        for r in rows:
+            items = []
+            for v in r:
+                it = QStandardItem("" if v is None else str(v))
+                if isinstance(v, int | float):
+                    it.setData(v, Qt.ItemDataRole.DisplayRole)
+                items.append(it)
+            self.model.appendRow(items)
+        self.view.resizeColumnsToContents()
+        self.count.setText(self.tr("{0} Einträge").format(len(rows)))
+
+    def rows(self) -> list[list[str]]:
+        return [[self.proxy.index(r, c).data() or "" for c in range(self.proxy.columnCount())]
+                for r in range(self.proxy.rowCount())]
+
+
+class HistoryTab(QWidget):
+    def __init__(self, get_case) -> None:
+        super().__init__()
+        self.get_case = get_case
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(40, 28, 40, 20)
+        lay.setSpacing(16)
+        head = QHBoxLayout()
+        head.addWidget(label(self.tr("Historie"), "H1"))
+        head.addStretch(1)
+        self.chain = label("", "Ok")
+        head.addWidget(self.chain)
+        for text, fn in ((self.tr("Hash-Kette prüfen"), self.verify_chain), (self.tr("Dateien nachhashen"), self.rehash),
+                         (self.tr("Export CSV"), self.export)):
+            b = QPushButton(text)
+            b.clicked.connect(fn)
+            head.addWidget(b)
+        lay.addLayout(head)
+        self.sub = label(self.tr("Nur lesend aus case.sqlite · jede Prüfung wird selbst protokolliert"), "Muted")
+        lay.addWidget(self.sub)
+        att_card = Card()
+        self.attempts = Table(ATTEMPT_COLS, search=False)
+        self.attempts.setMaximumHeight(180)
+        att_card.add(self.attempts)
+        lay.addWidget(att_card)
+        self.tabs = QTabWidget()
+        self.mails = Table(MAIL_COLS)
+        self.log = Table(LOG_COLS)
+        self.folders = Table(FOLDER_COLS, search=False)
+        self.tabs.addTab(self.mails, self.tr("Gesicherte Mails"))
+        self.tabs.addTab(self.log, self.tr("Log"))
+        self.tabs.addTab(self.folders, self.tr("Ordner Soll/Ist + Vorher/Nachher"))
+        lay.addWidget(self.tabs, 1)
+        self.empty = label(self.tr("Kein Case geöffnet – unter „Sicherung“ einen Case anlegen oder öffnen."), "Muted")
+        lay.addWidget(self.empty)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh)
+        self.timer.start(3000)
+
+    def showEvent(self, e) -> None:
+        self.refresh()
+        super().showEvent(e)
+
+    def refresh(self) -> None:
+        if not self.isVisible():
+            return
+        case: Case | None = self.get_case()
+        for w in (self.attempts, self.tabs):
+            w.setVisible(case is not None)
+        self.empty.setVisible(case is None)
+        if case is None:
+            return
+        c = case.conn
+        self.attempts.fill([[r[0], r[1], r[2], tf.utc_str(r[3])[:19], tf.local_str(r[3]),
+                             tf.utc_str(r[4])[:19] if r[4] else "", tf.local_str(r[4]), r[5], r[6],
+                             round((r[7] or 0) / 1e6, 1), (r[8] or "") + (f" → {r[9]}" if r[9] else "")]
+                            for r in c.execute(
+            "SELECT t.nr, a.email, t.mode, t.started_utc, t.ended_utc, t.status, "
+            "(SELECT COUNT(*) FROM message m WHERE m.attempt_id = t.id), t.avg_bytes_s, t.reason, t.moved_to "
+            "FROM attempt t JOIN account a ON a.id = t.account_id ORDER BY t.id")])
+        if self.tabs.currentWidget() is self.mails or not self.mails.model.rowCount():
+            self.mails.fill([[r[0], tf.utc_str(r[1])[:19], tf.local_str(r[1]), ", ".join(json.loads(r[2] or "[]")),
+                              _recipient(*r[3:8]), str(r[8]) + (f" +{r[9]} inline" if r[9] else ""), r[10], r[11].split("/")[-1],
+                              r[12], r[13], r[14]] for r in c.execute(
+                "SELECT f.display_name, m.internaldate, m.msg_from, m.msg_to, m.msg_cc, m.msg_bcc, m.recipient_note, "
+                "m.delivered_to, m.attachment_count, m.inline_count, m.subject, m.zip_path, m.sha256, t.nr, m.status "
+                "FROM message m JOIN folder f ON f.id = m.folder_id JOIN attempt t ON t.id = m.attempt_id "
+                "ORDER BY m.internaldate DESC")])
+        if self.tabs.currentWidget() is self.log:
+            self.log.fill([[tf.utc_str(r[0])[:19], tf.local_str(r[0]), r[1] or "", r[2], r[3], r[4][:300]] for r in c.execute(
+                "SELECT l.ts_utc, t.nr, l.level, l.event, l.details FROM log l LEFT JOIN attempt t ON t.id = l.attempt_id "
+                "ORDER BY l.id DESC")])
+        if self.tabs.currentWidget() is self.folders:
+            rows = []
+            for r in c.execute("SELECT a.email, f.display_name, f.selected, f.count_server, f.count_saved, "
+                               "f.status_before, f.status_after FROM folder f JOIN account a ON a.id = f.account_id "
+                               "ORDER BY f.account_id, f.id"):
+                ba = "–" if not r[5] else ("unverändert" if json.loads(r[5]) == json.loads(r[6] or "{}") else
+                                           f"GEÄNDERT {r[5]} → {r[6]}")
+                rows.append([r[0], r[1], "ja" if r[2] else "nein", r[3] or 0, r[4] or 0,
+                             (r[4] or 0) - (r[3] or 0) if r[2] else "", ba])
+            self.folders.fill(rows)
+
+    def verify_chain(self) -> None:
+        case = self.get_case()
+        if not case:
+            return
+        ok, bad = case.verify_log()
+        n = case.conn.execute("SELECT COUNT(*) FROM log").fetchone()[0]
+        case.log("INFO" if ok else "ERROR", "history_chain_check", {"ok": ok, "first_bad": bad})
+        self.chain.setText(self.tr("✓ Log-Kette unverändert · {0} Einträge").format(n) if ok
+                           else self.tr("✗ Log-Kette gebrochen ab Eintrag {0}").format(bad))
+        restyle(self.chain, "Ok" if ok else "Error")
+
+    def rehash(self) -> None:
+        case = self.get_case()
+        if not case:
+            return
+        self.chain.setText(self.tr("hashe nach …"))
+
+        def work(cancel, report):
+            if not case.work_dir.exists():  # Arbeitsordner gelöscht -> gegen das ZIP prüfen
+                from fed.core.finalize import verify_zip
+
+                row = case.conn.execute("SELECT file_name FROM output WHERE file_name LIKE '%.zip' "
+                                        "ORDER BY id DESC LIMIT 1").fetchone()
+                if not row:
+                    raise RuntimeError(self.tr("Weder Arbeitsordner noch ZIP vorhanden"))
+                v = verify_zip(case, case.root / row[0], cancel=cancel)
+                case.log("INFO" if v.verified else "ERROR", "history_rehash_zip", {"zip": row[0], "problems": v.problems})
+                return v.files, v.problems
+            bad, n = [], 0
+            for zip_path, sha in case.conn.execute("SELECT zip_path, sha256 FROM message WHERE status = 'valid'"):
+                cancel.raise_if_cancelled()
+                p = case.work_dir / zip_path
+                n += 1
+                if not p.exists() or hash_file(p)["sha256"] != sha:
+                    bad.append(zip_path)
+            case.log("INFO" if not bad else "ERROR", "history_rehash", {"checked": n, "invalid": bad})
+            return n, bad
+
+        def done(res):
+            n, bad = res
+            self.chain.setText(self.tr("✓ {0} Dateien identisch").format(n) if not bad
+                               else self.tr("✗ {0} von {1} Dateien abweichend oder fehlend").format(len(bad), n))
+            restyle(self.chain, "Ok" if not bad else "Error")
+
+        run_async(work, done, lambda e, tb: QMessageBox.critical(self, "FED", e), parent=self)
+
+    def export(self) -> None:
+        t = self.tabs.currentWidget()
+        path, _ = QFileDialog.getSaveFileName(self, self.tr("Ansicht als CSV speichern"), "historie.csv", "CSV (*.csv)")
+        if not path:
+            return
+        with open(path, "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.writer(f, delimiter=";")
+            w.writerow([t.model.headerData(i, Qt.Orientation.Horizontal) for i in range(t.model.columnCount())])
+            w.writerows(t.rows())
+        case = self.get_case()
+        if case:
+            case.log("INFO", "history_export", {"file": path, "rows": t.proxy.rowCount()})
