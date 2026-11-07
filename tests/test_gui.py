@@ -148,7 +148,12 @@ def test_long_texts_do_not_widen_window(app, tmp_path):
     w.assistant.p_case.case_no.setText("VG-" + "1234567890" * 8)
     for _ in range(20):
         app.processEvents()
-    assert w.minimumSizeHint().width() < 1000
+    from PySide6.QtWidgets import QWidget
+
+    wide = sorted(((c.minimumSizeHint().width(), type(c).__name__, c.objectName(),
+                    (c.text()[:40] if hasattr(c, "text") and callable(c.text) else ""))
+                   for c in w.findChildren(QWidget) if c.isVisible()), reverse=True)[:15]
+    assert w.minimumSizeHint().width() < 1000, wide
     assert w.width() == 1100
     assert w.assistant.p_case.target_hint.full_text().endswith("1234567890")
     w.close()
