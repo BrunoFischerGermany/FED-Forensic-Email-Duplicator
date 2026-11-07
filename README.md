@@ -4,6 +4,8 @@
 
 *Forensische Sicherung von E-Mail-Postfächern*
 
+**Deutsch** · [English](README.en.md)
+
 > **Branch `v1.0` – in Entwicklung.** Neuaufbau mit GUI. Das bisherige Kommandozeilen-Skript v0.4-beta liegt unter [`legacy/`](legacy/) (MIT-Lizenz).
 
 FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
@@ -24,7 +26,8 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 | 2 | Systemprüfung, Autoerkennung, IMAP nur lesend, Scan, Download in Arbeitsordner, Testpostfach | ✅ |
 | 3 | OAuth2 Google / Microsoft 365 (Browser + PKCE, Gerätecode, Token-Erneuerung) | ✅ |
 | 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Oberfläche (Assistent, Historie, Einstellungen, Hell/Dunkel) | ✅ |
-| 5 | RFC-3161, Validierungs-Postfach, Nuitka-Builds | ⏳ |
+| 5 | Fertige Programme (Nuitka) für Windows, macOS, Linux | ✅ |
+| 6 | RFC-3161-Zeitstempel, Validierungsbericht, englische Oberfläche | ⏳ |
 
 ## Entwicklung
 
