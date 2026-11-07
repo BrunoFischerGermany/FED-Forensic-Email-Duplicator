@@ -22,7 +22,8 @@ from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, explain_login_error, 
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
 from fed.core.finalize import finish_case
-from fed.core.naming import normalize_email
+from fed.core.naming import next_evidence, normalize_email
+from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
 from fed.gui.widgets import Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, restyle, run_async, vbox
 
@@ -275,6 +276,14 @@ class AccountPage(QWidget):
         w, lay = page(self.tr("Konto einrichten"),
                       self.tr("Adresse eingeben – Server, Port und Verschlüsselung werden wie bei Thunderbird "
                               "automatisch ermittelt."))
+        self.accounts_card = Card(self.tr("Bereits in diesem Case"))
+        self.accounts = AccountsTable()
+        self.accounts_card.add(self.accounts)
+        self.accounts_card.add(label(self.tr("Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues "
+                                             "Konto unten die Adresse eingeben."), "Hint", wrap=True))
+        self.accounts.picked.connect(self._pick)
+        self.accounts_card.setVisible(False)
+        lay.addWidget(self.accounts_card)
         cols = QHBoxLayout()
         cols.setSpacing(24)
         left = QVBoxLayout()
@@ -292,6 +301,9 @@ class AccountPage(QWidget):
         g.addWidget(self.email, 1, 0)
         g.addWidget(self.evidence, 1, 1)
         c1.add(g)
+        self.evidence_hint = label("", "Hint", wrap=True)
+        self.evidence_hint.setVisible(False)
+        c1.add(self.evidence_hint)
         self.discover_info = label(self.tr("Einstellungen werden nach Eingabe der Adresse gesucht."), "Muted", wrap=True)
         c1.add(self.discover_info)
         mf = QFormLayout()
@@ -309,6 +321,7 @@ class AccountPage(QWidget):
         mf.addRow(self.tr("Benutzername"), self.user)
         c1.add(mf)
         self.email.editingFinished.connect(self._discover)
+        self.email.editingFinished.connect(self._check_known)
         left.addWidget(c1)
 
         c2 = Card(self.tr("Anmeldung"))
@@ -359,6 +372,49 @@ class AccountPage(QWidget):
         self._method_changed("password")
         for x in (self.server, self.user, self.password):
             x.textChanged.connect(lambda *_: self.go.setEnabled(False))
+
+    def prepare(self) -> None:
+        """Vor dem Einrichten eines (weiteren) Kontos: Übersicht zeigen, Evidence-Nummer vorschlagen."""
+        rows = self.accounts.refresh(self.st.case)
+        self.accounts_card.setVisible(bool(rows))
+        suggestion = next_evidence([o["evidence"] for o in rows])
+        if suggestion and not self.evidence.text().strip():
+            self.evidence.setText(suggestion)
+            self.evidence.selectAll()
+            self.evidence_hint.setText(self.tr("Evidence-Nummer vorgeschlagen (nach {0}) – bitte prüfen.")
+                                       .format(rows[-1]["evidence"]))
+        else:
+            self.evidence_hint.setText("")
+        self.evidence_hint.setVisible(bool(self.evidence_hint.text()))
+
+    def _pick(self, o: dict) -> None:
+        """Konto aus der Übersicht übernehmen (Server, Port, Benutzer aus der Case-Datei)."""
+        row = self.st.case.conn.execute("SELECT server, port, security, username, auth_method FROM account "
+                                        "WHERE id = ?", (o["id"],)).fetchone()
+        self.email.setText(o["email"])
+        self.server.setText(row[0])
+        self.port.setValue(row[1])
+        self.security.setCurrentText(row[2])
+        self.user.setText(row[3] if row[3] != o["email"] else "")
+        m = {"oauth_google": "google", "oauth_microsoft": "microsoft",
+             "app_password_google": "google_app"}.get(row[4], "password")
+        self.method.set_value(m)
+        self._method_changed(m)
+        self.found = None
+        self._check_known()
+        self.password.setFocus()
+
+    def _known(self, email: str) -> dict | None:
+        return next((o for o in self.accounts.rows if o["email"].casefold() == email.casefold()), None)
+
+    def _check_known(self) -> None:
+        o = self._known(normalize_email(self.email.text()))
+        if o:
+            sym, text, _ = state_text(o)
+            self.evidence_hint.setText(self.tr("Dieses Konto ist schon im Case ({0}, {1} {2}) – es wird fortgesetzt, "
+                                               "die Evidence-Nummer bleibt {0}.").format(o["evidence"], sym, text))
+            self.evidence.setText(o["evidence"])
+            self.evidence_hint.setVisible(True)
 
     def _method_changed(self, m: str) -> None:
         pw = m in ("password", "google_app")
@@ -432,6 +488,13 @@ class AccountPage(QWidget):
         self.error.setText("")
         if not normalize_email(self.email.text()) or not self.evidence.text().strip() or not self.server.text().strip():
             self.error.setText(self.tr("E-Mail-Adresse, Evidence-Nummer und Server sind Pflicht."))
+            return
+        ev, email = self.evidence.text().strip(), normalize_email(self.email.text())
+        other = next((o for o in self.accounts.rows
+                      if o["evidence"].casefold() == ev.casefold() and o["email"].casefold() != email.casefold()), None)
+        if other:
+            self.error.setText(self.tr("Die Evidence-Nummer {0} ist im Case schon für {1} vergeben.")
+                               .format(ev, other["email"]))
             return
         m = self.method.value()
         self.test_btn.setEnabled(False)
@@ -752,6 +815,11 @@ class AcquirePage(QWidget):
         lc.add(self.log)
         cols.addWidget(lc, 2)
         lay.addLayout(cols, 1)
+        self.accounts_card = Card(self.tr("Konten in diesem Case"))
+        self.accounts = AccountsTable()
+        self.accounts_card.add(self.accounts)
+        self.accounts_card.setVisible(False)
+        lay.addWidget(self.accounts_card)
         b = QHBoxLayout()
         b.addStretch(1)
         self.resume_btn = QPushButton(self.tr("Fortsetzen"))
@@ -777,6 +845,7 @@ class AcquirePage(QWidget):
         st = self.st
         for x in (self.resume_btn, self.restart_btn, self.another_btn, self.finish_btn):
             x.setVisible(False)
+        self.accounts_card.setVisible(False)
         self.cancel_btn.setVisible(True)
         self.title.setText(self.tr("Sicherung läuft"))
         now = datetime.now(UTC)
@@ -848,7 +917,12 @@ class AcquirePage(QWidget):
         self.restart_btn.setVisible(True)
         self.another_btn.setVisible(res.status == "done")
         self.finish_btn.setVisible(res.status == "done")
+        self._show_accounts()
         self.finished.emit(res)
+
+    def _show_accounts(self) -> None:
+        self.accounts.refresh(self.st.case, self.st.email)
+        self.accounts_card.setVisible(True)
 
     def _failed(self, err: str, tb: str) -> None:
         allow_sleep(self.st)
@@ -858,6 +932,7 @@ class AcquirePage(QWidget):
         self.title.setText(self.tr("Sicherung fehlgeschlagen"))
         self.sub.setText(err)
         restyle(self.sub, "Error")
+        self._show_accounts()
         self.resume_btn.setVisible(True)
         self.restart_btn.setVisible(True)
 
@@ -1031,8 +1106,15 @@ class Assistant(QWidget):
             b.setEnabled(False)
             rl.addWidget(b)
             self.step_btns.append(b)
+        rl.addSpacing(20)
+        self.rail_accounts = AccountsRail()
+        self.rail_accounts.setVisible(False)
+        rl.addWidget(self.rail_accounts)
         rl.addStretch(1)
         lay.addWidget(rail)
+        self._rail_timer = QTimer(self)
+        self._rail_timer.timeout.connect(self.refresh_accounts)
+        self._rail_timer.start(3000)
         self.stack = QStackedWidget()
         lay.addWidget(self.stack, 1)
         st = self.st
@@ -1046,7 +1128,7 @@ class Assistant(QWidget):
         self.p_fold.back.connect(lambda: self._show(1, 2))
         self.p_fold.next.connect(lambda: (self._show(3, 5), self.p_acq.start()))
         self.p_acq.another.connect(self._another)
-        self.p_acq.finish.connect(lambda: (self._show(4, 6), self.p_fin.run()))
+        self.p_acq.finish.connect(self._finish)
         self.p_acq.finished.connect(lambda _: self.case_changed.emit())
         self.p_fin.new_case.connect(self._new_case)
         self._show(0, 0)
@@ -1057,8 +1139,28 @@ class Assistant(QWidget):
             b.setChecked(i == step)
             b.setText(f"  {'✓' if i < step else i + 1}   {self.tr(STEPS[i])}")
 
+    def refresh_accounts(self) -> None:
+        try:
+            self.rail_accounts.refresh(self.st.case)
+        except Exception:  # Anzeige darf eine laufende Sicherung nie stören
+            pass
+
+    def _finish(self) -> None:
+        open_ = incomplete(self.st.case) if self.st.case else []
+        if open_:
+            lines = "\n".join(f"{state_text(o)[0]}  {o['evidence']} · {o['email']} – {state_text(o)[1]}" for o in open_)
+            r = QMessageBox.question(self, self.tr("Case abschließen"), self.tr(
+                "Nicht alle Konten sind vollständig gesichert:\n\n{0}\n\nNach dem Abschluss kann der Case nicht mehr "
+                "ergänzt werden. Trotzdem abschließen?").format(lines))
+            if r != QMessageBox.StandardButton.Yes:
+                return
+        self._show(4, 6)
+        self.p_fin.run()
+
     def _after_case(self) -> None:
         self.case_changed.emit()
+        self.refresh_accounts()
+        self.p_acc.prepare()
         if self.st.case.closed:
             QMessageBox.information(self, self.tr("Case abgeschlossen"),
                                     self.tr("Dieser Case ist abgeschlossen und kann nur noch in der Historie angesehen werden."))
@@ -1074,6 +1176,8 @@ class Assistant(QWidget):
         p.found = None
         p.go.setEnabled(False)
         p.test.clear()
+        p.prepare()
+        self.refresh_accounts()
         self._show(1, 2)
 
     def _new_case(self) -> None:

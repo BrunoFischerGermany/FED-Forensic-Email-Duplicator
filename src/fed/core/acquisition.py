@@ -546,6 +546,35 @@ def summary(case: Case, account_id: int) -> dict:
             "saved_total": sum(r[3] or 0 for r in rows if r[1])}
 
 
-__all__ = ["AccountSpec", "AttemptResult", "Mode", "ResumeNotPossible", "register_account", "run_attempt",
-           "scan", "set_selection", "summary"]
+def accounts_overview(case: Case) -> list[dict]:
+    """Je Konto im Case: Stand der Sicherung für die Übersicht.
+
+    ``state``: ``new`` (angelegt, noch kein Versuch) | ``running`` | ``done`` | ``partial``
+    (fertig, aber weniger gesichert als auf dem Server) | ``cancelled`` | ``failed``.
+    """
+    out = []
+    for acc_id, email, evidence, server, auth, dfrom, dto in case.conn.execute(
+            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to FROM account ORDER BY id"):
+        attempts = case.conn.execute("SELECT nr, status, started_utc, ended_utc FROM attempt WHERE account_id = ? "
+                                     "ORDER BY nr", (acc_id,)).fetchall()
+        sel, total, expected = case.conn.execute(
+            "SELECT COALESCE(SUM(selected), 0), COUNT(*), COALESCE(SUM(CASE WHEN selected = 1 THEN count_server END), 0) "
+            "FROM folder WHERE account_id = ?", (acc_id,)).fetchone()
+        saved, size = case.conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(m.size), 0) FROM message m JOIN folder f ON f.id = m.folder_id "
+            "WHERE f.account_id = ? AND m.status = 'valid'",
+            (acc_id,)).fetchone()
+        last = attempts[-1] if attempts else None
+        state = last[1] if last else "new"
+        if state == "done" and not (dfrom or dto) and saved < expected:
+            state = "partial"
+        out.append({"id": acc_id, "email": email, "evidence": evidence, "server": server, "auth": auth,
+                    "attempts": len(attempts), "state": state, "saved": saved, "expected": expected,
+                    "bytes": size, "folders_selected": sel, "folders_total": total,
+                    "date_filter": bool(dfrom or dto), "last_utc": (last[3] or last[2]) if last else None})
+    return out
+
+
+__all__ = ["AccountSpec", "AttemptResult", "Mode", "ResumeNotPossible", "accounts_overview", "register_account",
+           "run_attempt", "scan", "set_selection", "summary"]
 

@@ -11,6 +11,14 @@
         <translation>Enter the address – server, port and encryption are detected automatically, like in Thunderbird.</translation>
     </message>
     <message>
+        <source>Bereits in diesem Case</source>
+        <translation>Already in this case</translation>
+    </message>
+    <message>
+        <source>Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues Konto unten die Adresse eingeben.</source>
+        <translation>Double-click an account to resume it; for a new account enter the address below.</translation>
+    </message>
+    <message>
         <source>E-Mail-Adresse *</source>
         <translation>Email address *</translation>
     </message>
@@ -87,6 +95,14 @@
         <translation>Scan mailbox</translation>
     </message>
     <message>
+        <source>Evidence-Nummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
+        <translation>Evidence number suggested (after {0}) – please check.</translation>
+    </message>
+    <message>
+        <source>Dieses Konto ist schon im Case ({0}, {1} {2}) – es wird fortgesetzt, die Evidence-Nummer bleibt {0}.</source>
+        <translation>This account is already in the case ({0}, {1} {2}) – it will be resumed, the evidence number stays {0}.</translation>
+    </message>
+    <message>
         <source>App-Passwort</source>
         <translation>App password</translation>
     </message>
@@ -121,6 +137,10 @@
     <message>
         <source>E-Mail-Adresse, Evidence-Nummer und Server sind Pflicht.</source>
         <translation>Email address, evidence number and server are required.</translation>
+    </message>
+    <message>
+        <source>Die Evidence-Nummer {0} ist im Case schon für {1} vergeben.</source>
+        <translation>Evidence number {0} is already used for {1} in this case.</translation>
     </message>
     <message>
         <source>teste …</source>
@@ -168,6 +188,81 @@
     </message>
 </context>
 <context>
+    <name>AccountsTable</name>
+    <message>
+        <source>angelegt, noch nicht gesichert</source>
+        <translation>added, not yet acquired</translation>
+    </message>
+    <message>
+        <source>Sicherung läuft</source>
+        <translation>Acquisition running</translation>
+    </message>
+    <message>
+        <source>vollständig gesichert</source>
+        <translation>completely acquired</translation>
+    </message>
+    <message>
+        <source>fertig, aber weniger als auf dem Server</source>
+        <translation>finished, but fewer than on the server</translation>
+    </message>
+    <message>
+        <source>abgebrochen – fortsetzbar</source>
+        <translation>cancelled – can be resumed</translation>
+    </message>
+    <message>
+        <source>fehlgeschlagen – fortsetzbar</source>
+        <translation>failed – can be resumed</translation>
+    </message>
+    <message>
+        <source>(Zeitraum-Filter)</source>
+        <translation>(date filter)</translation>
+    </message>
+    <message>
+        <source>Evidence</source>
+        <translation>Evidence</translation>
+    </message>
+    <message>
+        <source>Konto</source>
+        <translation>Account</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>Status</translation>
+    </message>
+    <message>
+        <source>Mails gesichert / Server</source>
+        <translation>Messages saved / server</translation>
+    </message>
+    <message>
+        <source>Größe</source>
+        <translation>Size</translation>
+    </message>
+    <message>
+        <source>Ordner</source>
+        <translation>Folders</translation>
+    </message>
+    <message>
+        <source>Versuche</source>
+        <translation>Attempts</translation>
+    </message>
+    <message>
+        <source>Zuletzt</source>
+        <translation>Last</translation>
+    </message>
+    <message>
+        <source>{0} Konten · {1} vollständig gesichert · {2} offen · {3} Mails · {4}</source>
+        <translation>{0} accounts · {1} completely acquired · {2} open · {3} messages · {4}</translation>
+    </message>
+    <message>
+        <source>KONTEN IM CASE</source>
+        <translation>ACCOUNTS IN CASE</translation>
+    </message>
+    <message>
+        <source>{0} von {1} Mails · {2} Versuche</source>
+        <translation>{0} of {1} messages · {2} attempts</translation>
+    </message>
+</context>
+<context>
     <name>AcquirePage</name>
     <message>
         <source>Sicherung läuft</source>
@@ -200,6 +295,10 @@
     <message>
         <source>Log</source>
         <translation>Log</translation>
+    </message>
+    <message>
+        <source>Konten in diesem Case</source>
+        <translation>Accounts in this case</translation>
     </message>
     <message>
         <source>Fortsetzen</source>
@@ -323,6 +422,22 @@ No = delete permanently.</translation>
     <message>
         <source>ABLAUF</source>
         <translation>WORKFLOW</translation>
+    </message>
+    <message>
+        <source>Case abschließen</source>
+        <translation>Close case</translation>
+    </message>
+    <message>
+        <source>Nicht alle Konten sind vollständig gesichert:
+
+{0}
+
+Nach dem Abschluss kann der Case nicht mehr ergänzt werden. Trotzdem abschließen?</source>
+        <translation>Not all accounts are completely acquired:
+
+{0}
+
+After closing, the case cannot be extended. Close anyway?</translation>
     </message>
     <message>
         <source>Case abgeschlossen</source>
@@ -902,16 +1017,16 @@ All messages will then only be contained in the verified ZIP; this saves the dup
 <context>
     <name>MainWindow</name>
     <message>
+        <source>Einstellungen</source>
+        <translation>Settings</translation>
+    </message>
+    <message>
         <source>Sicherung</source>
         <translation>Acquisition</translation>
     </message>
     <message>
         <source>Historie</source>
         <translation>History</translation>
-    </message>
-    <message>
-        <source>Einstellungen</source>
-        <translation>Settings</translation>
     </message>
     <message>
         <source>Hell / Dunkel umschalten</source>
