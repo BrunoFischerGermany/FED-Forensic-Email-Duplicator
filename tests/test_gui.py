@@ -89,3 +89,5 @@ def test_setup_dialog_saves_config(app, tmp_path):
     loaded = cfgmod.load(tmp_path / cfgmod.CONFIG_FILENAME)
     assert (loaded.agentur.name, loaded.examiner_name, loaded.programm.sprache) == ("PP Musterstadt", "KOK Muster", "en")
     assert not needs_setup(loaded)
+    d.deleteLater()
+    app.processEvents()

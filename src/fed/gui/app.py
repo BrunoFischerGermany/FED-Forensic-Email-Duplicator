@@ -51,7 +51,9 @@ def main() -> int:
 
     if not config_broken and needs_setup(cfg):
         theme.apply(app, "dunkel" if theme.is_dark(cfg.programm.design) else "hell")
-        SetupDialog(cfg, program_dir() / cfgmod.CONFIG_FILENAME).exec()
+        dlg = SetupDialog(cfg, program_dir() / cfgmod.CONFIG_FILENAME)
+        dlg.exec()
+        dlg.deleteLater()
     win = MainWindow(cfg, program_dir())
     win.show()
     return app.exec()
