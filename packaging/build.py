@@ -65,7 +65,8 @@ def nuitka_args(system: str, v: str) -> list[str]:
         "--nofollow-import-to=tkinter",
         "--assume-yes-for-downloads",
         f"--output-dir={BUILD}",
-        "--output-filename=FED",
+        # macOS ist nicht case-sensitiv: "FED" würde mit dem Paketordner "fed/" kollidieren
+        f"--output-filename={'FED-Duplicator' if system == 'macos' else 'FED'}",
         "--product-name=FED - Forensic Email Duplicator",
         "--company-name=FED Project",
         f"--file-version={numeric_version(v)}",
@@ -88,7 +89,8 @@ def package(system: str, arch: str, v: str) -> Path:
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
     if system == "macos":
-        shutil.copytree(BUILD / "fed_launcher.app", stage / "FED.app", symlinks=True)
+        app = next(BUILD.glob("*.app"))
+        shutil.copytree(app, stage / "FED.app", symlinks=True)
     else:
         shutil.copytree(BUILD / "fed_launcher.dist", stage / "FED")
     target_dir = stage if system == "macos" else stage / "FED"
@@ -115,6 +117,8 @@ def main() -> int:
     system, arch = target()
     v = version()
     print(f"FED {v} für {system}-{arch} bauen …", flush=True)
+    for old in BUILD.glob("*.app"):
+        shutil.rmtree(old)
     subprocess.run(nuitka_args(system, v), check=True, cwd=ROOT)
     out = package(system, arch, v)
     print(f"fertig: {out}")
