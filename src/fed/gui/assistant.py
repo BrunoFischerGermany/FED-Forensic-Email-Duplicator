@@ -23,7 +23,7 @@ from fed.core.config import Config
 from fed.core.finalize import finish_case
 from fed.core.naming import normalize_email
 from fed.core.report import _fmt_bytes
-from fed.gui.widgets import Card, KeyValues, PasswordField, Segmented, label, restyle, run_async, vbox
+from fed.gui.widgets import Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, restyle, run_async, vbox
 
 
 UROLE = Qt.ItemDataRole.UserRole
@@ -127,7 +127,7 @@ class CasePage(QWidget):
         tr_.addWidget(self.target, 1)
         tr_.addWidget(browse)
         f.addLayout(tr_, 5, 0, 1, 2)
-        self.target_hint = label("", "Hint")
+        self.target_hint = ElidedLabel("", "Hint")
         f.addWidget(self.target_hint, 6, 0, 1, 2)
         form_card.add(f)
         self.target.textChanged.connect(self._update_hint)
@@ -716,7 +716,7 @@ class AcquirePage(QWidget):
         cols = QHBoxLayout()
         cols.setSpacing(20)
         fc = Card()
-        self.folder_lbl = label("", "H2")
+        self.folder_lbl = ElidedLabel("", "H2")
         self.folder_bar = QProgressBar()
         self.folder_bar.setFixedHeight(8)
         self.uid_lbl = label("", "Mono")
@@ -887,7 +887,7 @@ class FinishPage(QWidget):
         left = vbox(self.checks, self.hashes, spacing=24)
         cols.addLayout(left, 3)
         rep = Card(self.tr("Bericht"))
-        self.report_lbl = label("", "Muted", wrap=True)
+        self.report_lbl = ElidedLabel("", "Muted")
         rep.add(self.report_lbl)
         self.open_pdf = QPushButton(self.tr("Bericht öffnen"))
         self.open_pdf.setObjectName("Primary")

@@ -460,6 +460,13 @@ No = delete permanently.</translation>
     </message>
 </context>
 <context>
+    <name>ElidedLabel</name>
+    <message>
+        <source>Kopieren</source>
+        <translation>Copy</translation>
+    </message>
+</context>
+<context>
     <name>FinishPage</name>
     <message>
         <source>Case abschließen</source>

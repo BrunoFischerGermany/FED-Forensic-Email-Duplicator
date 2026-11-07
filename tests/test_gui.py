@@ -128,3 +128,29 @@ def test_translations_complete():
     assert r.returncode == 0, r.stdout + r.stderr
     assert json.loads((root / "src" / "fed" / "i18n" / "en.json").read_text(encoding="utf-8"))
     assert (root / "src" / "fed" / "i18n" / "fed_en.qm").stat().st_size > 1000
+
+
+def test_long_texts_do_not_widen_window(app, tmp_path):
+    from PySide6.QtCore import Qt
+
+    from fed.core import config as cfgmod
+    from fed.gui.main_window import MainWindow
+
+    cfg = cfgmod.Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path / ("sehr-langer-ordnername-ohne-leerzeichen-" * 6))
+    cfg.agentur.name = "Hauptzollamt Berlin – Zollfahndungsamt Berlin-Brandenburg, Sachgebiet IT-Forensik " * 2
+    w = MainWindow(cfg, tmp_path)
+    w.setWindowState(Qt.WindowState.WindowNoState)
+    w.resize(1100, 720)
+    w.show()
+    _pump(app, lambda: w.assistant.st.system is not None)
+    w.assistant.p_case.case_no.setText("VG-" + "1234567890" * 8)
+    for _ in range(20):
+        app.processEvents()
+    assert w.minimumSizeHint().width() < 1000
+    assert w.width() == 1100
+    assert w.assistant.p_case.target_hint.full_text().endswith("1234567890")
+    w.close()
+    w.deleteLater()
+    app.processEvents()

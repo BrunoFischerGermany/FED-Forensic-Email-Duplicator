@@ -15,7 +15,7 @@ from fed import APP_NAME, __version__
 from fed.core import config as cfgmod
 from fed.core.languages import report_languages, ui_languages
 from fed.gui import i18n
-from fed.gui.widgets import Card, PasswordField, Segmented, label
+from fed.gui.widgets import Card, ElidedLabel, PasswordField, Segmented, label
 
 
 class SettingsTab(QWidget):
@@ -42,8 +42,8 @@ class SettingsTab(QWidget):
         head.addWidget(self.discard)
         head.addWidget(self.save_btn)
         lay.addLayout(head)
-        lay.addWidget(label(self.tr("Gespeichert in {0} · gilt für neue Cases, bestehende behalten ihre Kopie")
-                            .format(config_path), "Muted", wrap=True))
+        lay.addWidget(ElidedLabel(self.tr("Gespeichert in {0} · gilt für neue Cases, bestehende behalten ihre Kopie")
+                                  .format(config_path), "Muted"))
         grid = QGridLayout()
         grid.setSpacing(20)
 
