@@ -235,7 +235,8 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     if not z.verified:
         raise RuntimeError("ZIP-Verifikation fehlgeschlagen: " + "; ".join(z.problems))
     close_case(case)
-    txt, pdf = write_reports(case, language or cfg.programm.bericht_sprache or cfg.programm.sprache)
+    txt, pdf = write_reports(case, language or cfg.programm.bericht_sprache or cfg.programm.sprache,
+                             cfg.programm.bericht_mailliste, cfg.programm.bericht_mailliste_max)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
     return FinishResult(z, txt, pdf)

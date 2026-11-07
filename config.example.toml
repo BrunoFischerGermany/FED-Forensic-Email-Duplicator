@@ -16,6 +16,8 @@ nummer_muster = "{jahr}-{lfd:04}"   # Vorschlag für neue Casenumber
 [programm]
 sprache          = "de"         # de | en
 bericht_sprache  = ""           # leer = wie Oberfläche, sonst de | en
+bericht_mailliste     = "auto"  # Mail-Liste im Bericht: auto | immer | nie (sonst nur log.csv)
+bericht_mailliste_max = 500     # bei auto: Liste nur bis zu so vielen Mails
 design           = "system"     # system | hell | dunkel
 zielpfad         = ""           # leer = Laufwerk des Programms
 ntp              = true         # Zeitabgleich beim Start

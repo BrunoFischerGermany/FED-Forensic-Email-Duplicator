@@ -27,6 +27,8 @@ class Agentur:
 class Programm:
     sprache: str = "de"
     bericht_sprache: str = ""  # leer = wie Oberfläche
+    bericht_mailliste: str = "auto"  # auto | immer | nie
+    bericht_mailliste_max: int = 500  # bei "auto": Liste nur bis zu so vielen Mails
     design: str = "system"  # system | hell | dunkel
     zielpfad: str = ""
     ntp: bool = True
@@ -103,6 +105,8 @@ def validate(cfg: Config) -> None:
         raise ConfigError("sprache muss 'de' oder 'en' sein")
     if cfg.programm.bericht_sprache not in {"", "de", "en"}:
         raise ConfigError("bericht_sprache muss leer, 'de' oder 'en' sein")
+    if cfg.programm.bericht_mailliste not in {"auto", "immer", "nie"}:
+        raise ConfigError("bericht_mailliste muss 'auto', 'immer' oder 'nie' sein")
     if cfg.programm.design not in {"system", "hell", "dunkel"}:
         raise ConfigError("design muss 'system', 'hell' oder 'dunkel' sein")
 

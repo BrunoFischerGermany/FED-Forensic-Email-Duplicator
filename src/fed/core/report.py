@@ -32,7 +32,7 @@ LABELS = {
         "outputs": "Erzeugte Dateien und Hashes", "logchain": "Log-Kette", "entries": "Einträge",
         "head": "Hash letzter Eintrag", "ok": "unverändert", "broken": "GEBROCHEN", "mails": "Gesicherte Mails",
         "received": "Eingang (UTC)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
-        "att": "Anl.", "signature": "Ort, Datum, Unterschrift Examiner", "page": "Seite", "of": "von",
+        "att": "Anl.", "list_omitted": "Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
         "yes": "ja", "no": "nein", "unknown": "unbekannt", "file": "Datei", "size": "Größe",
     },
     "en": {
@@ -51,7 +51,7 @@ LABELS = {
         "outputs": "Output files and hashes", "logchain": "Log chain", "entries": "entries",
         "head": "Hash of last entry", "ok": "intact", "broken": "BROKEN", "mails": "Acquired messages",
         "received": "Received (UTC)", "from": "From", "to": "To", "subject": "Subject",
-        "att": "Att.", "signature": "Place, date, signature of examiner", "page": "Page", "of": "of",
+        "att": "Att.", "list_omitted": "The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
         "yes": "yes", "no": "no", "unknown": "unknown", "file": "File", "size": "Size",
     },
 }
@@ -93,6 +93,15 @@ def collect(case: Case) -> dict:
         "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
         "messages": message_rows(case),
     }
+
+
+def include_mail_list(count: int, mode: str = "auto", limit: int = 500) -> bool:
+    """Mail-Liste im Bericht: ``immer``, ``nie`` oder ``auto`` (nur bis ``limit`` Mails)."""
+    if mode == "immer":
+        return True
+    if mode == "nie":
+        return False
+    return count <= limit
 
 
 def _fmt_bytes(n: int | None) -> str:
@@ -148,7 +157,7 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
 
 
 # ---------------------------------------------------------------- TXT
-def render_txt(case: Case, language: str = "de") -> str:
+def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500) -> str:
     L = LABELS[language]
     d = collect(case)
     out = []
@@ -180,20 +189,24 @@ def render_txt(case: Case, language: str = "de") -> str:
         if o["sha512"]:
             out.append(f"  SHA-512  {o['sha512']}")
     out += ["", f"{L['mails']} ({len(d['messages'])})", "-" * 20]
+    if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
+        out.append(L["list_omitted"].format(n=len(d["messages"])))
+        out.append("")
+        return "\n".join(out)
     for n, m in enumerate(d["messages"], 1):
         out.append(f"{n:>5}  {m['Eingangszeit_UTC']}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
                    f"{L['to']}: {m['An'] or m['CC'] or m['Empfaenger_Hinweis']}  {L['att']} {m['Anlagen']}  "
                    f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
-    out += ["", "", f"{L['signature']}: ______________________________", ""]
+    out.append("")
     return "\n".join(out)
 
 
-def write_txt(case: Case, path: Path, language: str = "de") -> None:
-    path.write_text(render_txt(case, language), encoding="utf-8")
+def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500) -> None:
+    path.write_text(render_txt(case, language, mail_list, mail_list_max), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- PDF
-def write_pdf(case: Case, path: Path, language: str = "de") -> None:
+def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500) -> None:
     from fpdf import FPDF
     from fpdf.fonts import FontFace
 
@@ -298,10 +311,21 @@ def write_pdf(case: Case, path: Path, language: str = "de") -> None:
         pdf.set_font("DejaVu", "", 7.5)
         pdf.cell(0, 5, f"Logo SHA-256: {logo[2]}", new_x="LMARGIN", new_y="NEXT")
 
-    pdf.ln(14)
-    pdf.set_font("DejaVu", "", 9)
-    pdf.cell(100, 0, "", border="T", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 5, L["signature"], new_x="LMARGIN", new_y="NEXT")
+    h2(f"{L['mails']} ({len(d['messages'])})")
+    if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
+        counts: dict[str, int] = {}
+        for m in d["messages"]:
+            key = f"{m['Konto']} / {m['Ordner']}"
+            counts[key] = counts.get(key, 0) + 1
+        with pdf.table(col_widths=(150, 30), headings_style=head, line_height=4.4) as t:
+            t.row([L["per_folder"], L["mails"]])
+            for k, v in counts.items():
+                t.row([k, str(v)])
+        pdf.ln(2)
+        pdf.set_font("DejaVu", "", 8.5)
+        pdf.multi_cell(0, 4.6, L["list_omitted"].format(n=len(d["messages"])), new_x="LMARGIN", new_y="NEXT")
+        pdf.output(str(path))
+        return
 
     pdf.add_page()
     pdf.set_font("DejaVu", "B", 11)
@@ -317,8 +341,9 @@ def write_pdf(case: Case, path: Path, language: str = "de") -> None:
     pdf.output(str(path))
 
 
-def write_reports(case: Case, language: str = "de") -> tuple[Path, Path]:
+def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
+                  mail_list_max: int = 500) -> tuple[Path, Path]:
     txt, pdfp = case.root / "bericht.txt", case.root / "bericht.pdf"
-    write_txt(case, txt, language)
-    write_pdf(case, pdfp, language)
+    write_txt(case, txt, language, mail_list, mail_list_max)
+    write_pdf(case, pdfp, language, mail_list, mail_list_max)
     return txt, pdfp

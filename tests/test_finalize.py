@@ -98,3 +98,17 @@ def test_logo_validation(tmp_path):
     case.store_config_snapshot("", None)
     assert case.logo() is None
     case.close()
+
+
+def test_report_mail_list_modes(acquired):
+    from fed.core.report import include_mail_list, render_txt
+
+    case = acquired
+    finish_case(case, Config())
+    assert include_mail_list(1000, "auto", 500) is False and include_mail_list(400, "auto", 500) is True
+    assert include_mail_list(10**6, "immer") and not include_mail_list(1, "nie")
+    full = render_txt(case, "de", "immer")
+    short = render_txt(case, "de", "auto", 5)
+    assert "SHA-256 " in full and full.count("UID ") > 5
+    assert "steht in log.csv" in short and short.count("UID ") == 0
+    assert "Unterschrift" not in full and "Unterschrift" not in short
