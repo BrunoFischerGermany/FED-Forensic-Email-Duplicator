@@ -293,7 +293,10 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         delete_work_dir(case, z)
     else:
         case.log("INFO", "work_dir_kept", {"path": str(case.work_dir)})
-    txt, pdf = write_reports(case, language or cfg.programm.bericht_sprache or cfg.programm.sprache,
+    from fed.core.languages import report_language_for
+
+    report_language = report_language_for(language or cfg.programm.bericht_sprache or cfg.programm.sprache)
+    txt, pdf = write_reports(case, report_language,
                              cfg.programm.bericht_mailliste, cfg.programm.bericht_mailliste_max)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)

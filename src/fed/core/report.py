@@ -16,56 +16,21 @@ from fed import APP_NAME, __version__
 from fed.core import timefmt as tf
 from fed.core.case import Case
 
-LABELS = {
-    "de": {
-        "title": "Sicherungsbericht E-Mail-Postfach", "case": "Grunddaten", "case_number": "Casenumber",
-        "examiner": "Examiner", "notes": "Notes", "created": "Case angelegt", "closed": "Case abgeschlossen",
-        "tool": "Werkzeug", "tool_sha": "SHA-256 Programm", "system": "System", "user": "Benutzer",
-        "host": "Rechner", "os": "Betriebssystem", "time": "Uhrzeit Rechner (UTC / lokal)", "ntp": "NTP-Abweichung",
-        "online": "Internet", "target": "Ziel", "removable": "Externer Datenträger", "free": "Freier Speicher",
-        "account": "Konto", "evidence": "Evidence", "server": "Server", "auth": "Anmeldung",
-        "source": "Herkunft der Einstellungen", "cert": "TLS-Zertifikat SHA-256", "server_id": "Server (ID)",
-        "range": "Zeitraum-Filter", "partial": "Teilsicherung", "attempts": "Versuche", "nr": "Nr.",
-        "mode": "Modus", "reason": "Grund", "start": "Start (UTC / lokal)", "end": "Ende (UTC / lokal)", "time_col": "Zeit (UTC / lokal)", "status": "Status",
-        "folders": "Ordner", "selected": "gewählt", "server_count": "Server", "saved": "gesichert",
-        "diff": "Differenz", "before_after": "Vorher/Nachher (MESSAGES, UNSEEN, UIDNEXT, UIDVALIDITY)",
-        "unchanged": "unverändert", "changed": "GEÄNDERT", "issues": "Warnungen und Fehler", "none": "keine",
-        "outputs": "Erzeugte Dateien und Hashes", "logchain": "Log-Kette", "entries": "Einträge",
-        "head": "Hash letzter Eintrag", "ok": "unverändert", "broken": "GEBROCHEN", "mails": "Gesicherte Mails",
-        "received": "Eingang (UTC / lokal)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
-        "att": "Anl.", "work_dir": "Arbeitsordner", "list_omitted": "Die Ordnerstruktur mit der Anzahl je Ordner steht oben unter „Ordner“. Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
-        "ts": "Zeitstempel (RFC 3161)", "ts_file": "Antwort", "ts_tsa": "Dienst", "ts_time": "Zeit laut Dienst (UTC / lokal)",
-        "ts_serial": "Seriennummer", "ts_policy": "Richtlinie (OID)", "ts_acc": "Genauigkeit", "ts_hash": "Gestempelter SHA-256",
-        "ts_offset": "Rechneruhr minus Dienst", "ts_failed": "fehlgeschlagen", "ts_verify": "Prüfung",
-        "ts_verify_cmd": "openssl ts -verify -in {tsr} -data {zip} -CAfile <Zertifikatskette des Dienstes>",
-        "wd_deleted": "gelöscht nach erfolgreicher ZIP-Verifikation ({files} Dateien, {size})", "wd_kept": "behalten (work/)",
-        "yes": "ja", "no": "nein", "unknown": "unbekannt", "file": "Datei", "size": "Größe",
-    },
-    "en": {
-        "title": "Email Mailbox Acquisition Report", "case": "Case", "case_number": "Case number",
-        "examiner": "Examiner", "notes": "Notes", "created": "Case created", "closed": "Case closed",
-        "tool": "Tool", "tool_sha": "SHA-256 of program", "system": "System", "user": "User",
-        "host": "Computer", "os": "Operating system", "time": "Computer time (UTC / local)", "ntp": "NTP offset",
-        "online": "Internet", "target": "Target", "removable": "External drive", "free": "Free space",
-        "account": "Account", "evidence": "Evidence", "server": "Server", "auth": "Authentication",
-        "source": "Settings source", "cert": "TLS certificate SHA-256", "server_id": "Server (ID)",
-        "range": "Date filter", "partial": "partial acquisition", "attempts": "Attempts", "nr": "No.",
-        "mode": "Mode", "reason": "Reason", "start": "Start (UTC / local)", "end": "End (UTC / local)", "time_col": "Time (UTC / local)", "status": "Status",
-        "folders": "Folders", "selected": "selected", "server_count": "server", "saved": "saved",
-        "diff": "difference", "before_after": "Before/after (MESSAGES, UNSEEN, UIDNEXT, UIDVALIDITY)",
-        "unchanged": "unchanged", "changed": "CHANGED", "issues": "Warnings and errors", "none": "none",
-        "outputs": "Output files and hashes", "logchain": "Log chain", "entries": "entries",
-        "head": "Hash of last entry", "ok": "intact", "broken": "BROKEN", "mails": "Acquired messages",
-        "received": "Received (UTC / local)", "from": "From", "to": "To", "subject": "Subject",
-        "att": "Att.", "work_dir": "Working folder", "list_omitted": "The folder structure with counts per folder is shown above under “Folders”. The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
-        "ts": "Timestamp (RFC 3161)", "ts_file": "Response", "ts_tsa": "Service", "ts_time": "Time per service (UTC / local)",
-        "ts_serial": "Serial number", "ts_policy": "Policy (OID)", "ts_acc": "Accuracy", "ts_hash": "Timestamped SHA-256",
-        "ts_offset": "Computer clock minus service", "ts_failed": "failed", "ts_verify": "Verification",
-        "ts_verify_cmd": "openssl ts -verify -in {tsr} -data {zip} -CAfile <certificate chain of the service>",
-        "wd_deleted": "deleted after successful ZIP verification ({files} files, {size})", "wd_kept": "kept (work/)",
-        "yes": "yes", "no": "no", "unknown": "unknown", "file": "File", "size": "Size",
-    },
-}
+def _load_labels() -> dict[str, dict[str, str]]:
+    """Berichtstexte je Sprache aus ``fed/i18n/report_<sprache>.json``."""
+    out = {}
+    for f in (resources.files("fed") / "i18n").iterdir():
+        if f.name.startswith("report_") and f.name.endswith(".json"):
+            out[f.name[7:-5]] = json.loads(f.read_text(encoding="utf-8"))
+    return out
+
+
+LABELS = _load_labels()
+
+
+def labels(language: str) -> dict[str, str]:
+    """Texte einer Berichtssprache; fehlt die Sprache oder ein Text, gilt Englisch."""
+    return {**LABELS["en"], **LABELS.get(language, {})}
 
 
 def _q(case: Case, sql: str, args=()) -> list[dict]:
@@ -222,7 +187,7 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
 
 # ---------------------------------------------------------------- TXT
 def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500) -> str:
-    L = LABELS[language]
+    L = labels(language)
     d = collect(case)
     out = []
     ag = d["agency"]
@@ -280,7 +245,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     from fpdf import FPDF
     from fpdf.fonts import FontFace
 
-    L = LABELS[language]
+    L = labels(language)
     d = collect(case)
     fonts = resources.files("fed.resources") / "fonts"
     logo = case.logo()

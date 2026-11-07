@@ -10,8 +10,22 @@ _installed: list[QTranslator] = []
 
 
 def system_language() -> str:
-    """``de`` bei deutschem System, sonst ``en``."""
-    return "de" if QLocale.system().language() == QLocale.Language.German else "en"
+    """Sprache des Systems, falls FED sie kennt, sonst Englisch."""
+    from fed.core.languages import FALLBACK, ui_languages
+
+    code = QLocale.system().name().split("_")[0]
+    return code if code in ui_languages() else FALLBACK
+
+
+def language_name(code: str) -> str:
+    """Name der Sprache in ihr selbst, z. B. ``Deutsch``, ``English``, ``Français``."""
+    name = QLocale(code).nativeLanguageName()
+    return (name[:1].upper() + name[1:]) if name else code
+
+
+def fill_combo(combo, codes: list[str]) -> None:
+    for c in codes:
+        combo.addItem(language_name(c), c)
 
 
 def install(language: str) -> str:
@@ -20,10 +34,12 @@ def install(language: str) -> str:
     for t in _installed:
         app.removeTranslator(t)
     _installed.clear()
-    language = language if language in ("de", "en") else "de"
-    if language == "en":
+    from fed.core.languages import SOURCE, ui_languages
+
+    language = language if language in ui_languages() else SOURCE
+    if language != SOURCE:
         t = QTranslator(app)
-        qm = resources.files("fed") / "i18n" / "fed_en.qm"
+        qm = resources.files("fed") / "i18n" / f"fed_{language}.qm"
         if t.load(str(qm)):
             app.installTranslator(t)
             _installed.append(t)

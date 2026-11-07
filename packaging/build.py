@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 LOGO = ROOT / "assets" / "logo"
 BUILD = ROOT / "build" / "nuitka"
 DIST = ROOT / "dist"
-EXTRAS = ["config.example.toml", "LICENSE", "README.md", "CHANGELOG.md"]
+EXTRAS = ["config.example.toml", "LICENSE", "README.md", "README.de.md", "CHANGELOG.md"]
 
 
 def version() -> str:

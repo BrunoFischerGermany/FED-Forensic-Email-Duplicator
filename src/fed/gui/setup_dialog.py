@@ -11,6 +11,8 @@ from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog
                                QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout)
 
 from fed.core import config as cfgmod
+from fed.core.languages import ui_languages
+from fed.gui import i18n
 
 MAX_LOGO = 2 * 1024 * 1024
 
@@ -41,8 +43,7 @@ class SetupDialog(QDialog):
         self.addr.setFixedHeight(64)
         self.examiner = QLineEdit(cfg.examiner_name)
         self.lang = QComboBox()
-        self.lang.addItem("Deutsch", "de")
-        self.lang.addItem("English", "en")
+        i18n.fill_combo(self.lang, ui_languages())
         self.lang.setCurrentIndex(max(0, self.lang.findData(cfg.programm.sprache)))
         self.target = QLineEdit(cfg.programm.zielpfad)
         self.target.setPlaceholderText(self.tr("Standard-Zielordner für Cases (optional)"))

@@ -1,112 +1,142 @@
-<p align="center"><img src="assets/logo/fed-logo.svg" width="140" alt="FED-Logo"></p>
+<p align="center"><img src="assets/logo/fed-logo.svg" width="140" alt="FED logo"></p>
 
 # FED – Forensic Email Duplicator
 
-*Forensische Sicherung von E-Mail-Postfächern*
+*Forensic acquisition of email mailboxes*
 
-**Deutsch** · [English](README.en.md)
+**English** · [Deutsch](README.de.md)
 
-> **Branch `v1.0` – in Entwicklung.** Neuaufbau mit GUI. Das bisherige Kommandozeilen-Skript v0.4-beta liegt unter [`legacy/`](legacy/) (MIT-Lizenz).
+> **Branch `v1.0` – in development.** Rebuilt with a GUI. The previous command-line script v0.4-beta is kept in [`legacy/`](legacy/) (MIT license).
 
-FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
+FED acquires email mailboxes via IMAP, forensically and strictly read-only:
 
-- jede Mail unverändert als `.eml`, benannt nach Eingangszeit und UID (`20261106T143012Z_UID00004711.eml`)
-- SHA-256 (zusätzlich MD5 und SHA-512) pro Mail und für das ZIP-Archiv
-- ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse
-- Case-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
-- TXT- und PDF-Bericht mit Agentur-Logo, optional RFC-3161-Zeitstempel
-- Gmail/Google Workspace und Microsoft 365 per OAuth2
-- Deutsch und Englisch, Windows/macOS/Linux, portabel ohne Installation
+- every message unchanged as `.eml`, named by receipt time and UID (`20261106T143012Z_UID00004711.eml`)
+- SHA-256 (plus MD5 and SHA-512) per message and for the ZIP archive
+- ZIP with the mailbox folder structure, first level = email address
+- case file (SQLite) with a tamper-evident log, history, multiple attempts, resume/restart
+- TXT and PDF report with agency logo, optional RFC 3161 timestamp
+- Gmail/Google Workspace and Microsoft 365 via OAuth2
+- English and German, further languages can be added without programming ([docs/translating.md](docs/translating.md)); Windows/macOS/Linux, portable without installation
 
-## Stand
+## Status
 
-| Meilenstein | Inhalt | Status |
+| Milestone | Content | Status |
 | --- | --- | --- |
-| 1 | Projektstruktur, Config, Case-Datei mit Hash-Kette, Dateinamen, Hashes, GUI-Gerüst | ✅ |
-| 2 | Systemprüfung, Autoerkennung, IMAP nur lesend, Scan, Download in Arbeitsordner, Testpostfach | ✅ |
-| 3 | OAuth2 Google / Microsoft 365 (Browser + PKCE, Gerätecode, Token-Erneuerung) | ✅ |
-| 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Oberfläche (Assistent, Historie, Einstellungen, Hell/Dunkel) | ✅ |
-| 5 | Fertige Programme (Nuitka) für Windows, macOS, Linux | ✅ |
-| 6 | RFC-3161-Zeitstempel, Validierungsprotokoll, englische Oberfläche | ✅ |
+| 1 | Project structure, config, case file with hash chain, file names, hashes, GUI skeleton | ✅ |
+| 2 | System check, autodetection, read-only IMAP, scan, download to work folder, test mailbox | ✅ |
+| 3 | OAuth2 Google / Microsoft 365 (browser + PKCE, device code, token refresh) | ✅ |
+| 4 | ZIP with timestamps, verification, TXT/PDF reports, GUI (assistant, history, settings, light/dark) | ✅ |
+| 5 | Ready-to-run programs (Nuitka) for Windows, macOS, Linux | ✅ |
+| 6 | RFC 3161 timestamps, validation report, English user interface | ✅ |
 
-## Entwicklung
+Interface and reports are available in English and German (`sprache`, `bericht_sprache` in `config.toml`;
+on first start the system language is used). Messages from the program core and the log remain German.
 
-Python 3.14 wird vorausgesetzt.
+## Translating FED
+
+New languages need no programming: one JSON file for the interface and one for the report.
+Step-by-step guide: [docs/translating.md](docs/translating.md).
+
+```bash
+python packaging/i18n.py --new fr   # creates src/fed/i18n/fr.json + report_fr.json
+python packaging/i18n.py            # builds fed_fr.qm – the language appears in Settings
+```
+
+## Development
+
+Python 3.14 is required.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 pytest
-fed-gui                    # Oberfläche
-fed --help                 # Kommandozeile
+fed-gui                    # graphical interface
+fed --help                 # command line
 ```
 
-Beispiel Kommandozeile:
+Command-line example:
 
 ```bash
-fed new-case --target E:/FED-Cases --case 2026-0042 --examiner "Max Mustermann"
-fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidence A-01
-#   Passwort wird abgefragt (oder Umgebungsvariable FED_PASSWORD)
-#   erneut aufrufen = Fortsetzen; --force --reason "…" = Neubeginn
-#   Gmail / Microsoft 365: Anmeldung automatisch per OAuth im Browser
-#   (Einrichtung der Client-IDs: docs/oauth-einrichtung.md)
-fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + report.pdf/.txt, Case abschließen
+fed new-case --target E:/FED-Cases --case 2026-0042 --examiner "Jane Doe"
+fed acquire --case-dir E:/FED-Cases/2026-0042 --account jane@example.com --evidence A-01
+#   password is prompted for (or environment variable FED_PASSWORD)
+#   run again = resume; --force --reason "…" = restart from scratch
+#   Gmail / Microsoft 365: sign-in via OAuth in the browser
+#   (setting up client IDs: docs/oauth-einrichtung.md, German)
+fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + hashes + report.pdf/.txt, close the case
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```
 
-Validierungsprotokoll (PDF/TXT, de/en) gegen das Testpostfach: `python -m validation.run`
-(siehe [validation/README.md](validation/README.md); hängt auch an jedem Release).
+Validation report (PDF/TXT, German/English) against the test mailbox: `python -m validation.run`
+(see [validation/README.md](validation/README.md), German; also attached to every release).
 
-Tests gegen einen echten IMAP-Server: `apt install dovecot-imapd`, dann `pytest`
-(startet automatisch einen lokalen Dovecot mit dem Testpostfach aus `validation/`).
+Tests against a real IMAP server: `apt install dovecot-imapd`, then `pytest`
+(automatically starts a local Dovecot with the test mailbox from `validation/`).
 
-Konfiguration: `config.example.toml` nach `config.toml` neben das Programm kopieren und anpassen –
-oder einfach starten: ohne Grunddaten fragt die Oberfläche sie beim ersten Start ab.
+Configuration: copy `config.example.toml` to `config.toml` next to the program and adjust it –
+or just start the program: if no base data is set, the GUI asks for it on first start.
 
-## Fertige Programme bauen
+## Building ready-to-run programs
 
-| Weg | So geht's |
+| Way | How |
 |---|---|
-| Per Klick | GitHub → **Actions** → **Build** → **Run workflow**; die Dateien liegen danach unter *Artifacts* des Laufs |
-| Release | `git tag v1.0.0 && git push origin v1.0.0` – baut alle Plattformen und legt das Release mit Dateien und `SHA256SUMS.txt` an |
-| Lokal | `pip install -e .[build]` und `python packaging/build.py` (baut für das eigene System nach `dist/`) |
+| One click | GitHub → **Actions** → **Build** → **Run workflow**; the files are then under the run's *Artifacts* |
+| Release | `git tag v1.0.0 && git push origin v1.0.0` – builds all platforms and creates the release with the files and `SHA256SUMS.txt` |
+| Local | `pip install -e .[build]` and `python packaging/build.py` (builds for your own system into `dist/`) |
 
-Ergebnis: `FED-<version>-windows-x64.zip`, `-macos-arm64.zip`, `-macos-x64.zip`, `-linux-x64.tar.gz`.
-Die `config.toml` gehört neben `FED.exe` bzw. `FED` bzw. neben `FED.app`.
-Die Programme sind nicht signiert: macOS meldet „nicht verifizierter Entwickler“
-(Rechtsklick → Öffnen, oder `xattr -cr FED.app`), Windows SmartScreen „Weitere Informationen → Trotzdem ausführen“.
+Output: `FED-<version>-windows-x64.zip`, `-macos-arm64.zip`, `-macos-x64.zip`, `-linux-x64.tar.gz`.
+Put `config.toml` next to `FED.exe`, `FED`, or `FED.app`.
+The programs are not signed: macOS reports an "unidentified developer"
+(right-click → Open, or `xattr -cr FED.app`); Windows SmartScreen: "More info → Run anyway".
 
-## Aufbau
+## Case folder
+
+```
+<case>/
+├─ work/<address>/<folder>/*.eml    messages during acquisition
+├─ discarded/attempt_<n>/           previous state after a restart
+├─ case.sqlite                      case file with log and hash chain
+├─ <case>_<time>.zip + .zip.sha256  final archive
+├─ <case>_<time>.zip.tsr / .tsq     RFC 3161 timestamp (if configured)
+├─ log.csv
+└─ report.txt / report.pdf
+```
+
+These names are fixed and do not depend on the language setting.
+
+## Layout
 
 ```
 src/fed/
-├─ core/            Kern ohne GUI (testbar, auch für CLI)
-│  ├─ config.py     config.toml laden/prüfen/speichern
-│  ├─ case.py       Case-Datei, Log mit Hash-Kette
-│  ├─ syscheck.py   Benutzer, Zeit/NTP, Internet, Datenträger, Speicher
-│  ├─ autoconfig.py Thunderbird-Autoerkennung
+├─ core/            core without GUI (testable, also used by the CLI)
+│  ├─ config.py     load/validate/save config.toml
+│  ├─ case.py       case file, log with hash chain
+│  ├─ syscheck.py   user, time/NTP, internet, drives, free space
+│  ├─ autoconfig.py Thunderbird-style autodetection
 │  ├─ oauth.py      Google / Microsoft 365
-│  ├─ imap_reader.py nur lesender IMAP-Zugriff (schreibende Befehle blockiert)
-│  ├─ acquisition.py Versuche, Download, ZIP, Verifikation
-│  ├─ naming.py     Dateinamen, Pfade, Modified UTF-7
+│  ├─ imap_reader.py read-only IMAP access (write commands blocked)
+│  ├─ acquisition.py attempts, download, verification
+│  ├─ finalize.py   ZIP, verification, log.csv, closing the case
+│  ├─ naming.py     file names, paths, modified UTF-7
 │  ├─ hashing.py    SHA-256 + MD5/SHA-512
-│  ├─ cancel.py     Abbrechen, Fortschritt, Geschwindigkeit, Restzeit
-│  ├─ report.py     TXT/PDF/log.csv
-│  └─ timestamp.py  RFC 3161
-├─ gui/             PySide6: Assistent, Historie, Statusleiste
-├─ i18n/            Übersetzungen (Qt Linguist)
-├─ resources/       SQL-Schema
-└─ cli.py           Kommandozeilen-Modus
-docs/               Konzept-Zusammenfassung, OAuth-Einrichtung
-validation/         Test-Postfach + erwartete Hashes
+│  ├─ cancel.py     cancel, progress, speed, remaining time
+│  ├─ report.py     TXT/PDF reports
+│  └─ timestamp.py  RFC 3161 timestamps
+├─ gui/             PySide6: assistant, history, settings, first-start setup
+├─ i18n/            translations: <lang>.json (interface), report_<lang>.json (report), .qm
+├─ resources/       SQL schema, icons, fonts
+└─ cli.py           command-line mode
+packaging/          Nuitka build script, translation tool (i18n.py)
+docs/               translating guide, architecture and OAuth setup (German)
+validation/         test mailbox + expected hashes
 tests/
 ```
 
-## Lizenz
+## License
 
-GPL-3.0-only, siehe [LICENSE](LICENSE). Der Code unter `legacy/` bleibt unter MIT ([legacy/LICENSE-MIT](legacy/LICENSE-MIT)).
+GPL-3.0-only, see [LICENSE](LICENSE). The code in `legacy/` remains under MIT ([legacy/LICENSE-MIT](legacy/LICENSE-MIT)).
 
-## Autoren
+## Authors
 
 - [@BrunoFischerGermany](https://github.com/BrunoFischerGermany)
 - [@ma-fox](https://github.com/ma-fox) (v0.4)

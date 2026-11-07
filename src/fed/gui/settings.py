@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFileDialog, 
 
 from fed import APP_NAME, __version__
 from fed.core import config as cfgmod
+from fed.core.languages import report_languages, ui_languages
+from fed.gui import i18n
 from fed.gui.widgets import Card, PasswordField, Segmented, label
 
 
@@ -88,11 +90,9 @@ class SettingsTab(QWidget):
         d.add(self.design)
         f = QFormLayout()
         self.lang, self.rlang = QComboBox(), QComboBox()
-        self.lang.addItem("Deutsch", "de")
-        self.lang.addItem("English", "en")
+        i18n.fill_combo(self.lang, ui_languages())
         self.rlang.addItem(self.tr("wie Oberfläche"), "")
-        self.rlang.addItem("Deutsch", "de")
-        self.rlang.addItem("English", "en")
+        i18n.fill_combo(self.rlang, report_languages())
         self.mlist = QComboBox()
         self.mlist.addItem(self.tr("automatisch – Liste nur bis zur Grenze"), "auto")
         self.mlist.addItem(self.tr("Ordnerstruktur + Mail-Liste"), "liste")

@@ -50,6 +50,10 @@
   IDNA 2008 (`straße.de` -> `xn--strae-oqa.de`, vorher fälschlich `strasse.de`),
   Adresse in Autoconfig-URLs kodiert, Eingaben in Unicode-Normalform NFC;
   Testkonto `bärbel.böhmer@ärzte.de` und Validierungspunkt V13
+- README: Englisch ist Standard (`README.md`), Deutsch in `README.de.md`
+- Weitere Sprachen ohne Programmierung: Sprachen werden aus `src/fed/i18n` erkannt,
+  Berichtstexte in `report_<sprache>.json`, `packaging/i18n.py --new <code>` legt eine neue
+  Sprache an und prüft Vollständigkeit und Platzhalter; Anleitung `docs/translating.md`
 
 ## 0.4-beta
 
