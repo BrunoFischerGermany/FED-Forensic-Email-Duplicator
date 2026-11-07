@@ -217,40 +217,15 @@ def run_attempt(
             todo = [u for u in uids if u not in done]
             result.expected += len(uids)
             result.skipped_existing += len(uids) - len(todo)
-            plan.append((row, f, todo))
+            plan.append((row, f, todo, {u: sizes.get(u, 0) for u in todo}))
             prog.mails_total += len(todo)
             prog.bytes_total += sum(sizes.get(u, 0) for u in todo)
 
         set_phase("download")
-        chunk = cfg.programm.chunk_mb * 1024 * 1024
-        for row, f, todo in plan:
-            prog.folder, prog.folder_total, prog.folder_done = f.name, len(todo), 0
-            imap.examine(f)
-            for uid in todo:
-                cancel.raise_if_cancelled()
-                prog.current_uid = uid
-                msg = None
-                for attempt_conn in range(MAX_RECONNECTS + 1):
-                    try:
-                        msg = imap.fetch(uid, chunk_bytes=chunk)
-                        break
-                    except NETWORK_ERRORS as e:
-                        if attempt_conn == MAX_RECONNECTS:
-                            raise
-                        case.log("WARNING", "reconnect", {"uid": uid, "folder": f.name, "error": str(e),
-                                                          "try": attempt_conn + 1}, attempt_id)
-                        prog.warnings += 1
-                        imap.logout()
-                        time.sleep(min(2 ** attempt_conn, 10))
-                        imap = connect()
-                        imap.examine(f)
-                _store_message(case, attempt_id, row, f, msg, email, account_dir, cfg, result, prog)
-                prog.mails_done += 1
-                prog.folder_done += 1
-                prog.bytes_done += msg.size_server
-                prog.sample()
-                if progress:
-                    progress(prog)
+        imap.logout()  # Download läuft über eigene Verbindungen je Worker
+        imap = None
+        _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, progress, prog, result)
+        imap = connect()
 
         set_phase("status_after")
         for row in folders:
@@ -291,6 +266,162 @@ def run_attempt(
     return result
 
 
+# ---------------------------------------------------------------- paralleler Download
+BATCH_MAILS = 50  # Mails je FETCH-Befehl
+BATCH_BYTES = 8 * 1024 * 1024  # höchstens so viele Bytes je FETCH-Befehl
+TASK_MAILS = 300  # große Ordner werden in Pakete geteilt, damit alle Verbindungen ausgelastet sind
+
+
+@dataclass
+class _Task:
+    row: dict
+    folder: FolderInfo
+    uids: list[int]
+    sizes: dict[int, int]
+
+
+def _tasks(plan) -> list[_Task]:
+    tasks = []
+    for row, f, todo, sizes in plan:
+        for i in range(0, len(todo), TASK_MAILS):
+            tasks.append(_Task(row, f, todo[i:i + TASK_MAILS], sizes))
+    # größte Pakete zuerst: gleichmäßigere Auslastung
+    tasks.sort(key=lambda t: -sum(t.sizes.get(u, 0) for u in t.uids))
+    return tasks
+
+
+def _batches(task: _Task, chunk: int) -> list[list[int]]:
+    """Kleine Mails zu Stapeln bündeln; große (ab ``chunk``) einzeln und stückweise."""
+    out, cur, cur_bytes = [], [], 0
+    for u in task.uids:
+        size = task.sizes.get(u, 0)
+        if size > chunk:
+            out.append([u])
+            continue
+        if cur and (len(cur) >= BATCH_MAILS or cur_bytes + size > BATCH_BYTES):
+            out.append(cur)
+            cur, cur_bytes = [], 0
+        cur.append(u)
+        cur_bytes += size
+    if cur:
+        out.append(cur)
+    return out
+
+
+def _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, progress, prog, result) -> None:
+    import queue
+    import threading
+
+    tasks = _tasks(plan)
+    if not tasks:
+        return
+    n = max(1, min(cfg.programm.verbindungen, len(tasks)))
+    chunk = cfg.programm.chunk_mb * 1024 * 1024
+    q: queue.Queue[_Task] = queue.Queue()
+    for t in tasks:
+        q.put(t)
+    lock = threading.Lock()
+    errors: list[BaseException] = []
+    active: dict[int, str] = {}
+    started: list[int] = []
+    case.log("INFO", "download_started", {"connections": n, "tasks": len(tasks), "mails": prog.mails_total},
+             attempt_id)
+
+    def report(msg, worker_id: int) -> None:
+        with lock:
+            result.saved += 1
+            prog.mails_done += 1
+            prog.bytes_done += msg.size_server
+            prog.current_uid = msg.uid
+            prog.folder = ", ".join(sorted(set(active.values())))
+            prog.folder_done, prog.folder_total = prog.mails_done, prog.mails_total
+            prog.sample()
+            if progress:
+                progress(prog)
+
+    def worker(worker_id: int) -> None:
+        imap = None
+        current = None
+        try:
+            try:
+                imap = connect()
+            except Exception as e:  # weitere Verbindung vom Server abgelehnt -> mit weniger weiterarbeiten
+                if worker_id == 0:
+                    raise
+                case.log("WARNING", "connection_refused", {"worker": worker_id + 1, "error": str(e)}, attempt_id)
+                with lock:
+                    prog.warnings += 1
+                return
+            with lock:
+                started.append(worker_id)
+            while not cancel.is_cancelled and not errors:
+                try:
+                    task = q.get_nowait()
+                except queue.Empty:
+                    return
+                with lock:
+                    active[worker_id] = task.folder.name
+                for batch in _batches(task, chunk):
+                    if cancel.is_cancelled or errors:
+                        return
+                    msgs = None
+                    for attempt_conn in range(MAX_RECONNECTS + 1):
+                        try:
+                            if current is not task.folder.raw_name:
+                                imap.examine(task.folder)
+                                current = task.folder.raw_name
+                            if len(batch) == 1 and task.sizes.get(batch[0], 0) > chunk:
+                                msgs = {batch[0]: imap.fetch(batch[0], chunk_bytes=chunk)}
+                            else:
+                                msgs = imap.fetch_many(batch)
+                            break
+                        except NETWORK_ERRORS as e:
+                            if attempt_conn == MAX_RECONNECTS:
+                                raise
+                            case.log("WARNING", "reconnect", {"worker": worker_id + 1, "folder": task.folder.name,
+                                                              "error": str(e), "try": attempt_conn + 1}, attempt_id)
+                            with lock:
+                                prog.warnings += 1
+                            imap.logout()
+                            time.sleep(min(2 ** attempt_conn, 10))
+                            imap = connect()
+                            current = None
+                    for uid in batch:
+                        if cancel.is_cancelled:
+                            return
+                        msg = msgs.get(uid)
+                        if msg is None:
+                            case.log("WARNING", "message_vanished", {"folder": task.folder.name, "uid": uid},
+                                     attempt_id)
+                            with lock:
+                                prog.warnings += 1
+                            continue
+                        _store_message(case, attempt_id, task.row, task.folder, msg, email, account_dir, cfg,
+                                       None, prog)
+                        report(msg, worker_id)
+                with lock:
+                    active.pop(worker_id, None)
+        except BaseException as e:  # an den Haupt-Thread weitergeben
+            with lock:
+                errors.append(e)
+        finally:
+            if imap is not None:
+                imap.logout()
+
+    threads = [threading.Thread(target=worker, args=(i,), name=f"fed-download-{i + 1}", daemon=True)
+               for i in range(n)]
+    for i, t in enumerate(threads):
+        t.start()
+        if i == 0:
+            time.sleep(0.05)
+    for t in threads:
+        t.join()
+    case.log("INFO", "download_connections", {"requested": n, "used": len(started)}, attempt_id)
+    if errors:
+        raise errors[0]
+    cancel.raise_if_cancelled()
+
+
 # ---------------------------------------------------------------- Hilfen
 def _selected_folders(case: Case, account_id: int) -> list[dict]:
     cur = case.conn.execute(
@@ -326,7 +457,7 @@ def _store_message(case, attempt_id, row, f, msg, email, account_dir, cfg, resul
     ts = ztime.timestamp()
     os.utime(target, (ts, ts))
     if not meta.date_header:
-        prog.warnings += 1
+        prog.warnings += 1  # Zähler nur zur Anzeige
         case.log("WARNING", "no_date_header", {"folder": f.name, "uid": msg.uid}, attempt_id)
     zip_path = f"{sanitize_component(email)}/{rel_dir}/{name}"
     with case.conn:
@@ -344,7 +475,8 @@ def _store_message(case, attempt_id, row, f, msg, email, account_dir, cfg, resul
              meta.inline_count, json.dumps([a.__dict__ for a in meta.attachments], ensure_ascii=False),
              meta.subject, meta.subject_raw, utc_now()),
         )
-    result.saved += 1
+    if result is not None:
+        result.saved += 1
 
 
 def _verify_existing(case: Case, account_id: int, attempt_id: int, cancel: CancelToken) -> None:

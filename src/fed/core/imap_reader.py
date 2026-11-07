@@ -330,6 +330,50 @@ class ReadOnlyImap:
             raise ImapError(f"UID {uid}: {len(raw)} Bytes geladen, Server meldet {size}")
         return FetchedMessage(uid, raw, flags, idate, size, gm_msgid, gm_labels)
 
+    def fetch_many(self, uids: list[int]) -> dict[int, FetchedMessage]:
+        """Lädt mehrere Mails mit einem einzigen ``UID FETCH`` (spart je Mail einen Server-Umlauf).
+
+        Nur für Mails unterhalb der Stückelungsgrenze verwenden. Mails, die der Server
+        nicht mehr liefert (inzwischen gelöscht), fehlen im Ergebnis.
+        """
+        if not uids:
+            return {}
+        gm = "X-GM-EXT-1" in self.capabilities()
+        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-LABELS" if gm else "") + " BODY.PEEK[])"
+        typ, data = self.imap.uid("FETCH", ",".join(str(u) for u in uids), items)
+        if typ != "OK":
+            raise ImapError(f"FETCH {len(uids)} Mails fehlgeschlagen: {data}")
+        result: dict[int, FetchedMessage] = {}
+        i = 0
+        while i < len(data):
+            d = data[i]
+            if not isinstance(d, tuple):
+                i += 1
+                continue
+            head, raw = d
+            trailer = data[i + 1] if i + 1 < len(data) and isinstance(data[i + 1], bytes) else b""
+            meta = head + b" " + trailer
+            i += 2 if trailer else 1
+            if b"BODY[" not in head:
+                continue
+            um = re.search(rb"UID (\d+)", meta)
+            sm = re.search(rb"RFC822\.SIZE (\d+)", meta)
+            im = re.search(rb'INTERNALDATE "([^"]+)"', meta)
+            if not (um and sm and im):
+                raise ImapError(f"Unvollständige FETCH-Antwort: {meta[:200]!r}")
+            uid, size = int(um.group(1)), int(sm.group(1))
+            if len(raw) != size:
+                raise ImapError(f"UID {uid}: {len(raw)} Bytes geladen, Server meldet {size}")
+            fm = re.search(rb"FLAGS \(([^)]*)\)", meta)
+            gm_id = re.search(rb"X-GM-MSGID (\d+)", meta) if gm else None
+            gl = re.search(rb"X-GM-LABELS \(([^)]*)\)", meta) if gm else None
+            result[uid] = FetchedMessage(
+                uid, raw, tuple(fm.group(1).decode().split()) if fm else (),
+                parse_internaldate(im.group(1).decode()), size,
+                gm_id.group(1).decode() if gm_id else None,
+                tuple(gl.group(1).decode("utf-8", "replace").split()) if gl else ())
+        return result
+
     def _body(self, uid: int, item: str) -> bytes:
         typ, data = self.imap.uid("FETCH", str(uid), f"({item})")
         if typ != "OK":

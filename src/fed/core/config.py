@@ -37,6 +37,7 @@ class Programm:
     zip_zeit_quelle: str = "internaldate"
     socket_timeout_s: int = 30
     chunk_mb: int = 10
+    verbindungen: int = 3  # gleichzeitige IMAP-Verbindungen beim Download (1–10)
     wach_halten: bool = True  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 
 
@@ -106,6 +107,8 @@ def validate(cfg: Config) -> None:
         raise ConfigError("sprache muss 'de' oder 'en' sein")
     if cfg.programm.bericht_sprache not in {"", "de", "en"}:
         raise ConfigError("bericht_sprache muss leer, 'de' oder 'en' sein")
+    if not 1 <= cfg.programm.verbindungen <= 10:
+        raise ConfigError("verbindungen muss zwischen 1 und 10 liegen")
     cfg.programm.bericht_mailliste = {"immer": "liste", "nie": "ordner"}.get(cfg.programm.bericht_mailliste,
                                                                             cfg.programm.bericht_mailliste)
     if cfg.programm.bericht_mailliste not in {"auto", "liste", "ordner"}:

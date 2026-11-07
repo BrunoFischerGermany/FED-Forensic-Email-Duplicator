@@ -88,12 +88,13 @@ def test_cancel_and_resume(tmp_path, connect, imap_server, test_mails, cfg):
             token.cancel()
 
     r1 = run_attempt(case, acc, connect, cancel=token, progress=stop_after_three, cfg=cfg)
-    assert r1.status == "cancelled" and r1.saved == 3
+    # parallele Verbindungen können ihre gerade geladene Mail noch fertig speichern
+    assert r1.status == "cancelled" and 3 <= r1.saved < len(test_mails)
     assert not list(case.work_dir.rglob("*.part"))
 
     r2 = run_attempt(case, acc, connect, cfg=cfg)
     assert r2.status == "done" and r2.nr == 2
-    assert r2.saved == len(test_mails) - 3 and r2.skipped_existing == 3
+    assert r2.saved == len(test_mails) - r1.saved and r2.skipped_existing == r1.saved
     total = case.conn.execute("SELECT COUNT(*) FROM message WHERE status = 'valid'").fetchone()[0]
     assert total == len(test_mails)
     case.close()
@@ -140,4 +141,53 @@ def test_selection_and_date_filter(tmp_path, connect, imap_server, cfg):
     set_selection(case, acc, {"INBOX", "Gesendet"})
     r = run_attempt(case, acc, connect, cfg=cfg)
     assert r.saved == 2  # INBOX 03.11. und 04.11.; Gesendet (21.10.) liegt außerhalb
+    case.close()
+
+
+@pytest.mark.parametrize("connections", [1, 3, 6])
+def test_parallel_connections(tmp_path, connect, imap_server, test_mails, connections):
+    cfg = Config()
+    cfg.programm.chunk_mb = 1
+    cfg.programm.verbindungen = connections
+    case, acc = _setup(tmp_path, connect, imap_server)
+    r = run_attempt(case, acc, connect, cfg=cfg)
+    assert r.status == "done" and r.saved == len(test_mails)
+    hashes = {x[0] for x in case.conn.execute("SELECT sha256 FROM message")}
+    assert hashes == set(_expected(test_mails))
+    used = json.loads(case.conn.execute(
+        "SELECT details FROM log WHERE event = 'download_connections'").fetchone()[0])["used"]
+    assert used == min(connections, 10)
+    assert case.verify_log() == (True, None)  # Log-Kette auch bei parallelen Schreibern intakt
+    case.close()
+
+
+def test_server_refuses_extra_connections(tmp_path, connect, imap_server, test_mails):
+    cfg = Config()
+    cfg.programm.verbindungen = 4
+    case, acc = _setup(tmp_path, connect, imap_server)
+    import threading
+
+    lock, active = threading.Lock(), {"n": 0}
+
+    def limited():  # Server erlaubt höchstens 2 gleichzeitige Verbindungen
+        with lock:
+            if active["n"] >= 2:
+                raise OSError("Too many simultaneous connections")
+            active["n"] += 1
+        c = connect()
+        orig = c.logout
+
+        def logout():
+            if c._imap is not None:
+                with lock:
+                    active["n"] -= 1
+            orig()
+
+        c.logout = logout
+        return c
+
+    r = run_attempt(case, acc, limited, cfg=cfg)
+    assert r.status == "done" and r.saved == len(test_mails)
+    refused = case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'connection_refused'").fetchone()[0]
+    assert refused >= 1
     case.close()
