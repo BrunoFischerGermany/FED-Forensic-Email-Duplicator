@@ -10,15 +10,16 @@ from PySide6.QtGui import QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox, QPushButton,
                                QTableView, QTabWidget, QVBoxLayout, QWidget)
 
+from fed.core import timefmt as tf
 from fed.core.case import Case
 from fed.core.hashing import hash_file
 from fed.gui.widgets import Card, label, restyle, run_async
 
-MAIL_COLS = ["Ordner", "Eingangszeit (UTC)", "Absender", "Empfänger", "Anlagen", "Betreff", "Datei", "SHA-256",
+MAIL_COLS = ["Ordner", "Eingangszeit (UTC)", "Eingangszeit (lokal)", "Absender", "Empfänger", "Anlagen", "Betreff", "Datei", "SHA-256",
              "Versuch", "Status"]
-ATTEMPT_COLS = ["Versuch", "Konto", "Modus", "Start (UTC)", "Ende (UTC)", "Status", "Gesichert", "Ø MB/s",
+ATTEMPT_COLS = ["Versuch", "Konto", "Modus", "Start (UTC)", "Start (lokal)", "Ende (UTC)", "Ende (lokal)", "Status", "Gesichert", "Ø MB/s",
                 "Grund / Hinweis"]
-LOG_COLS = ["Zeit (UTC)", "Versuch", "Stufe", "Ereignis", "Details"]
+LOG_COLS = ["Zeit (UTC)", "Zeit (lokal)", "Versuch", "Stufe", "Ereignis", "Details"]
 FOLDER_COLS = ["Konto", "Ordner", "gewählt", "Server", "gesichert", "Differenz", "Vorher/Nachher"]
 
 
@@ -135,14 +136,15 @@ class HistoryTab(QWidget):
         if case is None:
             return
         c = case.conn
-        self.attempts.fill([[r[0], r[1], r[2], (r[3] or "")[:19].replace("T", " "), (r[4] or "")[:19].replace("T", " "), r[5], r[6],
+        self.attempts.fill([[r[0], r[1], r[2], tf.utc_str(r[3])[:19], tf.local_str(r[3]),
+                             tf.utc_str(r[4])[:19] if r[4] else "", tf.local_str(r[4]), r[5], r[6],
                              round((r[7] or 0) / 1e6, 1), (r[8] or "") + (f" → {r[9]}" if r[9] else "")]
                             for r in c.execute(
             "SELECT t.nr, a.email, t.mode, t.started_utc, t.ended_utc, t.status, "
             "(SELECT COUNT(*) FROM message m WHERE m.attempt_id = t.id), t.avg_bytes_s, t.reason, t.moved_to "
             "FROM attempt t JOIN account a ON a.id = t.account_id ORDER BY t.id")])
         if self.tabs.currentWidget() is self.mails or not self.mails.model.rowCount():
-            self.mails.fill([[r[0], (r[1] or "")[:19].replace("T", " "), ", ".join(json.loads(r[2] or "[]")),
+            self.mails.fill([[r[0], tf.utc_str(r[1])[:19], tf.local_str(r[1]), ", ".join(json.loads(r[2] or "[]")),
                               _recipient(*r[3:8]), str(r[8]) + (f" +{r[9]} inline" if r[9] else ""), r[10], r[11].split("/")[-1],
                               r[12], r[13], r[14]] for r in c.execute(
                 "SELECT f.display_name, m.internaldate, m.msg_from, m.msg_to, m.msg_cc, m.msg_bcc, m.recipient_note, "
@@ -150,7 +152,7 @@ class HistoryTab(QWidget):
                 "FROM message m JOIN folder f ON f.id = m.folder_id JOIN attempt t ON t.id = m.attempt_id "
                 "ORDER BY m.internaldate DESC")])
         if self.tabs.currentWidget() is self.log:
-            self.log.fill([[r[0][:19].replace("T", " "), r[1] or "", r[2], r[3], r[4][:300]] for r in c.execute(
+            self.log.fill([[tf.utc_str(r[0])[:19], tf.local_str(r[0]), r[1] or "", r[2], r[3], r[4][:300]] for r in c.execute(
                 "SELECT l.ts_utc, t.nr, l.level, l.event, l.details FROM log l LEFT JOIN attempt t ON t.id = l.attempt_id "
                 "ORDER BY l.id DESC")])
         if self.tabs.currentWidget() is self.folders:

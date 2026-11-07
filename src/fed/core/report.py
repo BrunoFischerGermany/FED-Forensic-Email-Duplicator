@@ -13,6 +13,7 @@ from importlib import resources
 from pathlib import Path
 
 from fed import APP_NAME, __version__
+from fed.core import timefmt as tf
 from fed.core.case import Case
 
 LABELS = {
@@ -20,18 +21,18 @@ LABELS = {
         "title": "Sicherungsbericht E-Mail-Postfach", "case": "Grunddaten", "case_number": "Casenumber",
         "examiner": "Examiner", "notes": "Notes", "created": "Case angelegt", "closed": "Case abgeschlossen",
         "tool": "Werkzeug", "tool_sha": "SHA-256 Programm", "system": "System", "user": "Benutzer",
-        "host": "Rechner", "os": "Betriebssystem", "time": "Uhrzeit (lokal / UTC)", "ntp": "NTP-Abweichung",
+        "host": "Rechner", "os": "Betriebssystem", "time": "Uhrzeit Rechner (UTC / lokal)", "ntp": "NTP-Abweichung",
         "online": "Internet", "target": "Ziel", "removable": "Externer Datenträger", "free": "Freier Speicher",
         "account": "Konto", "evidence": "Evidence", "server": "Server", "auth": "Anmeldung",
         "source": "Herkunft der Einstellungen", "cert": "TLS-Zertifikat SHA-256", "server_id": "Server (ID)",
         "range": "Zeitraum-Filter", "partial": "Teilsicherung", "attempts": "Versuche", "nr": "Nr.",
-        "mode": "Modus", "reason": "Grund", "start": "Start (UTC)", "end": "Ende (UTC)", "status": "Status",
+        "mode": "Modus", "reason": "Grund", "start": "Start (UTC / lokal)", "end": "Ende (UTC / lokal)", "time_col": "Zeit (UTC / lokal)", "status": "Status",
         "folders": "Ordner", "selected": "gewählt", "server_count": "Server", "saved": "gesichert",
         "diff": "Differenz", "before_after": "Vorher/Nachher (MESSAGES, UNSEEN, UIDNEXT, UIDVALIDITY)",
         "unchanged": "unverändert", "changed": "GEÄNDERT", "issues": "Warnungen und Fehler", "none": "keine",
         "outputs": "Erzeugte Dateien und Hashes", "logchain": "Log-Kette", "entries": "Einträge",
         "head": "Hash letzter Eintrag", "ok": "unverändert", "broken": "GEBROCHEN", "mails": "Gesicherte Mails",
-        "received": "Eingang (UTC)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
+        "received": "Eingang (UTC / lokal)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
         "att": "Anl.", "list_omitted": "Die Ordnerstruktur mit der Anzahl je Ordner steht oben unter „Ordner“. Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
         "yes": "ja", "no": "nein", "unknown": "unbekannt", "file": "Datei", "size": "Größe",
     },
@@ -39,18 +40,18 @@ LABELS = {
         "title": "Email Mailbox Acquisition Report", "case": "Case", "case_number": "Case number",
         "examiner": "Examiner", "notes": "Notes", "created": "Case created", "closed": "Case closed",
         "tool": "Tool", "tool_sha": "SHA-256 of program", "system": "System", "user": "User",
-        "host": "Computer", "os": "Operating system", "time": "Time (local / UTC)", "ntp": "NTP offset",
+        "host": "Computer", "os": "Operating system", "time": "Computer time (UTC / local)", "ntp": "NTP offset",
         "online": "Internet", "target": "Target", "removable": "External drive", "free": "Free space",
         "account": "Account", "evidence": "Evidence", "server": "Server", "auth": "Authentication",
         "source": "Settings source", "cert": "TLS certificate SHA-256", "server_id": "Server (ID)",
         "range": "Date filter", "partial": "partial acquisition", "attempts": "Attempts", "nr": "No.",
-        "mode": "Mode", "reason": "Reason", "start": "Start (UTC)", "end": "End (UTC)", "status": "Status",
+        "mode": "Mode", "reason": "Reason", "start": "Start (UTC / local)", "end": "End (UTC / local)", "time_col": "Time (UTC / local)", "status": "Status",
         "folders": "Folders", "selected": "selected", "server_count": "server", "saved": "saved",
         "diff": "difference", "before_after": "Before/after (MESSAGES, UNSEEN, UIDNEXT, UIDVALIDITY)",
         "unchanged": "unchanged", "changed": "CHANGED", "issues": "Warnings and errors", "none": "none",
         "outputs": "Output files and hashes", "logchain": "Log chain", "entries": "entries",
         "head": "Hash of last entry", "ok": "intact", "broken": "BROKEN", "mails": "Acquired messages",
-        "received": "Received (UTC)", "from": "From", "to": "To", "subject": "Subject",
+        "received": "Received (UTC / local)", "from": "From", "to": "To", "subject": "Subject",
         "att": "Att.", "list_omitted": "The folder structure with counts per folder is shown above under “Folders”. The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
         "yes": "yes", "no": "no", "unknown": "unknown", "file": "File", "size": "Size",
     },
@@ -143,14 +144,14 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
     yn = {1: L["yes"], 0: L["no"], None: L["unknown"]}
     secs = [(L["case"], [
         (L["case_number"], i["case_number"]), (L["examiner"], i["examiner"]), (L["notes"], i["notes"] or "–"),
-        (L["created"], i["created_utc"]), (L["closed"], i["closed_utc"] or "–"),
+        (L["created"], tf.both(i["created_utc"])), (L["closed"], tf.both(i["closed_utc"]) if i["closed_utc"] else "–"),
         (L["tool"], f"{APP_NAME} {i['tool_version']}"), (L["tool_sha"], i["tool_sha256"] or "–"),
     ])]
     if d["system"]:
         s = d["system"][0]
         secs.append((L["system"], [
             (L["user"], s["user"]), (L["host"], s["hostname"]), (L["os"], s["os"]),
-            (L["time"], f"{s['local_time']} / {s['utc_time']} ({s['tz']})"),
+            (L["time"], f"{tf.utc_str(s['utc_time'])} / {s['local_time'].replace('T', ' ')} ({s['tz']})"),
             (L["ntp"], f"{s['ntp_offset_s']:+.3f} s" if s["ntp_offset_s"] is not None else L["unknown"]),
             (L["online"], yn.get(s["online"], "?")), (L["target"], s["target_path"]),
             (L["removable"], yn.get(s["target_removable"], "?")), (L["free"], _fmt_bytes(s["free_bytes"])),
@@ -187,8 +188,9 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out += [f"{k:<{w}}  {v}" for k, v in items] + [""]
     out += [L["attempts"], "-" * len(L["attempts"])]
     for t in d["attempts"]:
-        out.append(f"{t['email']} #{t['nr']}  {t['mode']:<8} {t['status']:<10} {t['started_utc']} – "
-                   f"{t['ended_utc'] or '…'}  {t['reason'] or ''}{'  -> ' + t['moved_to'] if t['moved_to'] else ''}")
+        out.append(f"{t['email']} #{t['nr']}  {t['mode']:<8} {t['status']:<10} {tf.both(t['started_utc'])} – "
+                   f"{tf.both(t['ended_utc']) if t['ended_utc'] else '…'}  {t['reason'] or ''}"
+                   f"{'  -> ' + t['moved_to'] if t['moved_to'] else ''}")
     out += ["", L["folders"], "-" * len(L["folders"])]
     last = None
     for f in folder_tree(d["folders"]):
@@ -201,7 +203,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                    f"{L['saved']} {f['count_saved'] or 0:>6}  {L['diff']} {diff!s:>4}  "
                    f"{_fmt_bytes(f['size_server']):>9}  {_status_pair(f, L)}")
     out += ["", L["issues"], "-" * len(L["issues"])]
-    out += [f"{x['ts_utc']} {x['level']:<7} {x['event']}: {x['details']}" for x in d["issues"]] or [L["none"]]
+    out += [f"{tf.both(x['ts_utc'])} {x['level']:<7} {x['event']}: {x['details']}" for x in d["issues"]] or [L["none"]]
     out += ["", L["outputs"], "-" * len(L["outputs"])]
     for o in d["outputs"]:
         out += [f"{o['file_name']}  ({_fmt_bytes(o['size'])})", f"  SHA-256  {o['sha256']}"]
@@ -215,7 +217,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out.append("")
         return "\n".join(out)
     for n, m in enumerate(d["messages"], 1):
-        out.append(f"{n:>5}  {m['Eingangszeit_UTC']}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
+        out.append(f"{n:>5}  {tf.both(m['Eingangszeit_UTC'])}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
                    f"{L['to']}: {m['An'] or m['CC'] or m['Empfaenger_Hinweis']}  {L['att']} {m['Anlagen']}  "
                    f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
     out.append("")
@@ -296,10 +298,11 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         kv(items)
 
     h2(L["attempts"])
-    with pdf.table(col_widths=(10, 22, 20, 38, 38, 52), headings_style=head, line_height=4.4) as t:
+    with pdf.table(col_widths=(10, 20, 18, 44, 44, 44), headings_style=head, line_height=4.4) as t:
         t.row([L["nr"], L["mode"], L["status"], L["start"], L["end"], L["reason"]])
         for a in d["attempts"]:
-            t.row([str(a["nr"]), a["mode"], a["status"], a["started_utc"][:19], (a["ended_utc"] or "…")[:19],
+            t.row([str(a["nr"]), a["mode"], a["status"], tf.both_short(a["started_utc"]),
+                   tf.both_short(a["ended_utc"]) if a["ended_utc"] else "…",
                    (a["reason"] or "") + (f" -> {a['moved_to']}" if a["moved_to"] else "")])
 
     h2(L["folders"])
@@ -320,10 +323,10 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
 
     h2(L["issues"])
     if d["issues"]:
-        with pdf.table(col_widths=(36, 18, 126), headings_style=head, line_height=4.2) as t:
-            t.row(["UTC", L["status"], ""])
+        with pdf.table(col_widths=(42, 18, 120), headings_style=head, line_height=4.2) as t:
+            t.row([L["time_col"], L["status"], ""])
             for x in d["issues"]:
-                t.row([x["ts_utc"][:19], x["level"], f"{x['event']}: {x['details']}"[:400]])
+                t.row([tf.both_short(x["ts_utc"]), x["level"], f"{x['event']}: {x['details']}"[:400]])
     else:
         pdf.cell(0, 6, L["none"], new_x="LMARGIN", new_y="NEXT")
 
@@ -356,7 +359,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                f"{L['subject']} · {L['to']} · {L['att']} / {L['file']} / SHA-256"])
         for n, m in enumerate(d["messages"], 1):
             to = m["An"] or (f"CC: {m['CC']}" if m["CC"] else m["Empfaenger_Hinweis"] or "–")
-            t.row([str(n), f"{m['Eingangszeit_UTC'][:19]}\nUID {m['UID']}", f"{m['Ordner']}\n{m['Absender']}",
+            t.row([str(n), f"{tf.both_short(m['Eingangszeit_UTC'])}\nUID {m['UID']}", f"{m['Ordner']}\n{m['Absender']}",
                    f"{m['Betreff']} · {to} · {L['att']} {m['Anlagen']}\n{m['Datei']}\n{m['SHA256']}"])
     pdf.output(str(path))
 

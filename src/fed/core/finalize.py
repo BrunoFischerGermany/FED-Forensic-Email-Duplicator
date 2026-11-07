@@ -29,9 +29,10 @@ from fed.core.case import Case, utc_now
 from fed.core.config import Config
 from fed.core.hashing import MultiHasher, hash_file
 from fed.core.naming import folder_to_zip_path, sanitize_component
+from fed.core.timefmt import local_str
 
 CSV_COLUMNS = [
-    "Konto", "Evidence", "Ordner", "UID", "Eingangszeit_UTC", "Date_Header", "Absender", "An", "CC", "BCC",
+    "Konto", "Evidence", "Ordner", "UID", "Eingangszeit_UTC", "Eingangszeit_lokal", "Date_Header", "Absender", "An", "CC", "BCC",
     "Empfaenger_Hinweis", "Delivered_To", "Anlagen", "Inline", "Anlagen_Namen", "Betreff", "Message_ID",
     "Groesse", "Datei", "SHA256", "MD5", "SHA512", "Versuch",
 ]
@@ -67,7 +68,7 @@ def message_rows(case: Case) -> list[dict]:
     for r in cur:
         names = ", ".join(a.get("name", "") for a in json.loads(r[14] or "[]"))
         rows.append(dict(zip(CSV_COLUMNS, [
-            r[0], r[1], r[2], r[3], r[4], r[5] or "", _j(r[6]), _j(r[7]), _j(r[8]), _j(r[9]), r[10] or "",
+            r[0], r[1], r[2], r[3], r[4], local_str(r[4]), r[5] or "", _j(r[6]), _j(r[7]), _j(r[8]), _j(r[9]), r[10] or "",
             _j(r[11]), r[12], r[13], names, r[15] or "", r[16] or "", r[17], r[18], r[19], r[20] or "",
             r[21] or "", r[22]], strict=True)))
     return rows

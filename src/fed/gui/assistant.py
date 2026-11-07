@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFo
 
 from fed.core import acquisition as acq
 from fed.core import autoconfig, keepawake, oauth, syscheck
+from fed.core import timefmt as tf
 from fed.core.auth import OAuthSession, log_oauth_login, make_connector
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
@@ -473,7 +474,9 @@ class AccountPage(QWidget):
               mono=True)
         if self.st.oauth_session and self.method.value() != "password":
             t.set(self.tr("Angemeldet als"), self.st.oauth_session.token.account or "?")
-        t.set(self.tr("Anmeldung"), self.tr("OK · ") + datetime.now(UTC).strftime("%H:%M:%S UTC"), "ok")
+        now = datetime.now(UTC)
+        t.set(self.tr("Anmeldung"), self.tr("OK · ") + now.strftime("%H:%M:%S UTC") + " / "
+              + tf.local_str(now, with_date=False), "ok")
         t.set(self.tr("Ordner"), self.tr("{0} gefunden").format(nfolders))
         self.go.setEnabled(True)
 
@@ -616,8 +619,8 @@ class FolderPage(QWidget):
             total_b += size or 0
         self.tree.expandAll()
         self.tree.blockSignals(False)
-        self.sub.setText(self.tr("Scan abgeschlossen um {0} UTC · {1} Ordner · {2} Mails · {3} laut Server").format(
-            datetime.now(UTC).strftime("%H:%M:%S"), len(items), f"{total_m:,}".replace(",", "."), _fmt_bytes(total_b)))
+        self.sub.setText(self.tr("Scan abgeschlossen um {0} UTC ({1}) · {2} Ordner · {3} Mails · {4} laut Server").format(
+            datetime.now(UTC).strftime("%H:%M:%S"), tf.local_str(datetime.now(UTC), with_date=False), len(items), f"{total_m:,}".replace(",", "."), _fmt_bytes(total_b)))
         restyle(self.sub, "Muted")
         self._update_summary()
         self.go.setEnabled(True)
@@ -762,9 +765,11 @@ class AcquirePage(QWidget):
             x.setVisible(False)
         self.cancel_btn.setVisible(True)
         self.title.setText(self.tr("Sicherung läuft"))
-        self.sub.setText(self.tr("Modus {0} · gestartet {1} UTC · nur lesend (EXAMINE, BODY.PEEK)").format(
+        now = datetime.now(UTC)
+        self.sub.setText(self.tr("Modus {0} · gestartet {1} UTC ({2}) · {3} Verbindungen · nur lesend "
+                                 "(EXAMINE, BODY.PEEK)").format(
             self.tr("Fortsetzen") if mode is acq.Mode.RESUME else self.tr("Neubeginn"),
-            datetime.now(UTC).strftime("%H:%M:%S")))
+            now.strftime("%H:%M:%S"), tf.local_str(now, with_date=False) or "–", st.cfg.programm.verbindungen))
         self.sub.setVisible(True)
         self.bar.setValue(0)
         self._last_log = 0
