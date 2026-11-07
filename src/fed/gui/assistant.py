@@ -961,6 +961,11 @@ class FinishPage(QWidget):
         deleted = not self.st.case.work_dir.exists()
         k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
               else self.tr("behalten"), "ok" if deleted else None)
+        if res.timestamp is not None:
+            k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("{0} UTC · Seriennr. {1}").format(
+                res.timestamp.gen_time.replace("T", " ").rstrip("Z"), res.timestamp.serial), "ok")
+        elif res.timestamp_error:
+            k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("fehlgeschlagen: {0}").format(res.timestamp_error), "warn")
         k.set(self.tr("Berichte erzeugt"), "report.pdf · report.txt · log.csv", "ok")
         for p in z.problems:
             k.set(self.tr("Hinweis"), p, "warn")

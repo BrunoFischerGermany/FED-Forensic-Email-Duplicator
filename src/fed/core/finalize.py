@@ -219,6 +219,37 @@ class FinishResult:
     zip: ZipResult
     report_txt: Path
     report_pdf: Path
+    timestamp: object | None = None  # timestamp.TimestampInfo
+    timestamp_error: str = ""
+
+
+def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult):
+    """RFC-3161-Zeitstempel für den ZIP-Hash holen (falls ``tsa_url`` gesetzt).
+
+    Ein Fehler bricht den Abschluss nicht ab: er wird als Warnung protokolliert und
+    im Bericht genannt. Rückgabe ``(TimestampInfo | None, Fehlertext)``.
+    """
+    from fed.core import timestamp as tsmod
+
+    if not cfg.tsa_url:
+        return None, ""
+    tsr = zip_result.path.parent / (zip_result.path.name + ".tsr")
+    case.log("INFO", "timestamp_requested", {"tsa": cfg.tsa_url, "sha256": zip_result.hashes["sha256"]})
+    try:
+        info = tsmod.request_timestamp(zip_result.hashes["sha256"], cfg.tsa_url, tsr, cfg.proxy_url,
+                                       cfg.programm.socket_timeout_s)
+    except tsmod.TimestampError as e:
+        case.log("WARNING", "timestamp_failed", {"tsa": cfg.tsa_url, "error": str(e)})
+        return None, str(e)
+    gen = datetime.fromisoformat(info.gen_time.replace("Z", "+00:00"))
+    offset = round((datetime.now(UTC) - gen).total_seconds(), 3)
+    case.log("INFO", "timestamp_done", {
+        "file": tsr.name, "tsa": cfg.tsa_url, "gen_time": info.gen_time, "serial": info.serial,
+        "policy": info.policy, "accuracy": info.accuracy, "nonce": str(info.nonce),
+        "sha256": info.hashed_message, "local_minus_tsa_s": offset})
+    record_output(case, tsr, cfg)
+    record_output(case, tsr.with_suffix(".tsq"), cfg)
+    return info, ""
 
 
 def delete_work_dir(case: Case, zip_result: ZipResult) -> dict:
@@ -254,6 +285,7 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     z = build_zip(case, cfg, cancel, progress)
     if not z.verified:
         raise RuntimeError("ZIP-Verifikation fehlgeschlagen: " + "; ".join(z.problems))
+    ts_info, ts_error = add_timestamp(case, cfg, z)
     close_case(case)
     if delete_work is None:
         delete_work = cfg.programm.arbeitsordner_loeschen == "ja"
@@ -265,4 +297,4 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
                              cfg.programm.bericht_mailliste, cfg.programm.bericht_mailliste_max)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
-    return FinishResult(z, txt, pdf)
+    return FinishResult(z, txt, pdf, ts_info, ts_error)

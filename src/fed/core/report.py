@@ -34,6 +34,11 @@ LABELS = {
         "head": "Hash letzter Eintrag", "ok": "unverändert", "broken": "GEBROCHEN", "mails": "Gesicherte Mails",
         "received": "Eingang (UTC / lokal)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
         "att": "Anl.", "work_dir": "Arbeitsordner", "list_omitted": "Die Ordnerstruktur mit der Anzahl je Ordner steht oben unter „Ordner“. Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
+        "ts": "Zeitstempel (RFC 3161)", "ts_file": "Antwort", "ts_tsa": "Dienst", "ts_time": "Zeit laut Dienst (UTC / lokal)",
+        "ts_serial": "Seriennummer", "ts_policy": "Richtlinie (OID)", "ts_acc": "Genauigkeit", "ts_hash": "Gestempelter SHA-256",
+        "ts_offset": "Rechneruhr minus Dienst", "ts_failed": "fehlgeschlagen", "ts_verify": "Prüfung",
+        "ts_verify_cmd": "openssl ts -verify -in {tsr} -data {zip} -CAfile <Zertifikatskette des Dienstes>",
+        "wd_deleted": "gelöscht nach erfolgreicher ZIP-Verifikation ({files} Dateien, {size})", "wd_kept": "behalten (work/)",
         "yes": "ja", "no": "nein", "unknown": "unbekannt", "file": "Datei", "size": "Größe",
     },
     "en": {
@@ -53,6 +58,11 @@ LABELS = {
         "head": "Hash of last entry", "ok": "intact", "broken": "BROKEN", "mails": "Acquired messages",
         "received": "Received (UTC / local)", "from": "From", "to": "To", "subject": "Subject",
         "att": "Att.", "work_dir": "Working folder", "list_omitted": "The folder structure with counts per folder is shown above under “Folders”. The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
+        "ts": "Timestamp (RFC 3161)", "ts_file": "Response", "ts_tsa": "Service", "ts_time": "Time per service (UTC / local)",
+        "ts_serial": "Serial number", "ts_policy": "Policy (OID)", "ts_acc": "Accuracy", "ts_hash": "Timestamped SHA-256",
+        "ts_offset": "Computer clock minus service", "ts_failed": "failed", "ts_verify": "Verification",
+        "ts_verify_cmd": "openssl ts -verify -in {tsr} -data {zip} -CAfile <certificate chain of the service>",
+        "wd_deleted": "deleted after successful ZIP verification ({files} files, {size})", "wd_kept": "kept (work/)",
         "yes": "yes", "no": "no", "unknown": "unknown", "file": "File", "size": "Size",
     },
 }
@@ -94,19 +104,30 @@ def collect(case: Case) -> dict:
         "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
         "messages": message_rows(case),
         "work_dir": _work_dir_state(case),
+        "timestamp": _timestamp_state(case),
     }
 
 
-def _work_dir_state(case: Case) -> str:
+def _timestamp_state(case: Case) -> dict:
+    row = case.conn.execute("SELECT event, details FROM log WHERE event IN ('timestamp_done', 'timestamp_failed') "
+                            "ORDER BY id DESC LIMIT 1").fetchone()
+    if not row:
+        return {}
+    return {"ok": row[0] == "timestamp_done", **json.loads(row[1])}
+
+
+def _work_dir_state(case: Case) -> dict:
     row = case.conn.execute("SELECT event, details, ts_utc FROM log WHERE event IN ('work_dir_deleted', 'work_dir_kept') "
                             "ORDER BY id DESC LIMIT 1").fetchone()
     if not row:
-        return ""
-    if row[0] == "work_dir_deleted":
-        det = json.loads(row[1])
-        return (f"gelöscht nach erfolgreicher ZIP-Verifikation ({det['files']} Dateien, "
-                f"{_fmt_bytes(det['bytes'])}) · {tf.both(row[2])}")
-    return "behalten (work/)"
+        return {}
+    return {"deleted": row[0] == "work_dir_deleted", "ts": row[2], **json.loads(row[1] or "{}")}
+
+
+def _work_dir_text(w: dict, L: dict) -> str:
+    if not w.get("deleted"):
+        return L["wd_kept"]
+    return L["wd_deleted"].format(files=w["files"], size=_fmt_bytes(w["bytes"])) + f" · {tf.both(w['ts'])}"
 
 
 def include_mail_list(count: int, mode: str = "auto", limit: int = 500) -> bool:
@@ -161,7 +182,7 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
         (L["tool"], f"{APP_NAME} {i['tool_version']}"), (L["tool_sha"], i["tool_sha256"] or "–"),
     ])]
     if d.get("work_dir"):
-        secs[0][1].append((L["work_dir"], d["work_dir"]))
+        secs[0][1].append((L["work_dir"], _work_dir_text(d["work_dir"], L)))
     if d["system"]:
         s = d["system"][0]
         secs.append((L["system"], [
@@ -180,6 +201,17 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
             (L["auth"], a["auth_method"]), (L["source"], a["autoconfig_source"] or "–"),
             (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
         ]))
+    ts = d.get("timestamp")
+    if ts and ts["ok"]:
+        zip_name = ts["file"].removesuffix(".tsr")
+        secs.append((L["ts"], [
+            (L["ts_file"], ts["file"]), (L["ts_tsa"], ts["tsa"]), (L["ts_time"], tf.both(ts["gen_time"])),
+            (L["ts_serial"], ts["serial"]), (L["ts_policy"], ts["policy"]), (L["ts_acc"], ts["accuracy"] or "–"),
+            (L["ts_hash"], ts["sha256"]), (L["ts_offset"], f"{ts['local_minus_tsa_s']:+.3f} s"),
+            (L["ts_verify"], L["ts_verify_cmd"].format(tsr=ts["file"], zip=zip_name)),
+        ]))
+    elif ts:
+        secs.append((L["ts"], [(L["status"], L["ts_failed"]), (L["ts_tsa"], ts["tsa"]), ("", ts["error"])]))
     lg = d["log"]
     secs.append((L["logchain"], [
         (L["status"], L["ok"] if lg["ok"] else f"{L['broken']} (#{lg['bad']})"),

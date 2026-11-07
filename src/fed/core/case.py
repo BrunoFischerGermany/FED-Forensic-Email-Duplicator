@@ -76,6 +76,10 @@ class Case:
             raise FileExistsError(f"Case existiert bereits: {root}")
         (root / "work").mkdir(parents=True, exist_ok=True)
         (root / "discarded").mkdir(exist_ok=True)
+        if tool_sha256 is None:
+            from fed.core.hashing import tool_fingerprint
+
+            tool_sha256 = tool_fingerprint()
         conn = _connect(root / CASE_DB)
         conn.executescript(resources.files("fed.resources").joinpath("schema.sql").read_text("utf-8"))
         now = datetime.now(UTC)

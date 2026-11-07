@@ -133,14 +133,19 @@ def _encode_mutf7(s: str) -> str:
     return "".join(out)
 
 
+def folders() -> set[str]:
+    """Alle Ordner des Testpostfachs (auch leere und reine Elternordner)."""
+    return {m.folder for m in mails()} | set(EMPTY_FOLDERS) | {"Projekte"}
+
+
 def build(maildir: Path) -> list[TestMail]:
     """Schreibt das Postfach nach ``maildir`` (z. B. ``home/test@example.de/Maildir``)."""
-    folders = {m.folder for m in mails()} | set(EMPTY_FOLDERS) | {"Projekte"}
-    for f in sorted(folders):
+    folders_ = folders()
+    for f in sorted(folders_):
         d = maildir / _maildir_name(f) if f != "INBOX" else maildir
         for sub in ("cur", "new", "tmp"):
             (d / sub).mkdir(parents=True, exist_ok=True)
-    (maildir / "subscriptions").write_text("\n".join(sorted(folders - {"INBOX"})) + "\n", encoding="utf-8")
+    (maildir / "subscriptions").write_text("\n".join(sorted(folders_ - {"INBOX"})) + "\n", encoding="utf-8")
     for i, m in enumerate(mails(), start=1):
         d = maildir / _maildir_name(m.folder) if m.folder != "INBOX" else maildir
         ts = int(m.received.timestamp())

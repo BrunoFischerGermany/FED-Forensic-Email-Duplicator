@@ -99,6 +99,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ZIP: {res.zip.path}  ({res.zip.files} Mails, verifiziert: {res.zip.verified})")
         for k, v in res.zip.hashes.items():
             print(f"  {k.upper():<7} {v}")
+        if res.timestamp is not None:
+            print(f"Zeitstempel (RFC 3161): {res.timestamp.gen_time}  Seriennr. {res.timestamp.serial}")
+        elif res.timestamp_error:
+            print(f"  WARNUNG Zeitstempel: {res.timestamp_error}")
         print(f"Berichte: {res.report_txt.name}, {res.report_pdf.name}")
         for p in res.zip.problems:
             print(f"  HINWEIS: {p}")
