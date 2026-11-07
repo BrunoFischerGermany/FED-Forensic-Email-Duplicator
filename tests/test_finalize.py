@@ -106,9 +106,12 @@ def test_report_mail_list_modes(acquired):
     case = acquired
     finish_case(case, Config())
     assert include_mail_list(1000, "auto", 500) is False and include_mail_list(400, "auto", 500) is True
-    assert include_mail_list(10**6, "immer") and not include_mail_list(1, "nie")
-    full = render_txt(case, "de", "immer")
+    assert include_mail_list(10**6, "liste") and not include_mail_list(1, "ordner")
+    assert include_mail_list(10**6, "immer") and not include_mail_list(1, "nie")  # alte Werte
+    full = render_txt(case, "de", "liste")
     short = render_txt(case, "de", "auto", 5)
     assert "SHA-256 " in full and full.count("UID ") > 5
     assert "steht in log.csv" in short and short.count("UID ") == 0
     assert "Unterschrift" not in full and "Unterschrift" not in short
+    # Ordnerstruktur als Baum mit Anzahl, auch ohne Liste
+    assert "  └ Rechnungen" in short and "  └ 2025" in short and "Leer" in short

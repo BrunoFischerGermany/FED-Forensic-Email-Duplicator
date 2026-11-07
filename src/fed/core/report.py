@@ -32,7 +32,7 @@ LABELS = {
         "outputs": "Erzeugte Dateien und Hashes", "logchain": "Log-Kette", "entries": "Einträge",
         "head": "Hash letzter Eintrag", "ok": "unverändert", "broken": "GEBROCHEN", "mails": "Gesicherte Mails",
         "received": "Eingang (UTC)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
-        "att": "Anl.", "list_omitted": "Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
+        "att": "Anl.", "list_omitted": "Die Ordnerstruktur mit der Anzahl je Ordner steht oben unter „Ordner“. Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
         "yes": "ja", "no": "nein", "unknown": "unbekannt", "file": "Datei", "size": "Größe",
     },
     "en": {
@@ -51,7 +51,7 @@ LABELS = {
         "outputs": "Output files and hashes", "logchain": "Log chain", "entries": "entries",
         "head": "Hash of last entry", "ok": "intact", "broken": "BROKEN", "mails": "Acquired messages",
         "received": "Received (UTC)", "from": "From", "to": "To", "subject": "Subject",
-        "att": "Att.", "list_omitted": "The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
+        "att": "Att.", "list_omitted": "The folder structure with counts per folder is shown above under “Folders”. The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
         "yes": "yes", "no": "no", "unknown": "unknown", "file": "File", "size": "Size",
     },
 }
@@ -96,10 +96,12 @@ def collect(case: Case) -> dict:
 
 
 def include_mail_list(count: int, mode: str = "auto", limit: int = 500) -> bool:
-    """Mail-Liste im Bericht: ``immer``, ``nie`` oder ``auto`` (nur bis ``limit`` Mails)."""
-    if mode == "immer":
+    """Inhalt des Berichts: ``liste`` (Ordnerstruktur + Mail-Liste), ``ordner`` (nur Ordnerstruktur
+    mit Anzahl, Liste in log.csv) oder ``auto`` (Liste nur bis ``limit`` Mails)."""
+    mode = {"immer": "liste", "nie": "ordner"}.get(mode, mode)
+    if mode == "liste":
         return True
-    if mode == "nie":
+    if mode == "ordner":
         return False
     return count <= limit
 
@@ -112,6 +114,20 @@ def _fmt_bytes(n: int | None) -> str:
             return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
         n /= 1024
     return str(n)
+
+
+def folder_tree(folders: list[dict]) -> list[dict]:
+    """Ordner je Konto hierarchisch sortiert, mit eingerückter Bezeichnung (``label``) und Tiefe."""
+    def key(f):
+        parts = f["display_name"].split(f["delimiter"]) if f["delimiter"] else [f["display_name"]]
+        return (f["email"], [(p.upper() != "INBOX" if i == 0 else True, p.lower()) for i, p in enumerate(parts)])
+
+    out = []
+    for f in sorted(folders, key=key):
+        parts = f["display_name"].split(f["delimiter"]) if f["delimiter"] else [f["display_name"]]
+        depth = len(parts) - 1
+        out.append({**f, "depth": depth, "label": ("\u2003" * depth) + ("\u2514 " if depth else "") + parts[-1]})
+    return out
 
 
 def _status_pair(f: dict, L: dict) -> str:
@@ -174,11 +190,16 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out.append(f"{t['email']} #{t['nr']}  {t['mode']:<8} {t['status']:<10} {t['started_utc']} – "
                    f"{t['ended_utc'] or '…'}  {t['reason'] or ''}{'  -> ' + t['moved_to'] if t['moved_to'] else ''}")
     out += ["", L["folders"], "-" * len(L["folders"])]
-    for f in d["folders"]:
+    last = None
+    for f in folder_tree(d["folders"]):
+        if f["email"] != last:
+            out.append(f["email"])
+            last = f["email"]
         diff = (f["count_saved"] or 0) - (f["count_server"] or 0) if f["selected"] else ""
-        out.append(f"{f['email']}/{f['display_name']:<34} {L['selected'] if f['selected'] else '-':<9} "
-                   f"{L['server_count']} {f['count_server'] or 0:>6}  {L['saved']} {f['count_saved'] or 0:>6}  "
-                   f"{L['diff']} {diff!s:>4}  {_status_pair(f, L)}")
+        name = "  " + "  " * f["depth"] + ("└ " if f["depth"] else "") + f["display_name"].split(f["delimiter"] or "\0")[-1]
+        out.append(f"{name:<36} {'[x]' if f['selected'] else '[ ]'}  {L['server_count']} {f['count_server'] or 0:>6}  "
+                   f"{L['saved']} {f['count_saved'] or 0:>6}  {L['diff']} {diff!s:>4}  "
+                   f"{_fmt_bytes(f['size_server']):>9}  {_status_pair(f, L)}")
     out += ["", L["issues"], "-" * len(L["issues"])]
     out += [f"{x['ts_utc']} {x['level']:<7} {x['event']}: {x['details']}" for x in d["issues"]] or [L["none"]]
     out += ["", L["outputs"], "-" * len(L["outputs"])]
@@ -282,12 +303,20 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                    (a["reason"] or "") + (f" -> {a['moved_to']}" if a["moved_to"] else "")])
 
     h2(L["folders"])
-    with pdf.table(col_widths=(50, 15, 15, 17, 19, 64), headings_style=head, line_height=4.4) as t:
-        t.row([L["folders"], L["selected"], L["server_count"], L["saved"], L["diff"], L["before_after"]])
-        for f in d["folders"]:
-            diff = str((f["count_saved"] or 0) - (f["count_server"] or 0)) if f["selected"] else ""
-            t.row([f["display_name"], L["yes"] if f["selected"] else L["no"], str(f["count_server"] or 0),
-                   str(f["count_saved"] or 0), diff, _status_pair(f, L)])
+    tree = folder_tree(d["folders"])
+    for email in dict.fromkeys(f["email"] for f in tree):
+        pdf.set_font("DejaVu", "B", 8.5)
+        pdf.cell(0, 5, email, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DejaVu", "", 8.5)
+        with pdf.table(col_widths=(46, 17, 15, 18, 19, 18, 47), headings_style=head, line_height=4.4,
+                       text_align=("LEFT", "CENTER", "RIGHT", "RIGHT", "RIGHT", "RIGHT", "LEFT")) as t:
+            t.row([L["folders"], L["selected"], L["server_count"], L["saved"], L["diff"], L["size"],
+                   L["before_after"]])
+            for f in (x for x in tree if x["email"] == email):
+                diff = str((f["count_saved"] or 0) - (f["count_server"] or 0)) if f["selected"] else ""
+                t.row([f["label"], "✓" if f["selected"] else "–", str(f["count_server"] or 0),
+                       str(f["count_saved"] or 0), diff, _fmt_bytes(f["size_server"]), _status_pair(f, L)])
+        pdf.ln(1)
 
     h2(L["issues"])
     if d["issues"]:
@@ -313,15 +342,6 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
 
     h2(f"{L['mails']} ({len(d['messages'])})")
     if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
-        counts: dict[str, int] = {}
-        for m in d["messages"]:
-            key = f"{m['Konto']} / {m['Ordner']}"
-            counts[key] = counts.get(key, 0) + 1
-        with pdf.table(col_widths=(150, 30), headings_style=head, line_height=4.4) as t:
-            t.row([L["per_folder"], L["mails"]])
-            for k, v in counts.items():
-                t.row([k, str(v)])
-        pdf.ln(2)
         pdf.set_font("DejaVu", "", 8.5)
         pdf.multi_cell(0, 4.6, L["list_omitted"].format(n=len(d["messages"])), new_x="LMARGIN", new_y="NEXT")
         pdf.output(str(path))
