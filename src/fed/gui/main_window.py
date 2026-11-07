@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSettings, QSize, Qt
 from PySide6.QtWidgets import (QApplication, QButtonGroup, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
                                QPushButton, QStackedWidget, QVBoxLayout, QWidget)
 
@@ -15,7 +15,7 @@ from fed.gui.assistant import Assistant
 from fed.gui.history import HistoryTab
 from fed.gui.settings import SettingsTab
 from fed.gui.status import ConnectionStatus
-from fed.gui.widgets import LOGO, MOON, SUN, label, svg_icon
+from fed.gui.widgets import LOGO, MOON, SUN, ElidedLabel, label, svg_icon
 
 
 class MainWindow(QMainWindow):
@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.cfg = cfg
         self.setWindowTitle(f"FED – Forensic Email Duplicator {__version__}")
-        self.resize(1280, 820)
+        self._place_window()
         self.dark = theme.is_dark(cfg.programm.design)
 
         root = QWidget()
@@ -40,7 +40,8 @@ class MainWindow(QMainWindow):
         hl.addWidget(logo)
         hl.addWidget(label("FED", None))
         hl.itemAt(1).widget().setStyleSheet("font-weight:700;font-size:15px;")
-        self.case_lbl = label("Forensic Email Duplicator", "HeaderSub")
+        self.case_lbl = ElidedLabel("Forensic Email Duplicator", "HeaderSub", Qt.TextElideMode.ElideRight)
+        self.case_lbl.setMinimumWidth(160)
         hl.addWidget(self.case_lbl)
         hl.addStretch(1)
         self.nav = QButtonGroup(self)
@@ -51,7 +52,9 @@ class MainWindow(QMainWindow):
             self.nav.addButton(b, i)
             hl.addWidget(b)
         hl.addStretch(1)
-        self.agency = label(cfg.agentur.name, "HeaderSub")
+        self.agency = ElidedLabel(cfg.agentur.name, "HeaderSub", Qt.TextElideMode.ElideRight)
+        self.agency.setMinimumWidth(120)
+        self.agency.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         hl.addWidget(self.agency)
         self.theme_btn = QPushButton()
         self.theme_btn.setObjectName("ThemeButton")
@@ -73,8 +76,9 @@ class MainWindow(QMainWindow):
         self.nav.idClicked.connect(self.stack.setCurrentIndex)
         self.nav.button(0).setChecked(True)
 
-        self.case_info = label(self.tr("Kein Case geöffnet"))
-        self.statusBar().addWidget(self.case_info)
+        self.case_info = ElidedLabel(self.tr("Kein Case geöffnet"))
+        self.case_info.max_hint = 2000
+        self.statusBar().addWidget(self.case_info, 1)
         self.connection = ConnectionStatus(self)
         self.statusBar().addPermanentWidget(self.connection)
         self.assistant.case_changed.connect(self._case_changed)
@@ -107,6 +111,25 @@ class MainWindow(QMainWindow):
         self.apply_theme(theme.is_dark(cfg.programm.design))
         self.statusBar().showMessage(self.tr("Einstellungen gespeichert"), 4000)
 
+    def _place_window(self) -> None:
+        """Letzte Fenstergröße wiederherstellen, sonst passend zum Bildschirm (max. 1440 × 940) mittig."""
+        geo = QSettings().value("window/geometry")
+        screen = QApplication.primaryScreen()
+        if geo is not None and self.restoreGeometry(geo):
+            if screen is None or any(s.availableGeometry().intersects(self.frameGeometry())
+                                     for s in QApplication.screens()):
+                return
+        if screen is None:
+            self.resize(1280, 820)
+            return
+        avail = screen.availableGeometry()
+        w = min(1440, int(avail.width() * 0.9))
+        h = min(940, int(avail.height() * 0.9))
+        self.resize(w, h)
+        self.move(avail.x() + (avail.width() - w) // 2, avail.y() + (avail.height() - h) // 2)
+        if avail.width() < 1100 or avail.height() < 720:  # kleiner Bildschirm: ganz nutzen
+            self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
+
     def closeEvent(self, e) -> None:
         busy = self.assistant.p_acq.worker and self.assistant.p_acq.worker.thread.isRunning()
         if busy:
@@ -122,4 +145,5 @@ class MainWindow(QMainWindow):
             keepawake.shared().release()
         if self.assistant.st.case:
             self.assistant.st.case.close()
+        QSettings().setValue("window/geometry", self.saveGeometry())
         e.accept()

@@ -76,16 +76,25 @@ Tests against a real IMAP server: `apt install dovecot-imapd`, then `pytest`
 Configuration: copy `config.example.toml` to `config.toml` next to the program and adjust it –
 or just start the program: if no base data is set, the GUI asks for it on first start.
 
-## Building ready-to-run programs
+## Releases and ready-to-run programs
 
-| Way | How |
+Releases are built automatically: on GitHub **Releases → Draft a new release**, create a tag
+(e.g. `v1.0.0`) and click **Publish release**. The *Build* workflow then builds all platforms,
+self-tests every package, runs the validation and attaches everything to the release:
+
+| File | |
 |---|---|
-| One click | GitHub → **Actions** → **Build** → **Run workflow**; the files are then under the run's *Artifacts* |
-| Release | `git tag v1.0.0 && git push origin v1.0.0` – builds all platforms and creates the release with the files and `SHA256SUMS.txt` |
-| Local | `pip install -e .[build]` and `python packaging/build.py` (builds for your own system into `dist/`) |
+| `FED-<version>-windows-x64.exe` | Windows – a single file, double-click to start |
+| `FED-<version>-macos-arm64.zip` / `-macos-x64.zip` | macOS Apple Silicon / Intel (`FED.app`) |
+| `FED-<version>-linux-x64.tar.gz` | Linux (`FED/FED`) |
+| `FED-<version>-validation-report-*.pdf` | validation report (13 checks) |
+| `SHA256SUMS.txt` | checksums |
 
-Output: `FED-<version>-windows-x64.zip`, `-macos-arm64.zip`, `-macos-x64.zip`, `-linux-x64.tar.gz`.
-Put `config.toml` next to `FED.exe`, `FED`, or `FED.app`.
+A **nightly** pre-release of `main` is built every night when there are new commits.
+Builds without a release: **Actions → Build → Run workflow** (files under *Artifacts*), or locally
+`pip install -e .[build]` and `python packaging/build.py`. Details (German): [docs/releases.md](docs/releases.md).
+
+Put `config.toml` next to `FED.exe`, `FED`, or `FED.app` – or just start FED: it asks for the base data.
 The programs are not signed: macOS reports an "unidentified developer"
 (right-click → Open, or `xattr -cr FED.app`); Windows SmartScreen: "More info → Run anyway".
 

@@ -163,7 +163,7 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
             rng = f"{a['date_from'] or '…'} – {a['date_to'] or '…'} ({L['partial']})"
         secs.append((f"{L['account']} {a['email']}", [
             (L["evidence"], a["evidence_number"]), (L["server"], f"{a['server']}:{a['port']} ({a['security']})"),
-            (L["auth"], a["auth_method"]), (L["source"], a["autoconfig_source"] or "–"),
+            (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], a["autoconfig_source"] or "–"),
             (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
         ]))
     ts = d.get("timestamp")

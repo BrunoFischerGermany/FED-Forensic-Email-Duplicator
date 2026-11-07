@@ -1,0 +1,74 @@
+# Nightly: baut jede Nacht den aktuellen Stand von main als Vorabversion "nightly" –
+# nur wenn es seit dem letzten Nightly bzw. Release neue Commits gibt. Das bisherige
+# Nightly-Release wird dabei ersetzt. Per Klick: Actions → "Nightly" → "Run workflow".
+name: Nightly
+
+on:
+  schedule:
+    - cron: "23 1 * * *"   # 01:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Neue Commits seit dem letzten Nightly/Release?
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          base="$(python3 -c 'import re; print(re.search(r"__version__ = \"([^\"]+)\"", open("src/fed/__init__.py").read())[1])')"
+          echo "version=${base}-nightly-$(date -u +%Y%m%d)-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          ref=""
+          for tag in nightly "$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null)"; do
+            [ -z "$tag" ] && continue
+            sha="$(git rev-list -n 1 "$tag" 2>/dev/null || true)"
+            [ -z "$sha" ] && continue
+            if [ -z "$ref" ] || [ "$(git show -s --format=%ct "$sha")" -gt "$(git show -s --format=%ct "$ref")" ]; then ref="$sha"; fi
+          done
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ -z "$ref" ] || [ "$(git rev-list --count "$ref..$GITHUB_SHA")" -gt 0 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Keine neuen Commits seit $ref – kein Nightly."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_run == 'true'
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.check.outputs.version }}
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Nightly-Release ersetzen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv dist/validation-notes.md notes.md
+          cd dist && sha256sum * > SHA256SUMS.txt && cd ..
+          {
+            echo "Automatischer Build von \`main\` (${GITHUB_SHA::7}) – **keine stabile Version**, nur zum Testen."
+            echo "Automated build of \`main\` – **not a stable release**, for testing only."
+            echo
+            cat notes.md
+          } > body.md
+          gh release delete nightly --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create nightly --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "Nightly $(date -u +%Y-%m-%d)" --notes-file body.md dist/*

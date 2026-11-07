@@ -49,6 +49,56 @@ def label(text: str = "", name: str | None = None, wrap: bool = False, selectabl
     return lab
 
 
+class ElidedLabel(QLabel):
+    """Einzeilige Anzeige für lange Pfade/Namen: kürzt in der Mitte mit „…“ statt das Fenster zu
+    verbreitern. Der volle Text steht im Tooltip und wird mit „Kopieren“ (Rechtsklick) übernommen."""
+
+    def __init__(self, text: str = "", name: str | None = None, mode=Qt.TextElideMode.ElideMiddle,
+                 parent=None) -> None:
+        super().__init__(parent)
+        if name:
+            self.setObjectName(name)
+        self._full = ""
+        self._mode = mode
+        self.max_hint = 420  # bevorzugte Breite höchstens so groß – darüber wird gekürzt
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
+        from PySide6.QtGui import QAction
+
+        copy = QAction(self.tr("Kopieren"), self)
+        copy.triggered.connect(lambda: QApplication.clipboard().setText(self._full))
+        self.addAction(copy)
+        self.setText(text)
+
+    def setText(self, text: str) -> None:
+        self._full = text
+        self.setToolTip(text)
+        self.updateGeometry()
+        self._elide()
+
+    def text(self) -> str:
+        return self._full
+
+    def full_text(self) -> str:
+        return self._full
+
+    def sizeHint(self) -> QSize:
+        h = super().sizeHint()
+        w = self.fontMetrics().horizontalAdvance(self._full) + 4
+        return QSize(min(w, self.max_hint), h.height())
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(min(self.minimumWidth() or 40, self.sizeHint().width()), super().minimumSizeHint().height())
+
+    def resizeEvent(self, e) -> None:
+        super().resizeEvent(e)
+        self._elide()
+
+    def _elide(self) -> None:
+        shown = self.fontMetrics().elidedText(self._full, self._mode, max(self.width(), 40))
+        super().setText(shown)
+
+
 def restyle(w: QWidget, name: str) -> None:
     w.setObjectName(name)
     w.style().unpolish(w)

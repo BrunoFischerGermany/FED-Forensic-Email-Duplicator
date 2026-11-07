@@ -128,3 +128,65 @@ def test_translations_complete():
     assert r.returncode == 0, r.stdout + r.stderr
     assert json.loads((root / "src" / "fed" / "i18n" / "en.json").read_text(encoding="utf-8"))
     assert (root / "src" / "fed" / "i18n" / "fed_en.qm").stat().st_size > 1000
+
+
+def test_long_texts_do_not_widen_window(app, tmp_path):
+    """Lange Pfade, Casenumbers und Agenturnamen dürfen das Fenster nicht verbreitern.
+
+    Verglichen wird die Mindestbreite vor und nach den langen Eingaben – absolute Pixel hängen
+    von Schrift und Plattform ab (unter Windows/offscreen sind Texte deutlich breiter).
+    """
+    from PySide6.QtCore import Qt
+
+    from fed.core import config as cfgmod
+    from fed.gui.main_window import MainWindow
+
+    cfg = cfgmod.Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    w = MainWindow(cfg, tmp_path)
+    w.setWindowState(Qt.WindowState.WindowNoState)
+    w.show()
+    _pump(app, lambda: w.assistant.st.system is not None)
+    for _ in range(20):
+        app.processEvents()
+    before = w.minimumSizeHint().width()
+    w.resize(before + 100, 720)
+    for _ in range(5):
+        app.processEvents()
+    width = w.width()
+
+    p = w.assistant.p_case
+    p.target.setText(str(tmp_path / ("sehr-langer-ordnername-ohne-leerzeichen-" * 6)))
+    p.case_no.setText("VG-" + "1234567890" * 8)
+    w.agency.setText("Hauptzollamt Berlin – Zollfahndungsamt Berlin-Brandenburg, Sachgebiet IT-Forensik " * 2)
+    for _ in range(20):
+        app.processEvents()
+    assert w.minimumSizeHint().width() <= before + 4
+    assert w.width() == width
+    assert p.target_hint.full_text().endswith("1234567890")
+    w.close()
+    w.deleteLater()
+    app.processEvents()
+
+
+def test_google_app_password_method(app, tmp_path):
+    from fed.core import config as cfgmod
+    from fed.gui.main_window import MainWindow
+
+    cfg = cfgmod.Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    win = MainWindow(cfg, tmp_path)
+    _pump(app, lambda: win.assistant.st.system is not None)
+    p = win.assistant.p_acc
+    p.method.set_value("google_app")
+    p._method_changed("google_app")
+    assert p.pw_label.text() == "App-Passwort" and "apppasswords" in p.pw_hint.text()
+    assert not p.password.isHidden() and p.oauth_hint.isHidden()
+    p.method.set_value("google")
+    p._method_changed("google")
+    assert p.password.isHidden() and not p.oauth_hint.isHidden()
+    win.close()
+    win.deleteLater()
+    app.processEvents()

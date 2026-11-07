@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS account (
     server            TEXT NOT NULL,
     port              INTEGER NOT NULL,
     security          TEXT NOT NULL,          -- ssl | starttls
-    auth_method       TEXT NOT NULL,          -- password | oauth_google | oauth_microsoft
+    auth_method       TEXT NOT NULL,          -- password | app_password_google | oauth_google | oauth_microsoft
     username          TEXT NOT NULL,
     autoconfig_source TEXT,
     tls_cert_sha256   TEXT,

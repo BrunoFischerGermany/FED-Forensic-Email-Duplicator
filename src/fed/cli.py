@@ -42,8 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     acq.add_argument("--user", help="Benutzername (Standard: Adresse)")
     acq.add_argument("--cafile", help="eigene CA-Datei (z. B. Behörden-CA oder Testserver)")
     acq.add_argument("--exclude", action="append", default=[], metavar="ORDNER", help="Ordner auslassen (mehrfach)")
-    acq.add_argument("--auth", choices=["auto", "password", "google", "microsoft"], default="auto",
-                     help="Anmeldeart (auto: Google/Microsoft per OAuth, sonst Passwort)")
+    acq.add_argument("--auth", choices=["auto", "password", "google-app", "google", "microsoft"], default="auto",
+                     help="Anmeldeart (auto: Google per OAuth, ohne Client-ID per App-Passwort; Microsoft per "
+                          "OAuth; sonst Passwort)")
     acq.add_argument("--device-code", action="store_true", help="Microsoft: Anmeldung per Gerätecode")
     acq.add_argument("--login-as", help="OAuth: Konto, mit dem angemeldet wird (z. B. bei geteiltem Postfach)")
 
@@ -134,7 +135,8 @@ def _acquire(args) -> int:
     from fed.core import acquisition as acqmod
     from fed.core import autoconfig, oauth
     from fed.core import config as cfgmod
-    from fed.core.auth import OAuthSession, log_oauth_login, make_connector
+    from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, is_gmail, log_oauth_login, make_connector,
+                               normalize_app_password)
     from fed.core.cancel import CancelToken
     from fed.core.case import Case
 
@@ -163,17 +165,23 @@ def _acquire(args) -> int:
         if method == "auto":
             if row:
                 stored = case.conn.execute("SELECT auth_method FROM account WHERE id = ?", (acc_id,)).fetchone()[0]
-                method = {"oauth_google": "google", "oauth_microsoft": "microsoft"}.get(stored, "password")
-            elif server.lower() == "imap.gmail.com" or str(provider_hint) == "google":
-                method = "google"
+                method = {"oauth_google": "google", "oauth_microsoft": "microsoft",
+                          "app_password_google": "google-app"}.get(stored, "password")
+            elif is_gmail(server) or str(provider_hint) == "google":
+                method = "google" if cfg.oauth_google.client_id else "google-app"
             elif server.lower() == "outlook.office365.com" or str(provider_hint) == "microsoft":
                 method = "microsoft"
             else:
                 method = "password"
-        auth_method = {"google": "oauth_google", "microsoft": "oauth_microsoft"}.get(method, "password")
+        auth_method = {"google": "oauth_google", "microsoft": "oauth_microsoft",
+                       "google-app": "app_password_google"}.get(method, "password")
         timeout = cfg.programm.socket_timeout_s
-        if method == "password":
-            password = os.environ.get("FED_PASSWORD") or getpass.getpass(f"Passwort für {user}: ")
+        if method in ("password", "google-app"):
+            prompt = (f"Google-App-Passwort für {user} ({APP_PASSWORD_URL}): " if method == "google-app"
+                      else f"Passwort für {user}: ")
+            password = os.environ.get("FED_PASSWORD") or getpass.getpass(prompt)
+            if method == "google-app":
+                password = normalize_app_password(password)
             connect = make_connector(server, port, security, user, password=password, timeout=timeout,
                                      cafile=args.cafile)
         else:

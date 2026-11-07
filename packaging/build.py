@@ -4,7 +4,7 @@ Lokal:   pip install -e .[build]  &&  python packaging/build.py
 In CI:   .github/workflows/build.yml ruft dasselbe Skript auf.
 
 Ergebnis in ``dist/``:
-  Windows  FED-<version>-windows-x64.zip      (Ordner mit FED.exe)
+  Windows  FED-<version>-windows-x64.exe      (eine einzelne Datei, startet ohne Installation)
   macOS    FED-<version>-macos-<arch>.zip      (FED.app)
   Linux    FED-<version>-linux-x64.tar.gz      (Ordner mit FED)
 """
@@ -37,12 +37,12 @@ def version() -> str:
 
 
 def numeric_version(v: str) -> str:
-    """Windows verlangt a.b.c.d aus Ziffern."""
-    parts = []
-    for p in v.split(".")[:4]:
-        digits = "".join(ch for ch in p if ch.isdigit())
-        parts.append(digits or "0")
-    return ".".join((parts + ["0"] * 4)[:4])
+    """Windows verlangt a.b.c.d aus Zahlen bis 65535: ``1.2.3`` -> ``1.2.3.0``, sonst ``0.0.0.0``."""
+    import re
+
+    m = re.match(r"(\d+)(?:\.(\d+))?(?:\.(\d+))?", v)
+    parts = [min(int(x), 65535) for x in m.groups(default="0")] if m else [0, 0, 0]
+    return ".".join(map(str, [*parts, 0]))
 
 
 def target() -> tuple[str, str]:
@@ -55,7 +55,8 @@ def target() -> tuple[str, str]:
 def nuitka_args(system: str, v: str) -> list[str]:
     args = [
         sys.executable, "-m", "nuitka",
-        "--standalone",
+        # Windows: eine einzelne .exe (entpackt sich beim Start in den Temp-Ordner und räumt danach auf)
+        "--onefile" if system == "windows" else "--standalone",
         "--enable-plugin=pyside6",
         "--include-package=fed",
         "--include-package-data=fed",
@@ -85,6 +86,10 @@ def nuitka_args(system: str, v: str) -> list[str]:
 def package(system: str, arch: str, v: str) -> Path:
     DIST.mkdir(exist_ok=True)
     name = f"FED-{v}-{system}-{arch}"
+    if system == "windows":
+        out = DIST / f"{name}.exe"
+        shutil.copy2(BUILD / "FED.exe", out)
+        return out
     stage = BUILD / name
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
@@ -108,8 +113,6 @@ def package(system: str, arch: str, v: str) -> Path:
         for f in EXTRAS:
             if (target_dir / f).exists():
                 subprocess.run(["zip", "-j", str(out), str(target_dir / f)], check=True)
-    else:
-        out = Path(shutil.make_archive(str(DIST / name), "zip", stage, "FED"))
     return out
 
 
