@@ -154,3 +154,25 @@ def test_long_texts_do_not_widen_window(app, tmp_path):
     w.close()
     w.deleteLater()
     app.processEvents()
+
+
+def test_google_app_password_method(app, tmp_path):
+    from fed.core import config as cfgmod
+    from fed.gui.main_window import MainWindow
+
+    cfg = cfgmod.Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    win = MainWindow(cfg, tmp_path)
+    _pump(app, lambda: win.assistant.st.system is not None)
+    p = win.assistant.p_acc
+    p.method.set_value("google_app")
+    p._method_changed("google_app")
+    assert p.pw_label.text() == "App-Passwort" and "apppasswords" in p.pw_hint.text()
+    assert not p.password.isHidden() and p.oauth_hint.isHidden()
+    p.method.set_value("google")
+    p._method_changed("google")
+    assert p.password.isHidden() and not p.oauth_hint.isHidden()
+    win.close()
+    win.deleteLater()
+    app.processEvents()

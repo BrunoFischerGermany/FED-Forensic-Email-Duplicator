@@ -56,6 +56,22 @@ Server: `imap.gmail.com:993`, SSL. Im Gmail-Konto muss IMAP aktiviert sein.
 
 ---
 
+### Ohne OAuth: Google-App-Passwort
+
+Ist keine Google-Client-ID eingerichtet, schlägt FED für Gmail-Konten automatisch
+**„Google (App-Passwort)“** vor (CLI: `fed acquire --auth google-app`).
+
+1. Im Google-Konto die **2-Schritt-Bestätigung** einschalten (Voraussetzung).
+2. Unter <https://myaccount.google.com/apppasswords> ein App-Passwort erzeugen, Name z. B. „FED“.
+3. Die 16 Buchstaben in FED eintragen – die Leerzeichen der Anzeige (`abcd efgh ijkl mnop`)
+   entfernt FED selbst. Das normale Google-Passwort wird von Google für IMAP abgelehnt.
+4. Nach der Sicherung das App-Passwort in derselben Google-Seite wieder **löschen**.
+
+Hinweise: In Google Workspace muss der Administrator App-Passwörter zulassen; bei Konten mit
+„Erweitertem Schutz“ gibt es keine App-Passwörter. Im Bericht steht als Anmeldung
+„Google-App-Passwort“. Ein App-Passwort gewährt vollen Zugriff auf das Postfach – es wird von
+FED wie jedes Passwort nur im Arbeitsspeicher gehalten.
+
 ## Microsoft 365 / Outlook.com
 
 1. **App registrieren:** [Microsoft Entra Admin Center](https://entra.microsoft.com/) →

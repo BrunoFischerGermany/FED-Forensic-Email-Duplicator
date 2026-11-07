@@ -17,7 +17,8 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFo
 from fed.core import acquisition as acq
 from fed.core import autoconfig, keepawake, oauth, syscheck
 from fed.core import timefmt as tf
-from fed.core.auth import OAuthSession, log_oauth_login, make_connector
+from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, explain_login_error, log_oauth_login, make_connector,
+                           normalize_app_password)
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
 from fed.core.finalize import finish_case
@@ -311,8 +312,8 @@ class AccountPage(QWidget):
         left.addWidget(c1)
 
         c2 = Card(self.tr("Anmeldung"))
-        self.method = Segmented([("password", self.tr("Passwort")), ("google", "Google (OAuth)"),
-                                 ("microsoft", "Microsoft 365 (OAuth)")])
+        self.method = Segmented([("password", self.tr("Passwort")), ("google_app", self.tr("Google (App-Passwort)")),
+                                 ("google", "Google (OAuth)"), ("microsoft", "Microsoft 365 (OAuth)")])
         self.method.changed.connect(self._method_changed)
         c2.add(self.method)
         self.pw_label = label(self.tr("Passwort"), "H2")
@@ -360,9 +361,16 @@ class AccountPage(QWidget):
             x.textChanged.connect(lambda *_: self.go.setEnabled(False))
 
     def _method_changed(self, m: str) -> None:
-        pw = m == "password"
+        pw = m in ("password", "google_app")
         for x in (self.pw_label, self.password, self.pw_hint):
             x.setVisible(pw)
+        self.pw_label.setText(self.tr("App-Passwort") if m == "google_app" else self.tr("Passwort"))
+        self.pw_hint.setText(
+            self.tr("16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale "
+                    "Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.")
+            .format(APP_PASSWORD_URL) if m == "google_app"
+            else self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt."))
+        self.pw_hint.setWordWrap(True)
         for x in (self.oauth_hint, self.login_as):
             x.setVisible(not pw)
         self.device.setVisible(m == "microsoft")
@@ -396,8 +404,10 @@ class AccountPage(QWidget):
                                            + self.tr("(Versuch {0} von 6)").format(step))
                 restyle(self.discover_info, "Ok")
                 if s.provider is autoconfig.Provider.GOOGLE:
-                    self.method.set_value("google")
-                    self._method_changed("google")
+                    # mit eingerichteter Client-ID OAuth, sonst App-Passwort
+                    g = "google" if self.st.cfg.oauth_google.client_id else "google_app"
+                    self.method.set_value(g)
+                    self._method_changed(g)
                 elif s.provider is autoconfig.Provider.MICROSOFT:
                     self.method.set_value("microsoft")
                     self._method_changed("microsoft")
@@ -411,9 +421,10 @@ class AccountPage(QWidget):
         m = self.method.value()
         user = normalize_email(self.user.text()) or normalize_email(self.email.text())
         kw = {"timeout": self.st.cfg.programm.socket_timeout_s}
-        if m == "password":
+        if m in ("password", "google_app"):
+            pw = normalize_app_password(self.password.text()) if m == "google_app" else self.password.text()
             return make_connector(self.server.text().strip(), self.port.value(), self.security.currentText(), user,
-                                  password=self.password.text(), **kw)
+                                  password=pw, **kw)
         return make_connector(self.server.text().strip(), self.port.value(), self.security.currentText(), user,
                               oauth_session=self.st.oauth_session, **kw)
 
@@ -430,14 +441,14 @@ class AccountPage(QWidget):
         # alle Eingaben im GUI-Thread lesen – der Worker fasst keine Widgets an
         host, port, sec = self.server.text().strip(), self.port.value(), self.security.currentText()
         user = normalize_email(self.user.text()) or normalize_email(self.email.text())
-        password = self.password.text()
+        password = normalize_app_password(self.password.text()) if m == "google_app" else self.password.text()
         hint = normalize_email(self.login_as.text()) or normalize_email(self.email.text())
         device = self.device.isChecked()
         timeout = cfg.programm.socket_timeout_s
         st = self.st
 
         def work(cancel, report):
-            if m == "password":
+            if m in ("password", "google_app"):
                 connect = make_connector(host, port, sec, user, password=password, timeout=timeout)
             else:
                 prov = oauth.GOOGLE if m == "google" else oauth.microsoft(cfg.oauth_microsoft.tenant)
@@ -473,7 +484,7 @@ class AccountPage(QWidget):
         t.set(self.tr("Server"), info.get("id") or "–")
         t.set("Capabilities", " ".join(info["capabilities"][:8]) + (" …" if len(info["capabilities"]) > 8 else ""),
               mono=True)
-        if self.st.oauth_session and self.method.value() != "password":
+        if self.st.oauth_session and self.method.value() in ("google", "microsoft"):
             t.set(self.tr("Angemeldet als"), self.st.oauth_session.token.account or "?")
         now = datetime.now(UTC)
         t.set(self.tr("Anmeldung"), self.tr("OK · ") + now.strftime("%H:%M:%S UTC") + " / "
@@ -483,7 +494,8 @@ class AccountPage(QWidget):
 
     def _test_failed(self, err: str, tb: str) -> None:
         self.test_btn.setEnabled(True)
-        self.test_state.setText(self.tr("✗ fehlgeschlagen: ") + err)
+        self.test_state.setText(self.tr("✗ fehlgeschlagen: ") + explain_login_error(self.server.text(), err))
+        self.test_state.setWordWrap(True)
         restyle(self.test_state, "Error")
         self.go.setEnabled(False)
 
@@ -501,7 +513,8 @@ class AccountPage(QWidget):
         self.st.spec = acq.AccountSpec(
             self.st.email, self.evidence.text().strip(), self.server.text().strip(), self.port.value(),
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
-            {"password": "password", "google": "oauth_google", "microsoft": "oauth_microsoft"}[self.method.value()],
+            {"password": "password", "google_app": "app_password_google", "google": "oauth_google",
+             "microsoft": "oauth_microsoft"}[self.method.value()],
             self.found.source if self.found else "manuell")
         self.next.emit()
 

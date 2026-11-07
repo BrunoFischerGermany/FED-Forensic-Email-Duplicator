@@ -8,6 +8,7 @@ erneuert. Passwörter und Tokens bleiben nur im Arbeitsspeicher.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -15,7 +16,37 @@ from fed.core import oauth
 from fed.core.case import Case
 from fed.core.imap_reader import ReadOnlyImap
 
-AUTH_METHODS = ("password", "oauth_google", "oauth_microsoft")
+AUTH_METHODS = ("password", "app_password_google", "oauth_google", "oauth_microsoft")
+
+GMAIL_HOSTS = {"imap.gmail.com", "imap.googlemail.com"}
+APP_PASSWORD_URL = "https://myaccount.google.com/apppasswords"
+_APP_PW = re.compile(r"^\s*([a-z]{4})\s*([a-z]{4})\s*([a-z]{4})\s*([a-z]{4})\s*$")
+
+
+def is_gmail(host: str) -> bool:
+    return host.strip().lower().rstrip(".") in GMAIL_HOSTS
+
+
+def normalize_app_password(password: str) -> str:
+    """Google zeigt App-Passwörter in Vierergruppen an (``abcd efgh ijkl mnop``); IMAP braucht
+    die 16 Buchstaben ohne Leerzeichen. Andere Eingaben bleiben unverändert."""
+    m = _APP_PW.match(password)
+    return "".join(m.groups()) if m else password
+
+
+def explain_login_error(host: str, error: str) -> str:
+    """Ergänzt Anmeldefehler bei Gmail um einen Hinweis auf App-Passwort bzw. OAuth."""
+    if not is_gmail(host):
+        return error
+    low = error.lower()
+    if "application-specific password required" in low:
+        return (f"{error} – Google verlangt ein App-Passwort (nicht das normale Kontopasswort), "
+                f"erstellen unter {APP_PASSWORD_URL}; Voraussetzung: 2-Schritt-Bestätigung")
+    if "authenticationfailed" in low or "invalid credentials" in low:
+        return (f"{error} – bei Google nur App-Passwort (16 Buchstaben, {APP_PASSWORD_URL}) oder OAuth; "
+                "das normale Kontopasswort wird abgelehnt. In Google Workspace muss der Administrator "
+                "App-Passwörter erlauben.")
+    return error
 
 
 @dataclass

@@ -80,5 +80,9 @@
   "no": "no",
   "unknown": "unknown",
   "file": "File",
-  "size": "Size"
+  "size": "Size",
+  "auth_password": "Password",
+  "auth_app_password_google": "Google app password",
+  "auth_oauth_google": "OAuth (Google)",
+  "auth_oauth_microsoft": "OAuth (Microsoft 365)"
 }

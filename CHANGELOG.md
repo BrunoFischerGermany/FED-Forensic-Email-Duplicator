@@ -54,6 +54,10 @@
 - Weitere Sprachen ohne Programmierung: Sprachen werden aus `src/fed/i18n` erkannt,
   Berichtstexte in `report_<sprache>.json`, `packaging/i18n.py --new <code>` legt eine neue
   Sprache an und prüft Vollständigkeit und Platzhalter; Anleitung `docs/translating.md`
+- Google per App-Passwort: eigene Anmeldeart „Google (App-Passwort)“ (CLI `--auth google-app`),
+  automatisch gewählt, wenn keine Google-Client-ID eingerichtet ist; Leerzeichen der
+  Google-Anzeige werden entfernt, Gmail-Anmeldefehler mit Hinweis auf App-Passwort/OAuth,
+  im Bericht als „Google-App-Passwort“
 
 ## 0.4-beta
 

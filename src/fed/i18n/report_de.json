@@ -80,5 +80,9 @@
   "no": "nein",
   "unknown": "unbekannt",
   "file": "Datei",
-  "size": "Größe"
+  "size": "Größe",
+  "auth_password": "Passwort",
+  "auth_app_password_google": "Google-App-Passwort",
+  "auth_oauth_google": "OAuth (Google)",
+  "auth_oauth_microsoft": "OAuth (Microsoft 365)"
 }

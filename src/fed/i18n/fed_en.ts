@@ -51,6 +51,10 @@
         <translation>Password</translation>
     </message>
     <message>
+        <source>Google (App-Passwort)</source>
+        <translation>Google (app password)</translation>
+    </message>
+    <message>
         <source>Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
         <translation>Only in memory – never stored or logged.</translation>
     </message>
@@ -81,6 +85,14 @@
     <message>
         <source>Postfach scannen</source>
         <translation>Scan mailbox</translation>
+    </message>
+    <message>
+        <source>App-Passwort</source>
+        <translation>App password</translation>
+    </message>
+    <message>
+        <source>16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
+        <translation>16 letters from {0} (requires 2-Step Verification; spaces don't matter). The normal Google password does not work. Only in memory – never stored or logged.</translation>
     </message>
     <message>
         <source>Beim Test öffnet sich der Browser zur Anmeldung. Das Passwort sieht FED nicht.</source>

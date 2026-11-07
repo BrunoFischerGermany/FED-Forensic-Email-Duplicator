@@ -52,3 +52,22 @@ def test_account_mismatch_warning(tmp_path, oauth_provider):
     warning = log_oauth_login(case, token, "anderes@example.de")
     assert warning and "geteiltem Postfach" in warning
     case.close()
+
+
+def test_google_app_password_normalized():
+    from fed.core.auth import normalize_app_password
+
+    assert normalize_app_password("abcd efgh ijkl mnop") == "abcdefghijklmnop"
+    assert normalize_app_password("  abcdefghijklmnop ") == "abcdefghijklmnop"
+    assert normalize_app_password("Geheim 123 mit Leerzeichen") == "Geheim 123 mit Leerzeichen"
+    assert normalize_app_password("abcd efgh ijkl") == "abcd efgh ijkl"
+
+
+def test_gmail_login_error_explained():
+    from fed.core.auth import APP_PASSWORD_URL, explain_login_error, is_gmail
+
+    assert is_gmail("IMAP.gmail.com") and not is_gmail("imap.example.de")
+    msg = explain_login_error("imap.gmail.com", "[ALERT] Application-specific password required")
+    assert APP_PASSWORD_URL in msg and "2-Schritt" in msg
+    assert "App-Passwort" in explain_login_error("imap.gmail.com", "[AUTHENTICATIONFAILED] Invalid credentials")
+    assert explain_login_error("imap.example.de", "x") == "x"
