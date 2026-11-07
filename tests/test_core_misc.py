@@ -70,3 +70,14 @@ def test_expected_hashes_in_sync():
     with (ROOT / "validation" / "expected_hashes.csv").open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     assert [r["sha256"] for r in rows] == [hashlib.sha256(m.raw).hexdigest() for m in testmailbox.mails()]
+
+
+def test_languages_and_report_fallback():
+    from fed.core import report
+    from fed.core.languages import report_language_for, report_languages, ui_languages
+
+    assert ui_languages()[0] == "de" and "en" in ui_languages()
+    assert {"de", "en"} <= set(report_languages())
+    assert report_language_for("xx") == "en"
+    assert set(report.LABELS["de"]) == set(report.LABELS["en"])
+    assert report.labels("xx")["title"] == report.LABELS["en"]["title"]

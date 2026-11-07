@@ -104,10 +104,12 @@ def validate(cfg: Config) -> None:
         raise ConfigError(f"Unbekannte Hash-Verfahren in hash_extra: {sorted(unknown)}")
     if cfg.programm.zip_zeit_quelle not in ALLOWED_ZIP_TIME_SOURCES:
         raise ConfigError(f"zip_zeit_quelle muss eins von {sorted(ALLOWED_ZIP_TIME_SOURCES)} sein")
-    if cfg.programm.sprache not in {"de", "en"}:
-        raise ConfigError("sprache muss 'de' oder 'en' sein")
-    if cfg.programm.bericht_sprache not in {"", "de", "en"}:
-        raise ConfigError("bericht_sprache muss leer, 'de' oder 'en' sein")
+    from fed.core.languages import report_languages, ui_languages
+
+    if cfg.programm.sprache not in ui_languages():
+        raise ConfigError(f"sprache muss eins von {ui_languages()} sein")
+    if cfg.programm.bericht_sprache not in {"", *report_languages()}:
+        raise ConfigError(f"bericht_sprache muss leer oder eins von {report_languages()} sein")
     if cfg.programm.arbeitsordner_loeschen not in {"fragen", "ja", "nein"}:
         raise ConfigError("arbeitsordner_loeschen muss 'fragen', 'ja' oder 'nein' sein")
     if not 1 <= cfg.programm.verbindungen <= 10:
