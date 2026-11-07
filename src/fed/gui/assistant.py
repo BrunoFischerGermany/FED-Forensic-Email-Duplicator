@@ -915,6 +915,17 @@ class FinishPage(QWidget):
 
     def run(self) -> None:
         st = self.st
+        mode = st.cfg.programm.arbeitsordner_loeschen
+        delete = mode == "ja"
+        if mode == "fragen":
+            r = QMessageBox.question(
+                self, self.tr("Arbeitsordner"),
+                self.tr("Den Arbeitsordner „arbeit/“ nach erfolgreicher ZIP-Verifikation löschen?\n\n"
+                        "Alle Mails sind dann nur noch im geprüften ZIP enthalten; das spart den doppelten "
+                        "Speicherplatz. Gelöscht wird nur, wenn jede Mail im ZIP denselben Hash hat. "
+                        "Die Löschung wird protokolliert und im Bericht vermerkt."),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            delete = r == QMessageBox.StandardButton.Yes
         self.title.setText(self.tr("Case wird abgeschlossen …"))
         self.sub.setText(self.tr("ZIP packen, prüfen, Hashes und Berichte erzeugen"))
         self.sub.setVisible(True)
@@ -922,7 +933,7 @@ class FinishPage(QWidget):
         self.check_kv.clear()
 
         def work(cancel, report):
-            return finish_case(st.case, st.cfg, cancel=cancel, progress=report)
+            return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete)
 
         def progress(p):
             self.check_kv.set(self.tr("Fortschritt"), f"{p.phase}: {p.mails_done} / {p.mails_total}")
@@ -947,6 +958,9 @@ class FinishPage(QWidget):
         k.set(self.tr("ZIP gepackt"), f"{z.path.name} · {_fmt_bytes(z.size)}", "ok")
         k.set(self.tr("ZIP verifiziert"), self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
               if z.verified else "; ".join(z.problems), "ok" if z.verified else "error")
+        deleted = not self.st.case.work_dir.exists()
+        k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
+              else self.tr("behalten"), "ok" if deleted else None)
         k.set(self.tr("Berichte erzeugt"), "bericht.pdf · bericht.txt · log.csv", "ok")
         for p in z.problems:
             k.set(self.tr("Hinweis"), p, "warn")

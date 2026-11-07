@@ -28,6 +28,7 @@ zip_zeit_quelle  = "internaldate"      # internaldate | date_header
 socket_timeout_s = 30
 chunk_mb         = 10           # große Mails stückweise laden ab dieser Größe
 verbindungen     = 3            # gleichzeitige IMAP-Verbindungen beim Download (1–10; Anbieter begrenzen das)
+arbeitsordner_loeschen = "fragen"  # nach verifiziertem ZIP arbeit/ löschen: fragen | ja | nein
 wach_halten      = true         # Ruhezustand/Bildschirmsperre während Sicherung und Abschluss verhindern
 
 [proxy]

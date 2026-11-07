@@ -115,3 +115,23 @@ def test_report_mail_list_modes(acquired):
     assert "Unterschrift" not in full and "Unterschrift" not in short
     # Ordnerstruktur als Baum mit Anzahl, auch ohne Liste
     assert "  └ Rechnungen" in short and "  └ 2025" in short and "Leer" in short
+
+
+def test_delete_work_dir_after_verified_zip(acquired, test_mails):
+    from fed.core.report import render_txt
+
+    case = acquired
+    res = finish_case(case, Config(), delete_work=True)
+    assert res.zip.verified and not case.work_dir.exists()
+    assert (case.root / "verworfen").exists()
+    det = case.conn.execute("SELECT details FROM log WHERE event = 'work_dir_deleted'").fetchone()[0]
+    assert f'"files": {len(test_mails)}' in det
+    txt = render_txt(case)
+    assert "Arbeitsordner" in txt and "gelöscht nach erfolgreicher ZIP-Verifikation" in txt
+    assert verify_zip(case, res.zip.path).verified  # Prüfung jetzt gegen das ZIP
+
+
+def test_keep_work_dir_by_default(acquired):
+    case = acquired
+    finish_case(case, Config())
+    assert case.work_dir.exists()

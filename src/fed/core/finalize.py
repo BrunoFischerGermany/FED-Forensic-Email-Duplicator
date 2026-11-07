@@ -221,9 +221,28 @@ class FinishResult:
     report_pdf: Path
 
 
+def delete_work_dir(case: Case, zip_result: ZipResult) -> dict:
+    """Löscht ``arbeit/`` – nur nach erfolgreicher ZIP-Verifikation. ``verworfen/`` bleibt erhalten."""
+    import shutil
+
+    if not zip_result.verified:
+        raise RuntimeError("Arbeitsordner wird nur nach erfolgreicher ZIP-Verifikation gelöscht")
+    files = [p for p in case.work_dir.rglob("*") if p.is_file()] if case.work_dir.exists() else []
+    info = {"files": len(files), "bytes": sum(p.stat().st_size for p in files), "zip": zip_result.path.name,
+            "zip_sha256": zip_result.hashes.get("sha256"), "verified_files": zip_result.files}
+    if case.work_dir.exists():
+        shutil.rmtree(case.work_dir)
+    case.log("INFO", "work_dir_deleted", info)
+    return info
+
+
 def finish_case(case: Case, cfg: Config | None = None, language: str | None = None,
-                cancel: CancelToken | None = None, progress: ProgressCallback | None = None) -> FinishResult:
-    """ZIP packen und prüfen, Case abschließen, Berichte erzeugen und hashen."""
+                cancel: CancelToken | None = None, progress: ProgressCallback | None = None,
+                delete_work: bool | None = None) -> FinishResult:
+    """ZIP packen und prüfen, Case abschließen, ggf. Arbeitsordner löschen, Berichte erzeugen und hashen.
+
+    ``delete_work``: ``None`` = nach Config (``arbeitsordner_loeschen == "ja"``).
+    """
     from fed.core.report import write_reports
 
     cfg = cfg or Config()
@@ -236,6 +255,12 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     if not z.verified:
         raise RuntimeError("ZIP-Verifikation fehlgeschlagen: " + "; ".join(z.problems))
     close_case(case)
+    if delete_work is None:
+        delete_work = cfg.programm.arbeitsordner_loeschen == "ja"
+    if delete_work:
+        delete_work_dir(case, z)
+    else:
+        case.log("INFO", "work_dir_kept", {"path": str(case.work_dir)})
     txt, pdf = write_reports(case, language or cfg.programm.bericht_sprache or cfg.programm.sprache,
                              cfg.programm.bericht_mailliste, cfg.programm.bericht_mailliste_max)
     record_output(case, txt, cfg)

@@ -49,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     fin = sub.add_parser("finish", help="Case abschließen: ZIP, Hashes, Berichte")
     fin.add_argument("--case-dir", type=Path, required=True)
+    wd = fin.add_mutually_exclusive_group()
+    wd.add_argument("--delete-work", action="store_true", help="arbeit/ nach verifiziertem ZIP löschen")
+    wd.add_argument("--keep-work", action="store_true", help="arbeit/ behalten")
 
     ver = sub.add_parser("verify", help="Hash-Kette und Dateien prüfen")
     ver.add_argument("--case-dir", type=Path, required=True)
@@ -85,8 +88,12 @@ def main(argv: list[str] | None = None) -> int:
 
         case = Case.open(args.case_dir)
         try:
+            delete = True if args.delete_work else False if args.keep_work else None
+            if delete is None and cfg.programm.arbeitsordner_loeschen == "fragen":
+                delete = sys.stdin.isatty() and input(
+                    "Arbeitsordner nach erfolgreicher ZIP-Verifikation löschen? [j/N] ").strip().lower() in ("j", "ja", "y")
             with KeepAwake() if cfg.programm.wach_halten else _nullctx():
-                res = finish_case(case, cfg)
+                res = finish_case(case, cfg, delete_work=delete)
         finally:
             case.close()
         print(f"ZIP: {res.zip.path}  ({res.zip.files} Mails, verifiziert: {res.zip.verified})")

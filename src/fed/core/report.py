@@ -33,7 +33,7 @@ LABELS = {
         "outputs": "Erzeugte Dateien und Hashes", "logchain": "Log-Kette", "entries": "Einträge",
         "head": "Hash letzter Eintrag", "ok": "unverändert", "broken": "GEBROCHEN", "mails": "Gesicherte Mails",
         "received": "Eingang (UTC / lokal)", "from": "Absender", "to": "Empfänger", "subject": "Betreff",
-        "att": "Anl.", "list_omitted": "Die Ordnerstruktur mit der Anzahl je Ordner steht oben unter „Ordner“. Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
+        "att": "Anl.", "work_dir": "Arbeitsordner", "list_omitted": "Die Ordnerstruktur mit der Anzahl je Ordner steht oben unter „Ordner“. Die vollständige Liste aller {n} Mails (Ordner, UID, Eingangszeit, Absender, Empfänger, Anlagen, Betreff, Datei, SHA-256, MD5, SHA-512) steht in log.csv – im ZIP enthalten, SHA-256 siehe „Erzeugte Dateien und Hashes“.", "per_folder": "Mails je Ordner", "page": "Seite", "of": "von",
         "yes": "ja", "no": "nein", "unknown": "unbekannt", "file": "Datei", "size": "Größe",
     },
     "en": {
@@ -52,7 +52,7 @@ LABELS = {
         "outputs": "Output files and hashes", "logchain": "Log chain", "entries": "entries",
         "head": "Hash of last entry", "ok": "intact", "broken": "BROKEN", "mails": "Acquired messages",
         "received": "Received (UTC / local)", "from": "From", "to": "To", "subject": "Subject",
-        "att": "Att.", "list_omitted": "The folder structure with counts per folder is shown above under “Folders”. The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
+        "att": "Att.", "work_dir": "Working folder", "list_omitted": "The folder structure with counts per folder is shown above under “Folders”. The complete list of all {n} messages (folder, UID, received, sender, recipients, attachments, subject, file, SHA-256, MD5, SHA-512) is in log.csv – contained in the ZIP, SHA-256 see “Output files and hashes”.", "per_folder": "Messages per folder", "page": "Page", "of": "of",
         "yes": "yes", "no": "no", "unknown": "unknown", "file": "File", "size": "Size",
     },
 }
@@ -93,7 +93,20 @@ def collect(case: Case) -> dict:
         "outputs": _q(case, "SELECT * FROM output ORDER BY id"),
         "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
         "messages": message_rows(case),
+        "work_dir": _work_dir_state(case),
     }
+
+
+def _work_dir_state(case: Case) -> str:
+    row = case.conn.execute("SELECT event, details, ts_utc FROM log WHERE event IN ('work_dir_deleted', 'work_dir_kept') "
+                            "ORDER BY id DESC LIMIT 1").fetchone()
+    if not row:
+        return ""
+    if row[0] == "work_dir_deleted":
+        det = json.loads(row[1])
+        return (f"gelöscht nach erfolgreicher ZIP-Verifikation ({det['files']} Dateien, "
+                f"{_fmt_bytes(det['bytes'])}) · {tf.both(row[2])}")
+    return "behalten (arbeit/)"
 
 
 def include_mail_list(count: int, mode: str = "auto", limit: int = 500) -> bool:
@@ -147,6 +160,8 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
         (L["created"], tf.both(i["created_utc"])), (L["closed"], tf.both(i["closed_utc"]) if i["closed_utc"] else "–"),
         (L["tool"], f"{APP_NAME} {i['tool_version']}"), (L["tool_sha"], i["tool_sha256"] or "–"),
     ])]
+    if d.get("work_dir"):
+        secs[0][1].append((L["work_dir"], d["work_dir"]))
     if d["system"]:
         s = d["system"][0]
         secs.append((L["system"], [

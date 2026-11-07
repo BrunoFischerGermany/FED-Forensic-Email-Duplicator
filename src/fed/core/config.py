@@ -38,7 +38,8 @@ class Programm:
     socket_timeout_s: int = 30
     chunk_mb: int = 10
     verbindungen: int = 3  # gleichzeitige IMAP-Verbindungen beim Download (1–10)
-    wach_halten: bool = True  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
+    wach_halten: bool = True
+    arbeitsordner_loeschen: str = "fragen"  # nach verifiziertem ZIP: fragen | ja | nein  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 
 
 @dataclass
@@ -107,6 +108,8 @@ def validate(cfg: Config) -> None:
         raise ConfigError("sprache muss 'de' oder 'en' sein")
     if cfg.programm.bericht_sprache not in {"", "de", "en"}:
         raise ConfigError("bericht_sprache muss leer, 'de' oder 'en' sein")
+    if cfg.programm.arbeitsordner_loeschen not in {"fragen", "ja", "nein"}:
+        raise ConfigError("arbeitsordner_loeschen muss 'fragen', 'ja' oder 'nein' sein")
     if not 1 <= cfg.programm.verbindungen <= 10:
         raise ConfigError("verbindungen muss zwischen 1 und 10 liegen")
     cfg.programm.bericht_mailliste = {"immer": "liste", "nie": "ordner"}.get(cfg.programm.bericht_mailliste,

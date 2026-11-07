@@ -35,6 +35,7 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     orig = auth.make_connector
     monkeypatch.setattr(ga, "make_connector", lambda *a, **k: orig(*a, cafile=str(imap_server.cafile), **k))
     monkeypatch.setattr(QtWidgets.QMessageBox, "warning", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
     cfg = cfgmod.Config()
     cfg.examiner_name = "Max Mustermann"
     cfg.programm.zielpfad = str(tmp_path)
@@ -64,6 +65,7 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     _pump(app, a.p_fin.open_pdf.isEnabled, 60)
     res = a.st.finish
     assert res.zip.verified and res.zip.files == len(test_mails)
+    assert not a.st.case.work_dir.exists()  # Frage „Arbeitsordner löschen?“ mit Ja beantwortet
     w.nav.button(1).click()
     w.history.refresh()
     assert w.history.mails.model.rowCount() == len(test_mails)

@@ -184,6 +184,16 @@ class HistoryTab(QWidget):
         self.chain.setText(self.tr("hashe nach …"))
 
         def work(cancel, report):
+            if not case.work_dir.exists():  # Arbeitsordner gelöscht -> gegen das ZIP prüfen
+                from fed.core.finalize import verify_zip
+
+                row = case.conn.execute("SELECT file_name FROM output WHERE file_name LIKE '%.zip' "
+                                        "ORDER BY id DESC LIMIT 1").fetchone()
+                if not row:
+                    raise RuntimeError(self.tr("Weder Arbeitsordner noch ZIP vorhanden"))
+                v = verify_zip(case, case.root / row[0], cancel=cancel)
+                case.log("INFO" if v.verified else "ERROR", "history_rehash_zip", {"zip": row[0], "problems": v.problems})
+                return v.files, v.problems
             bad, n = [], 0
             for zip_path, sha in case.conn.execute("SELECT zip_path, sha256 FROM message WHERE status = 'valid'"):
                 cancel.raise_if_cancelled()
