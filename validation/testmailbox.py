@@ -21,6 +21,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 USER = "test@example.de"
 PASSWORD = "geheim123"
+# zweites Konto mit Umlauten in Adresse, Domain (IDN) und Passwort – gleiches Postfach
+UMLAUT_USER = "bärbel.böhmer@ärzte.de"
+UMLAUT_PASSWORD = "Grüße-123"
 SEPARATOR = "/"
 
 

@@ -117,6 +117,12 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
             "en": ("Reports and output hashes",
                    "report.txt/report.pdf and log.csv created; all output hashes recorded in the case file "
                    "match the files.")},
+    "V13": {"de": ("Umlaute in Adresse, Domain und Passwort",
+                   "Konto bärbel.böhmer@ärzte.de (IDN-Domain, Umlaute im Namen und im Passwort) wird angemeldet "
+                   "und bitgenau gesichert; Ordner im ZIP trägt die Adresse in Unicode (UTF-8-Kennzeichen)."),
+            "en": ("Umlauts in address, domain and password",
+                   "Account bärbel.böhmer@ärzte.de (IDN domain, umlauts in name and password) signs in and is "
+                   "acquired bit-exactly; the ZIP folder carries the address in Unicode (UTF-8 flag).")},
 }
 
 T = {
@@ -520,8 +526,45 @@ def v12_reports(ctx: Ctx) -> CheckResult:
     return r
 
 
+def v13_umlauts(ctx: Ctx) -> CheckResult:
+    from fed.core.naming import email_domain
+
+    r = CheckResult("V13", PASS)
+    addr, pw = testmailbox.UMLAUT_USER, testmailbox.UMLAUT_PASSWORD
+
+    def connect() -> ReadOnlyImap:
+        c = ReadOnlyImap(ctx.srv.host, ctx.srv.port, cafile=str(ctx.srv.cafile))
+        c.connect()
+        c.login_password(addr, pw)
+        return c
+
+    case = Case.create(ctx.work, CaseInfo("VAL-UMLAUT", "Validierung"))
+    imap = connect()
+    acc = register_account(case, AccountSpec(addr, "VAL-Ä1", ctx.srv.host, ctx.srv.port), imap)
+    scan(case, acc, imap)
+    imap.logout()
+    res = run_attempt(case, acc, connect, cfg=ctx.cfg)
+    fin = finish_case(case, Config(), language="de", delete_work=False)
+    with zipfile.ZipFile(fin.zip.path) as zf:
+        emls = [i for i in zf.infolist() if i.filename.endswith(".eml")]
+        tops = {i.filename.split("/")[0] for i in emls}
+        utf8 = all(i.flag_bits & 0x800 for i in emls)
+        got = Counter(hashlib.sha256(zf.read(i)).hexdigest() for i in emls)
+    want = Counter(e["sha256"] for e in ctx.expected)
+    r.details += [_d(f"Domain für DNS/TLS: {email_domain(addr)}", f"domain for DNS/TLS: {email_domain(addr)}"),
+                  _d(f"Anmeldung und Sicherung: {res.status}, {res.saved} Mails", f"login and acquisition: {res.status}, "
+                                                                                  f"{res.saved} messages"),
+                  _d(f"Ordner im ZIP: {', '.join(sorted(tops))}; UTF-8-Kennzeichen: {_yn(utf8, 'de')}",
+                     f"folder in ZIP: {', '.join(sorted(tops))}; UTF-8 flag: {_yn(utf8, 'en')}"),
+                  _d(f"bitgenau: {_yn(got == want, 'de')}", f"bit-exact: {_yn(got == want, 'en')}")]
+    if res.status != "done" or tops != {addr} or not utf8 or got != want or not fin.zip.verified:
+        r.status = FAIL
+    case.close()
+    return r
+
+
 STEPS = [v01_read_only, v02_guard, v03_completeness, v04_bit_exact, v05_times, v06_cancel_resume,
-         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports]
+         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts]
 
 
 # ---------------------------------------------------------------- Ablauf

@@ -122,7 +122,12 @@ def discover(
     dns_lookup = dns_lookup or _dns
     port_open = port_open or (lambda h, p: _port_open(h, p, timeout))
     log: list[str] = []
-    domain = email.rsplit("@", 1)[-1].strip().lower().encode("idna").decode()
+    from urllib.parse import quote
+
+    from fed.core.naming import email_domain, normalize_email
+
+    email = normalize_email(email)
+    domain = email_domain(email)
 
     def try_xml(step: int, label: str, url: str) -> ImapSettings | None:
         data = http_get(url)
@@ -138,7 +143,7 @@ def discover(
         log.append(f"{step}. {label}: nicht gefunden ({url})")
         return None
 
-    s = (try_xml(1, "autoconfig-Subdomain", f"https://autoconfig.{domain}/mail/config-v1.1.xml?emailaddress={email}")
+    s = (try_xml(1, "autoconfig-Subdomain", f"https://autoconfig.{domain}/mail/config-v1.1.xml?emailaddress={quote(email, safe='@')}")
          or try_xml(2, "well-known", f"https://{domain}/.well-known/autoconfig/mail/config-v1.1.xml")
          or try_xml(3, "Thunderbird-ISPDB", f"{ISPDB}{domain}"))
     if s:

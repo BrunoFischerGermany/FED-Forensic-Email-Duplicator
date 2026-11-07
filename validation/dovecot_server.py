@@ -34,6 +34,8 @@ ssl_cert = <{d}/cert.pem
 ssl_key = <{d}/key.pem
 disable_plaintext_auth = yes
 auth_mechanisms = plain login{mechs}
+# Standard erlaubt nur ASCII im Benutzernamen; für das Umlaut-Testkonto alles zulassen
+auth_username_chars =
 first_valid_uid = 0
 default_internal_user = {iuser}
 default_internal_group = {igroup}
@@ -114,8 +116,11 @@ def start(root: Path | None = None, oauth_introspection_url: str | None = None) 
          "-keyout", str(d / "key.pem"), "-out", str(d / "cert.pem")],
         check=True, capture_output=True,
     )
-    (d / "users").write_text(f"{testmailbox.USER}:{{PLAIN}}{testmailbox.PASSWORD}::::::\n", encoding="utf-8")
+    (d / "users").write_text(f"{testmailbox.USER}:{{PLAIN}}{testmailbox.PASSWORD}::::::\n"
+                             f"{testmailbox.UMLAUT_USER}:{{PLAIN}}{testmailbox.UMLAUT_PASSWORD}::::::\n",
+                             encoding="utf-8")
     testmailbox.build(d / "home" / testmailbox.USER / "Maildir")
+    testmailbox.build(d / "home" / testmailbox.UMLAUT_USER / "Maildir")
     root_mode = os.geteuid() == 0
     me = getpass.getuser()
     port = _free_port()

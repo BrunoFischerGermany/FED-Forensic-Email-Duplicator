@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "PySide6>=6.10",
     "dnspython>=2.7",
+    "idna>=3.7",
     "fpdf2>=2.8",
     "tomli-w>=1.2",
 ]

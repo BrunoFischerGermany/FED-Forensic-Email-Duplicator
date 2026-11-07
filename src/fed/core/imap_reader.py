@@ -159,10 +159,13 @@ class ReadOnlyImap:
 
     # ------------------------------------------------------------ Verbindung
     def connect(self) -> None:
+        from fed.core.naming import idna_host
+
+        host = idna_host(self.host)  # Umlaut-Hostnamen: ASCII-Form für DNS und Zertifikatsprüfung
         if self.security == "ssl":
-            self._imap = _IMAP4_SSL(self.host, self.port, ssl_context=self.ssl_context, timeout=self.timeout)
+            self._imap = _IMAP4_SSL(host, self.port, ssl_context=self.ssl_context, timeout=self.timeout)
         elif self.security == "starttls":
-            self._imap = _IMAP4(self.host, self.port, timeout=self.timeout)
+            self._imap = _IMAP4(host, self.port, timeout=self.timeout)
             self._imap.starttls(self.ssl_context)
         else:
             raise ImapError("Unverschlüsselte Verbindungen sind nicht erlaubt")
@@ -188,7 +191,18 @@ class ReadOnlyImap:
         }
 
     def login_password(self, user: str, password: str) -> None:
-        self.imap.login(user, password)
+        """Anmeldung mit Benutzername und Passwort.
+
+        ``LOGIN`` erlaubt nur ASCII. Enthalten Benutzername oder Passwort Umlaute o. Ä.,
+        wird ``AUTHENTICATE PLAIN`` (RFC 4616, UTF-8) verwendet.
+        """
+        if user.isascii() and password.isascii():
+            self.imap.login(user, password)
+            return
+        if "AUTH=PLAIN" not in self.imap.capabilities:
+            raise ImapError("Benutzername oder Passwort enthält Sonderzeichen (z. B. Umlaute), der Server bietet "
+                            "aber keine Anmeldung per AUTHENTICATE PLAIN an")
+        self.imap.authenticate("PLAIN", lambda _: f"\0{user}\0{password}".encode())
 
     def login_xoauth2(self, user: str, access_token: str) -> None:
         from fed.core.oauth import xoauth2_string

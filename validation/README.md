@@ -21,7 +21,7 @@ python -m validation.run --out validation-report --lang de,en
 ```
 
 Startet einen lokalen Dovecot mit dem Testpostfach (und einen Test-Zeitstempeldienst mit
-eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 12 Punkte:
+eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 13 Punkte:
 
 | Nr. | Prüfung |
 | --- | --- |
@@ -37,6 +37,7 @@ eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 
 | V10 | Manipulationsschutz des Logs (nur anhängend, Hash-Kette) |
 | V11 | Zeitstempel nach RFC 3161, Signatur mit `openssl ts -verify` |
 | V12 | Berichte und Ausgabe-Hashes |
+| V13 | Umlaute in Adresse, Domain und Passwort (`bärbel.böhmer@ärzte.de`) |
 
 Ergebnis: `validation-report-de.pdf/.txt`, `validation-report-en.pdf/.txt`, `validation-report.json`
 mit Datum, Programmversion, SHA-256 des Programms, Git-Stand, Python-, Betriebssystem-,
