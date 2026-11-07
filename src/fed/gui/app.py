@@ -6,10 +6,19 @@ import sys
 from pathlib import Path
 
 
-def program_dir() -> Path:
-    """Ordner des Programms (auch im Nuitka-Standalone-Build)."""
+def program_file() -> Path | None:
+    """Die gestartete Programmdatei im gebauten Programm (bei der Windows-Einzeldatei die .exe selbst,
+    nicht die entpackte Kopie im Temp-Ordner), sonst ``None``."""
     if getattr(sys, "frozen", False) or "__compiled__" in globals():
-        exe_dir = Path(sys.argv[0]).resolve().parent
+        return Path(sys.argv[0]).resolve()
+    return None
+
+
+def program_dir() -> Path:
+    """Ordner des Programms (auch im Nuitka-Build; dort liegen config.toml und FED.ini)."""
+    exe = program_file()
+    if exe is not None:
+        exe_dir = exe.parent
         # macOS: FED.app/Contents/MacOS/fed -> Ordner, in dem FED.app liegt
         if exe_dir.name == "MacOS" and exe_dir.parent.name == "Contents" and exe_dir.parent.parent.suffix == ".app":
             return exe_dir.parent.parent.parent
@@ -17,7 +26,55 @@ def program_dir() -> Path:
     return Path.cwd()
 
 
+def selftest(out: Path) -> int:
+    """Prüft ein gebautes Programm ohne Fenster (``FED_SELFTEST=<datei.json>``): Pfade, Programm-Hash,
+    Übersetzungen, Qt, Schriften/PDF, Case-Datei. Wird im Build-Workflow nach jedem Bau ausgeführt."""
+    import json
+    import os
+    import tempfile
+    import traceback
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    res: dict = {"ok": False}
+    try:
+        from PySide6.QtWidgets import QApplication, QLabel
+
+        from fed import __version__
+        from fed.core.case import Case, CaseInfo
+        from fed.core.hashing import tool_fingerprint
+        from fed.core.languages import report_languages, ui_languages
+        from fed.gui import i18n
+
+        app = QApplication.instance() or QApplication([])
+        i18n.install("en")
+        en = app.translate("MainWindow", "Einstellungen")
+        QLabel("FED").grab()
+        exe = program_file()
+        res.update(version=__version__, program_file=str(exe) if exe else None, program_dir=str(program_dir()),
+                   tool_sha256=tool_fingerprint(), ui_languages=ui_languages(), report_languages=report_languages(),
+                   translation_en=en)
+        with tempfile.TemporaryDirectory() as tmp:
+            from fed.core.report import write_pdf
+
+            case = Case.create(Path(tmp), CaseInfo("SELFTEST", "FED"))
+            pdf = Path(tmp) / "t.pdf"
+            write_pdf(case, pdf, "en")
+            res["pdf_bytes"] = pdf.stat().st_size
+            res["log_ok"] = case.verify_log()[0]
+            case.close()
+        res["ok"] = en == "Settings" and res["pdf_bytes"] > 1000 and res["log_ok"] and "en" in res["ui_languages"]
+    except Exception:
+        res["error"] = traceback.format_exc()
+    out.write_text(json.dumps(res, indent=2), encoding="utf-8")
+    return 0 if res["ok"] else 1
+
+
 def main() -> int:
+    import os
+
+    if os.environ.get("FED_SELFTEST"):
+        return selftest(Path(os.environ["FED_SELFTEST"]))
+
     from importlib import resources
 
     from PySide6.QtCore import QSettings

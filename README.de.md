@@ -73,16 +73,25 @@ python packaging/i18n.py --new fr   # legt src/fed/i18n/fr.json + report_fr.json
 python packaging/i18n.py            # erzeugt fed_fr.qm – die Sprache erscheint in den Einstellungen
 ```
 
-## Fertige Programme bauen
+## Releases und fertige Programme
 
-| Weg | So geht's |
+Releases entstehen automatisch: auf GitHub **Releases → Draft a new release**, Tag anlegen
+(z. B. `v1.0.0`), **Publish release** klicken. Der Workflow *Build* baut alle Plattformen, testet
+jedes Paket, validiert und hängt alles an das Release:
+
+| Datei | |
 |---|---|
-| Per Klick | GitHub → **Actions** → **Build** → **Run workflow**; die Dateien liegen danach unter *Artifacts* des Laufs |
-| Release | `git tag v1.0.0 && git push origin v1.0.0` – baut alle Plattformen und legt das Release mit Dateien und `SHA256SUMS.txt` an |
-| Lokal | `pip install -e .[build]` und `python packaging/build.py` (baut für das eigene System nach `dist/`) |
+| `FED-<version>-windows-x64.exe` | Windows – eine einzelne Datei, Doppelklick startet |
+| `FED-<version>-macos-arm64.zip` / `-macos-x64.zip` | macOS Apple Silicon / Intel (`FED.app`) |
+| `FED-<version>-linux-x64.tar.gz` | Linux (`FED/FED`) |
+| `FED-<version>-validation-report-*.pdf` | Validierungsprotokoll (13 Prüfungen) |
+| `SHA256SUMS.txt` | Prüfsummen |
 
-Ergebnis: `FED-<version>-windows-x64.zip`, `-macos-arm64.zip`, `-macos-x64.zip`, `-linux-x64.tar.gz`.
-Die `config.toml` gehört neben `FED.exe` bzw. `FED` bzw. neben `FED.app`.
+Jede Nacht entsteht bei neuen Commits eine Vorabversion **Nightly** von `main`.
+Ohne Release: **Actions → Build → Run workflow** (Dateien unter *Artifacts*) oder lokal
+`pip install -e .[build]` und `python packaging/build.py`. Anleitung: [docs/releases.md](docs/releases.md).
+
+Die `config.toml` gehört neben `FED.exe`, `FED` bzw. `FED.app` – oder einfach starten, FED fragt die Grunddaten ab.
 Die Programme sind nicht signiert: macOS meldet „nicht verifizierter Entwickler“
 (Rechtsklick → Öffnen, oder `xattr -cr FED.app`), Windows SmartScreen „Weitere Informationen → Trotzdem ausführen“.
 

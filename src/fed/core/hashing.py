@@ -54,6 +54,7 @@ def tool_fingerprint() -> str:
     import fed
 
     if "__compiled__" in vars(fed) or getattr(sys, "frozen", False):
+        # sys.argv[0] = gestartete Datei (bei der Windows-Einzeldatei die .exe, nicht die entpackte Kopie)
         return hash_file(Path(sys.argv[0]).resolve())["sha256"]
     root = Path(fed.__file__).resolve().parent
     h = hashlib.sha256()

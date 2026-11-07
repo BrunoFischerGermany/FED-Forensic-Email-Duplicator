@@ -752,6 +752,24 @@ def write_pdf(rep: Report, lang: str, path: Path) -> None:
     pdf.output(str(path))
 
 
+def render_notes(rep: Report, lang: str = "en", report_url: str = "") -> str:
+    """Kurzfassung als Markdown für die Release-Notizen."""
+    L = T[lang]
+    icon = {PASS: "✅", FAIL: "❌", SKIP: "⚪"}
+    c = _counts(rep)
+    e = rep.environment
+    lines = [f"## {L['title']}", "",
+             f"**{L['overall_ok'] if rep.ok else L['overall_fail']}** "
+             f"{L[PASS]}: {c[PASS]} · {L[FAIL]}: {c[FAIL]} · {L[SKIP]}: {c[SKIP]}", "",
+             f"| | {L['checks']} | {L['result']} |", "| --- | --- | --- |"]
+    lines += [f"| {r.id} | {CHECKS[r.id][lang][0]} | {icon[r.status]} {L[r.status]} |" for r in rep.results]
+    lines += ["", f"{e['tool']} · {L['commit']} `{e['commit'][:12]}` · Python {e['python']} · "
+                  f"Dovecot {e['server'].split()[0]} · {_local(rep.started_utc).split(' / ')[0]}"]
+    if report_url:
+        lines += ["", f"→ [{L['title']} (PDF)]({report_url})"]
+    return "\n".join(lines) + "\n"
+
+
 def write_all(rep: Report, out: Path, langs: list[str]) -> list[Path]:
     out.mkdir(parents=True, exist_ok=True)
     files = []
@@ -770,6 +788,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, default=Path("validation-report"))
     ap.add_argument("--lang", default="de,en", help="de, en oder de,en")
+    ap.add_argument("--notes", type=Path, help="zusätzlich Markdown-Kurzfassung (englisch) für Release-Notizen")
+    ap.add_argument("--report-url", default="", help="Link zum PDF in der Kurzfassung")
     a = ap.parse_args(argv)
     if not dovecot_server.available():
         print("dovecot und openssl werden benötigt (z. B. apt install dovecot-imapd)", file=sys.stderr)
@@ -780,6 +800,9 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         shutil.rmtree(work, ignore_errors=True)
     files = write_all(rep, a.out, [x.strip() for x in a.lang.split(",") if x.strip()])
+    if a.notes:
+        a.notes.write_text(render_notes(rep, "en", a.report_url), encoding="utf-8")
+        files.append(a.notes)
     c = _counts(rep)
     for r in rep.results:
         print(f"{r.id}  {T['de'][r.status]:<16} {CHECKS[r.id]['de'][0]}")

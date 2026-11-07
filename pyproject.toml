@@ -28,7 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.8", "tzdata; sys_platform == 'win32'"]
-build = ["nuitka>=4.2"]
+build = ["nuitka>=4.2", "zstandard>=0.23"]  # zstandard: kompakte Windows-Einzeldatei
 
 [project.scripts]
 fed = "fed.cli:main"
