@@ -1,12 +1,13 @@
 # Translating FED into a new language
 
-FED is built so that a new language needs **no programming** – only two JSON files.
+FED is built so that a new language needs **no programming** – only three JSON files.
 This guide uses French (`fr`) as the example; replace it with your language code.
 
 | What | File | Contains |
 | --- | --- | --- |
-| Interface | `src/fed/i18n/<code>.json` | all texts of windows, buttons, dialogs (≈ 280) |
-| Report | `src/fed/i18n/report_<code>.json` | all texts of the TXT/PDF report (≈ 80) |
+| Interface | `src/fed/i18n/<code>.json` | all texts of windows, buttons, dialogs (≈ 950) |
+| Report | `src/fed/i18n/report_<code>.json` | all texts of the TXT/PDF report (≈ 130) |
+| Messages | `src/fed/i18n/core_<code>.json` | messages of the program core and the command line `fed` (≈ 150): errors, server detection, DKIM reasons, hints |
 | Built file | `src/fed/i18n/fed_<code>.qm` | generated from the JSON – never edit by hand |
 
 The program's source language is **German**: the keys in the JSON files are the German texts,
@@ -36,6 +37,7 @@ matters (`pt_BR`). This creates
 
 - `src/fed/i18n/fr.json` – interface texts, values = English
 - `src/fed/i18n/report_fr.json` – report texts, values = English
+- `src/fed/i18n/core_fr.json` – messages, values = English
 
 ## 3. Translate
 
@@ -69,6 +71,10 @@ Report texts in `report_fr.json` work the same way: the keys there are internal 
 `report_en.json` show the German and English versions side by side. Some values contain
 named placeholders such as `{n}`, `{tsr}`, `{zip}`, `{files}`, `{size}` – keep them as well.
 
+Messages in `core_fr.json` use the German text as key, like the interface. Keep the named
+placeholders (`{user}`, `{error}` …) including any format after the colon (`{free:.1f}`,
+`{name:<40}`). A missing message is shown in English, never in German.
+
 ## 4. Build and check
 
 ```bash
@@ -96,16 +102,18 @@ The report language can be chosen separately (**Settings → Report language**);
 
 ## 6. Submit
 
-Commit **all four files** and open a pull request:
+Commit **all five files** and open a pull request:
 
 ```
 src/fed/i18n/fr.json
 src/fed/i18n/report_fr.json
+src/fed/i18n/core_fr.json
 src/fed/i18n/fed_fr.ts
 src/fed/i18n/fed_fr.qm
 ```
 
-The automatic tests check that every language is complete (`tests/test_gui.py`).
+The automatic tests check that every language is complete (`tests/test_gui.py`, `tests/test_msg.py`)
+and walk through the whole interface in English looking for German text (`tests/test_i18n_ui.py`).
 
 ## Keeping a translation up to date
 
@@ -119,9 +127,14 @@ If you prefer a graphical editor, open `src/fed/i18n/fed_fr.ts` with `pyside6-li
 the next run of `packaging/i18n.py` rebuilds the `.ts` file from the JSON, so copy finished
 translations back into `fr.json` (the JSON file is the master copy).
 
-## What is not translated (yet)
+## What is not translated – on purpose
 
-- Messages from the program core (e.g. server errors, the acquisition log in the case file) –
-  they are German, because the log is evidence and must not depend on the interface language.
+- **Fixed names in the case folder** (`work/`, `report.pdf`, `log.csv` …) and the **column names
+  of `log.csv`** are English in every language, so scripts and tools can rely on them.
+- **Entries of the hash-chained log** in the case file store neutral codes and values
+  (e.g. `"for": "acquisition"`, `body_hash_mismatch`), never translated text – the log is evidence.
+  Reports and the interface translate these codes when they show them.
 - The validation report (`validation/run.py`) – German and English only.
-- The command-line program `fed` – German.
+
+The command line uses `--lang`, otherwise the environment variable `FED_LANG`, otherwise
+`sprache` from the config given with `--config`, otherwise German.

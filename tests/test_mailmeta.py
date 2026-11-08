@@ -28,14 +28,14 @@ def test_only_cc():
 
 def test_only_bcc_in_sent_copy():
     meta = parse(_mail(From="a@example.org", Bcc="x@example.de, y@example.de").as_bytes())
-    assert meta.recipient_note == "nur BCC"
+    assert meta.recipient_note == "bcc_only"
     assert meta.display_recipient() == "nur BCC: 2 Empfänger"
 
 
 def test_received_via_bcc_uses_delivered_to():
     m = _mail(From="a@example.org", Delivered_To="max@example.de")
     meta = parse(m.as_bytes())
-    assert meta.recipient_note == "kein To/CC"
+    assert meta.recipient_note == "no_to_cc"
     assert meta.delivered_to == ["max@example.de"]
     assert meta.display_recipient() == "kein To/CC – Delivered-To: max@example.de"
 

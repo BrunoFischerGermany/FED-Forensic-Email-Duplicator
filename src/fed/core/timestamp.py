@@ -18,6 +18,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from fed.core.msg import t
 
 SHA256_OID = "2.16.840.1.101.3.4.2.1"
 SIGNED_DATA_OID = "1.2.840.113549.1.7.2"
@@ -99,20 +100,20 @@ class _El:
 
 def _parse_one(data: bytes, pos: int = 0) -> tuple[_El, int]:
     if pos + 2 > len(data):
-        raise TimestampError("DER: unerwartetes Ende")
+        raise TimestampError(t("DER: unerwartetes Ende"))
     tag = data[pos]
     if tag & 0x1F == 0x1F:
-        raise TimestampError("DER: lange Tag-Nummern werden nicht unterstützt")
+        raise TimestampError(t("DER: lange Tag-Nummern werden nicht unterstützt"))
     n = data[pos + 1]
     pos += 2
     if n == 0x80:
-        raise TimestampError("DER: unbestimmte Länge (BER) wird nicht unterstützt")
+        raise TimestampError(t("DER: unbestimmte Länge (BER) wird nicht unterstützt"))
     if n & 0x80:
         k = n & 0x7F
         n = int.from_bytes(data[pos:pos + k], "big")
         pos += k
     if pos + n > len(data):
-        raise TimestampError("DER: Länge über das Ende hinaus")
+        raise TimestampError(t("DER: Länge über das Ende hinaus"))
     return _El(tag, data[pos:pos + n]), pos + n
 
 
@@ -153,7 +154,7 @@ def parse_response(der: bytes) -> TimestampInfo:
     """Liest ``TimeStampResp`` und daraus ``TSTInfo`` (ohne Signaturprüfung)."""
     resp, _ = _parse_one(der)
     if resp.tag != 0x30:
-        raise TimestampError("keine TimeStampResp")
+        raise TimestampError(t("keine TimeStampResp"))
     parts = resp.children()
     st = parts[0].children()
     status = st[0].as_int()
@@ -164,14 +165,14 @@ def parse_response(der: bytes) -> TimestampInfo:
     if status not in (0, 1):
         return info
     if len(parts) < 2:
-        raise TimestampError("Antwort ohne Zeitstempel-Token")
+        raise TimestampError(t("Antwort ohne Zeitstempel-Token"))
     ci = parts[1].children()
     if ci[0].as_oid() != SIGNED_DATA_OID:
-        raise TimestampError("Token ist kein SignedData")
+        raise TimestampError(t("Token ist kein SignedData"))
     signed = ci[1].children()[0].children()
     encap = signed[2].children()
     if encap[0].as_oid() != TST_INFO_OID:
-        raise TimestampError("Token enthält kein TSTInfo")
+        raise TimestampError(t("Token enthält kein TSTInfo"))
     tst = _parse_one(encap[1].children()[0].content)[0].children()
     info.policy = tst[1].as_oid()
     mi = tst[2].children()
@@ -202,7 +203,7 @@ def _post(url: str, body: bytes, proxy: str, timeout: float) -> bytes:
         ctype = r.headers.get("Content-Type", "")
         data = r.read()
     if "timestamp-reply" not in ctype and not data.startswith(b"\x30"):
-        raise TimestampError(f"unerwartete Antwort des Zeitstempeldienstes ({ctype or 'ohne Content-Type'})")
+        raise TimestampError(t("unerwartete Antwort des Zeitstempeldienstes ({ctype})", ctype=ctype or "no Content-Type"))
     return data
 
 
@@ -217,15 +218,15 @@ def request_timestamp(sha256_hex: str, tsa_url: str, out: Path, proxy: str = "",
     try:
         answer = _post(tsa_url, query, proxy, timeout)
     except OSError as e:
-        raise TimestampError(f"Zeitstempeldienst nicht erreichbar: {e}") from e
+        raise TimestampError(t("Zeitstempeldienst nicht erreichbar: {error}", error=e)) from e
     info = parse_response(answer)
     info.tsa_url = tsa_url
     if info.status not in (0, 1):
-        raise TimestampError(f"Zeitstempel abgelehnt: {info.status_text} {' '.join(info.failure)}".strip())
+        raise TimestampError(t("Zeitstempel abgelehnt: {reason}", reason=f"{info.status_text} {' '.join(info.failure)}".strip()))
     if info.hash_oid != SHA256_OID or info.hashed_message != sha256_hex.lower():
-        raise TimestampError("Zeitstempel bezieht sich nicht auf den angefragten Hash")
+        raise TimestampError(t("Zeitstempel bezieht sich nicht auf den angefragten Hash"))
     if info.nonce != nonce:
-        raise TimestampError("Nonce der Antwort passt nicht zur Anfrage")
+        raise TimestampError(t("Nonce der Antwort passt nicht zur Anfrage"))
     out.with_suffix(".tsq").write_bytes(query)
     out.write_bytes(answer)
     return info

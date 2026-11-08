@@ -2,10 +2,12 @@
 
     python packaging/i18n.py               # update fed_<lang>.ts + fed_<lang>.qm for every language
     python packaging/i18n.py --check       # only check: is a translation missing? (exit code 1)
-    python packaging/i18n.py --new fr      # start a new language: creates fr.json and report_fr.json
+    python packaging/i18n.py --new fr      # start a new language: creates fr.json, report_fr.json, core_fr.json
 
 Source texts in ``self.tr(...)`` are German. ``src/fed/i18n/<lang>.json`` maps them to the
 target language; a key ``"ClassName|text"`` overrides the translation for one class only.
+Messages of the program core and the command line (``t("…")`` from ``fed.core.msg``) are
+translated in ``core_<lang>.json``.
 See docs/translating.md.
 """
 
@@ -97,6 +99,40 @@ def check_report(lang: str) -> list[str]:
     return out
 
 
+CORE = [*sorted((ROOT / "src" / "fed" / "core").glob("*.py")), ROOT / "src" / "fed" / "cli.py"]
+CORE_FUNCS = {"t", "_t", "N_"}
+
+
+def core_sources() -> set[str]:
+    """Texts of the program core: first argument of ``t(...)``/``_t(...)``/``N_(...)`` (see fed.core.msg)."""
+    import ast
+
+    out = set()
+    for path in CORE:
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in CORE_FUNCS
+                    and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)):
+                out.add(node.args[0].value)
+    return out
+
+
+def _fields(text: str) -> set[str]:
+    return set(re.findall(r"\{(\w*)[:!}]", text))
+
+
+def check_core(lang: str) -> list[str]:
+    path = I18N / f"core_{lang}.json"
+    if not path.exists():
+        return [f"[{lang}] core_{lang}.json missing – core messages fall back to English"]
+    table = json.loads(path.read_text(encoding="utf-8"))
+    src = core_sources()
+    out = [f"[{lang}] core text missing: {k!r}" for k in sorted(src) if not table.get(k)]
+    out += [f"[{lang}] core placeholders differ: {k!r} -> {v!r}" for k, v in table.items()
+            if v and _fields(k) != _fields(v)]
+    out += [f"[{lang}] core text no longer used (remove it): {k!r}" for k in sorted(set(table) - src)]
+    return out
+
+
 def new_language(code: str) -> int:
     if not re.fullmatch(r"[a-z]{2,3}(_[A-Z]{2})?", code):
         print(f"invalid language code {code!r} (examples: fr, it, pt_BR)")
@@ -110,7 +146,9 @@ def new_language(code: str) -> int:
     table |= {k: v for k, v in base.items() if "|" in k}
     target.write_text(json.dumps(dict(sorted(table.items())), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     shutil.copy(I18N / f"report_{TEMPLATE}.json", I18N / f"report_{code}.json")
-    print(f"created {target.relative_to(ROOT)} and report_{code}.json – both contain the English texts;")
+    shutil.copy(I18N / f"core_{TEMPLATE}.json", I18N / f"core_{code}.json")
+    print(f"created {target.relative_to(ROOT)}, report_{code}.json and core_{code}.json – all contain the "
+          "English texts;")
     print("replace every value with the translation, then run: python packaging/i18n.py")
     return 0
 
@@ -127,7 +165,7 @@ def main(argv: list[str]) -> int:
             missing = fill(ts, lang, table)
             for ctx, src in missing:
                 print(f"[{lang}] missing: [{ctx}] {src!r}")
-            other = check_placeholders(lang, table) + check_report(lang)
+            other = check_placeholders(lang, table) + check_report(lang) + check_core(lang)
             for line in other:
                 print(line)
             problems += len(missing) + len(other)

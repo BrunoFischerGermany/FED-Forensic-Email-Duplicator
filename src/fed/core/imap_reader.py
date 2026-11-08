@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
 
 from fed.core.naming import decode_imap_utf7
+from fed.core.msg import t
 
 # Befehle, die das Postfach verändern könnten und deshalb verboten sind
 FORBIDDEN_COMMANDS = frozenset(
@@ -50,9 +51,9 @@ def guard(command: str) -> None:
     if verb == "UID" and len(parts) > 1:
         verb = parts[1].upper()
     if verb in FORBIDDEN_COMMANDS:
-        raise ForbiddenCommand(f"Schreibender IMAP-Befehl blockiert: {verb}")
+        raise ForbiddenCommand(t("Schreibender IMAP-Befehl blockiert: {verb}", verb=verb))
     if verb == "FETCH" and _SEEN_SETTING.search(command):
-        raise ForbiddenCommand("FETCH ohne PEEK blockiert (würde \\Seen setzen)")
+        raise ForbiddenCommand(t("FETCH ohne PEEK blockiert (würde \\Seen setzen)"))
 
 
 class _GuardMixin:
@@ -100,6 +101,7 @@ class FetchedMessage:
     size_server: int
     gm_msgid: str | None = None
     gm_labels: tuple[str, ...] = field(default_factory=tuple)
+    gm_thrid: str | None = None
 
 
 def quote(raw_name: str) -> str:
@@ -174,7 +176,7 @@ class ReadOnlyImap:
             self._imap = _IMAP4(host, self.port, timeout=self.timeout)
             self._imap.starttls(self.ssl_context)
         else:
-            raise ImapError("Unverschlüsselte Verbindungen sind nicht erlaubt")
+            raise ImapError(t("Unverschlüsselte Verbindungen sind nicht erlaubt"))
 
     @property
     def imap(self) -> imaplib.IMAP4:
@@ -206,8 +208,8 @@ class ReadOnlyImap:
             self.imap.login(user, password)
             return
         if "AUTH=PLAIN" not in self.imap.capabilities:
-            raise ImapError("Benutzername oder Passwort enthält Sonderzeichen (z. B. Umlaute), der Server bietet "
-                            "aber keine Anmeldung per AUTHENTICATE PLAIN an")
+            raise ImapError(t("Benutzername oder Passwort enthält Sonderzeichen (z. B. Umlaute), der Server bietet "
+                              "aber keine Anmeldung per AUTHENTICATE PLAIN an"))
         self.imap.authenticate("PLAIN", lambda _: f"\0{user}\0{password}".encode())
 
     def login_xoauth2(self, user: str, access_token: str) -> None:
@@ -285,16 +287,40 @@ class ReadOnlyImap:
         self.current = folder
         return int(data[0] or 0)
 
-    def search_uids(self, since: datetime | None = None, before: datetime | None = None) -> list[int]:
+    def search_uids(self, since: datetime | None = None, before: datetime | None = None,
+                    filters: dict[str, list[str]] | None = None) -> list[int]:
+        """UIDs im geöffneten Ordner – optional nach Zeitraum und Inhalt (``filters``, siehe
+        :data:`FILTER_KEYS`): Werte eines Feldes = „oder“, Felder untereinander = „und“.
+
+        Jeder Suchbegriff wird einzeln gesucht (Umlaute per ``CHARSET UTF-8`` als Literal),
+        die Treffer werden hier verknüpft – so geht auch mehr als ein Begriff mit Umlauten."""
         criteria = []
         if since:
             criteria += ["SINCE", imap_date(since)]
         if before:
             criteria += ["BEFORE", imap_date(before)]
-        typ, data = self.imap.uid("SEARCH", *(criteria or ["ALL"]))
+        result = set(self._search(criteria or ["ALL"]))
+        for name, values in (filters or {}).items():
+            keys = FILTER_KEYS[name]
+            hits: set[int] = set()
+            for v in values:
+                for key in keys:
+                    hits |= set(self._search(criteria, key, v))
+            result &= hits
+        return sorted(result)
+
+    def _search(self, criteria: list[str], key: str | None = None, value: str | None = None) -> list[int]:
+        args = list(criteria)
+        if key is not None and value is not None:
+            if value.isascii():
+                args += [key, '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"']
+            else:
+                args = ["CHARSET", "UTF-8", *args, key]
+                self.imap.literal = value.encode("utf-8")
+        typ, data = self.imap.uid("SEARCH", *(args or ["ALL"]))
         if typ != "OK":
             raise ImapError(f"SEARCH fehlgeschlagen: {data}")
-        return sorted(int(x) for x in (data[0] or b"").split())
+        return [int(x) for x in (data[0] or b"").split()]
 
     def sizes(self) -> dict[int, int]:
         """UID -> RFC822.SIZE für alle Mails im geöffneten Ordner."""
@@ -318,22 +344,16 @@ class ReadOnlyImap:
     def fetch(self, uid: int, chunk_bytes: int | None = None) -> FetchedMessage:
         """Lädt eine Mail unverändert. Ab ``chunk_bytes`` stückweise per ``BODY.PEEK[]<o.l>``."""
         gm = "X-GM-EXT-1" in self.capabilities()
-        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-LABELS" if gm else "") + ")"
+        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-THRID X-GM-LABELS" if gm else "") + ")"
         typ, data = self.imap.uid("FETCH", str(uid), items)
         if typ != "OK" or not data or data[0] is None:
-            raise ImapError(f"Mail UID {uid} nicht gefunden")
+            raise ImapError(t("Mail UID {uid} nicht gefunden", uid=uid))
         meta = b" ".join(d if isinstance(d, bytes) else d[0] + d[1] for d in data if d)
         size = int(re.search(rb"RFC822\.SIZE (\d+)", meta).group(1))
         idate = parse_internaldate(re.search(rb'INTERNALDATE "([^"]+)"', meta).group(1).decode())
         fm = re.search(rb"FLAGS \(([^)]*)\)", meta)
         flags = tuple(fm.group(1).decode().split()) if fm else ()
-        gm_msgid = None
-        gm_labels: tuple[str, ...] = ()
-        if gm:
-            mm = re.search(rb"X-GM-MSGID (\d+)", meta)
-            gm_msgid = mm.group(1).decode() if mm else None
-            lm = re.search(rb"X-GM-LABELS \(([^)]*)\)", meta)
-            gm_labels = tuple(lm.group(1).decode("utf-8", "replace").split()) if lm else ()
+        gm_msgid, gm_thrid, gm_labels = parse_gmail(meta) if gm else (None, None, ())
 
         if chunk_bytes and size > chunk_bytes:
             parts = []
@@ -347,8 +367,8 @@ class ReadOnlyImap:
         else:
             raw = self._body(uid, "BODY.PEEK[]")
         if len(raw) != size:
-            raise ImapError(f"UID {uid}: {len(raw)} Bytes geladen, Server meldet {size}")
-        return FetchedMessage(uid, raw, flags, idate, size, gm_msgid, gm_labels)
+            raise ImapError(t("UID {uid}: {got} Bytes geladen, Server meldet {size}", uid=uid, got=len(raw), size=size))
+        return FetchedMessage(uid, raw, flags, idate, size, gm_msgid, gm_labels, gm_thrid)
 
     def fetch_many(self, uids: list[int]) -> dict[int, FetchedMessage]:
         """Lädt mehrere Mails mit einem einzigen ``UID FETCH`` (spart je Mail einen Server-Umlauf).
@@ -359,10 +379,10 @@ class ReadOnlyImap:
         if not uids:
             return {}
         gm = "X-GM-EXT-1" in self.capabilities()
-        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-LABELS" if gm else "") + " BODY.PEEK[])"
+        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-THRID X-GM-LABELS" if gm else "") + " BODY.PEEK[])"
         typ, data = self.imap.uid("FETCH", ",".join(str(u) for u in uids), items)
         if typ != "OK":
-            raise ImapError(f"FETCH {len(uids)} Mails fehlgeschlagen: {data}")
+            raise ImapError(t("FETCH von {n} Mails fehlgeschlagen: {data}", n=len(uids), data=data))
         result: dict[int, FetchedMessage] = {}
         i = 0
         while i < len(data):
@@ -380,18 +400,15 @@ class ReadOnlyImap:
             sm = re.search(rb"RFC822\.SIZE (\d+)", meta)
             im = re.search(rb'INTERNALDATE "([^"]+)"', meta)
             if not (um and sm and im):
-                raise ImapError(f"Unvollständige FETCH-Antwort: {meta[:200]!r}")
+                raise ImapError(t("Unvollständige FETCH-Antwort: {data}", data=repr(meta[:200])))
             uid, size = int(um.group(1)), int(sm.group(1))
             if len(raw) != size:
-                raise ImapError(f"UID {uid}: {len(raw)} Bytes geladen, Server meldet {size}")
+                raise ImapError(t("UID {uid}: {got} Bytes geladen, Server meldet {size}", uid=uid, got=len(raw), size=size))
             fm = re.search(rb"FLAGS \(([^)]*)\)", meta)
-            gm_id = re.search(rb"X-GM-MSGID (\d+)", meta) if gm else None
-            gl = re.search(rb"X-GM-LABELS \(([^)]*)\)", meta) if gm else None
+            gm_id, gm_thr, gm_lab = parse_gmail(meta) if gm else (None, None, ())
             result[uid] = FetchedMessage(
                 uid, raw, tuple(fm.group(1).decode().split()) if fm else (),
-                parse_internaldate(im.group(1).decode()), size,
-                gm_id.group(1).decode() if gm_id else None,
-                tuple(gl.group(1).decode("utf-8", "replace").split()) if gl else ())
+                parse_internaldate(im.group(1).decode()), size, gm_id, gm_lab, gm_thr)
         return result
 
     def _body(self, uid: int, item: str) -> bytes:
@@ -402,6 +419,49 @@ class ReadOnlyImap:
             if isinstance(d, tuple) and b"BODY[" in d[0]:
                 return d[1]
         return b""
+
+
+# Inhaltsfilter der Teilsicherung -> IMAP-SEARCH-Schlüssel (je Wert werden alle Schlüssel „oder“ verknüpft)
+FILTER_KEYS: dict[str, tuple[str, ...]] = {
+    "from": ("FROM",),
+    "to": ("TO", "CC", "BCC"),
+    "subject": ("SUBJECT",),
+    "text": ("TEXT",),
+}
+
+
+def parse_gmail(meta: bytes) -> tuple[str | None, str | None, tuple[str, ...]]:
+    """``X-GM-MSGID``, ``X-GM-THRID`` und ``X-GM-LABELS`` aus einer FETCH-Antwort.
+
+    Labels sind Atome oder Strings in Anführungszeichen (mit Leerzeichen, ``\\"``-Escapes) und
+    in Modified UTF-7 kodiert, z. B. ``("\\Important" "Projekt Ost" Entw&APw-rfe)``.
+    """
+    mm = re.search(rb"X-GM-MSGID (\d+)", meta)
+    tm = re.search(rb"X-GM-THRID (\d+)", meta)
+    labels: list[str] = []
+    lm = re.search(rb"X-GM-LABELS \(", meta)
+    if lm:
+        i, s = lm.end(), meta
+        while i < len(s) and s[i:i + 1] != b")":
+            c = s[i:i + 1]
+            if c == b" ":
+                i += 1
+            elif c == b'"':
+                j, buf = i + 1, bytearray()
+                while j < len(s) and s[j:j + 1] != b'"':
+                    if s[j:j + 1] == b"\\" and j + 1 < len(s):
+                        j += 1
+                    buf += s[j:j + 1]
+                    j += 1
+                labels.append(decode_imap_utf7(bytes(buf)))
+                i = j + 1
+            else:
+                j = i
+                while j < len(s) and s[j:j + 1] not in (b" ", b")"):
+                    j += 1
+                labels.append(decode_imap_utf7(s[i:j]))
+                i = j
+    return (mm.group(1).decode() if mm else None, tm.group(1).decode() if tm else None, tuple(labels))
 
 
 def to_utc(dt: datetime) -> datetime:

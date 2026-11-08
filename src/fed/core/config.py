@@ -10,6 +10,7 @@ from __future__ import annotations
 import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from fed.core.msg import t
 
 CONFIG_FILENAME = "config.toml"
 ALLOWED_EXTRA_HASHES = {"md5", "sha1", "sha512"}
@@ -39,6 +40,8 @@ class Programm:
     chunk_mb: int = 10
     verbindungen: int = 3  # gleichzeitige IMAP-Verbindungen beim Download (1–10)
     wach_halten: bool = True
+    dkim_pruefen: bool = True  # DKIM-Signaturen bei der Sicherung prüfen (braucht DNS)
+    verschluesselung: str = "fragen"  # verschlüsselte Weitergabe-Kopie beim Abschluss: fragen | aus
     zip_aufteilung: str = "fragen"  # bei mehreren Konten: fragen | gesamt | je_konto
     arbeitsordner_loeschen: str = "fragen"  # nach verifiziertem ZIP: fragen | ja | nein  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 
@@ -102,27 +105,29 @@ def load_default(program_dir: Path) -> Config:
 def validate(cfg: Config) -> None:
     unknown = set(cfg.programm.hash_extra) - ALLOWED_EXTRA_HASHES
     if unknown:
-        raise ConfigError(f"Unbekannte Hash-Verfahren in hash_extra: {sorted(unknown)}")
+        raise ConfigError(t("Unbekannte Hash-Verfahren in hash_extra: {values}", values=sorted(unknown)))
     if cfg.programm.zip_zeit_quelle not in ALLOWED_ZIP_TIME_SOURCES:
-        raise ConfigError(f"zip_zeit_quelle muss eins von {sorted(ALLOWED_ZIP_TIME_SOURCES)} sein")
+        raise ConfigError(t("{key} muss eins von {values} sein", key="zip_zeit_quelle", values=sorted(ALLOWED_ZIP_TIME_SOURCES)))
     from fed.core.languages import report_languages, ui_languages
 
     if cfg.programm.sprache not in ui_languages():
-        raise ConfigError(f"sprache muss eins von {ui_languages()} sein")
+        raise ConfigError(t("{key} muss eins von {values} sein", key="sprache", values=ui_languages()))
     if cfg.programm.bericht_sprache not in {"", *report_languages()}:
-        raise ConfigError(f"bericht_sprache muss leer oder eins von {report_languages()} sein")
+        raise ConfigError(t("{key} muss leer oder eins von {values} sein", key="bericht_sprache", values=report_languages()))
+    if cfg.programm.verschluesselung not in {"fragen", "aus"}:
+        raise ConfigError(t("{key} muss eins von {values} sein", key="verschluesselung", values=["fragen", "aus"]))
     if cfg.programm.zip_aufteilung not in {"fragen", "gesamt", "je_konto"}:
-        raise ConfigError("zip_aufteilung muss 'fragen', 'gesamt' oder 'je_konto' sein")
+        raise ConfigError(t("{key} muss eins von {values} sein", key="zip_aufteilung", values=["fragen", "gesamt", "je_konto"]))
     if cfg.programm.arbeitsordner_loeschen not in {"fragen", "ja", "nein"}:
-        raise ConfigError("arbeitsordner_loeschen muss 'fragen', 'ja' oder 'nein' sein")
+        raise ConfigError(t("{key} muss eins von {values} sein", key="arbeitsordner_loeschen", values=["fragen", "ja", "nein"]))
     if not 1 <= cfg.programm.verbindungen <= 10:
-        raise ConfigError("verbindungen muss zwischen 1 und 10 liegen")
+        raise ConfigError(t("{key} muss zwischen {lo} und {hi} liegen", key="verbindungen", lo=1, hi=10))
     cfg.programm.bericht_mailliste = {"immer": "liste", "nie": "ordner"}.get(cfg.programm.bericht_mailliste,
                                                                             cfg.programm.bericht_mailliste)
     if cfg.programm.bericht_mailliste not in {"auto", "liste", "ordner"}:
-        raise ConfigError("bericht_mailliste muss 'auto', 'liste' oder 'ordner' sein")
+        raise ConfigError(t("{key} muss eins von {values} sein", key="bericht_mailliste", values=["auto", "liste", "ordner"]))
     if cfg.programm.design not in {"system", "hell", "dunkel"}:
-        raise ConfigError("design muss 'system', 'hell' oder 'dunkel' sein")
+        raise ConfigError(t("{key} muss eins von {values} sein", key="design", values=["system", "hell", "dunkel"]))
 
 
 def save(cfg: Config, path: Path) -> None:

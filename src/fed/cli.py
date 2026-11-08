@@ -11,58 +11,95 @@ import sys
 from pathlib import Path
 
 from fed import APP_NAME, __version__
+from fed.core.msg import describe, set_language, t
+
+
+def _choose_language(argv: list[str] | None) -> str:
+    """Sprache der Kommandozeile: --lang, sonst FED_LANG, sonst ``sprache`` aus --config, sonst Deutsch."""
+    import os
+
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("--lang")
+    pre.add_argument("--config", type=Path)
+    known, _ = pre.parse_known_args(argv)
+    if known.lang:
+        return known.lang
+    if os.environ.get("FED_LANG"):
+        return os.environ["FED_LANG"]
+    if known.config and known.config.exists():
+        try:
+            from fed.core import config as cfgmod
+
+            return cfgmod.load(known.config).programm.sprache
+        except Exception:  # Fehler in der Config meldet später der eigentliche Befehl
+            pass
+    return "de"
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="fed", description=APP_NAME)
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    p.add_argument("--config", type=Path, help="Pfad zur config.toml")
+    p.add_argument("--config", type=Path, help=t("Pfad zur config.toml"))
+    p.add_argument("--lang", choices=["de", "en"], help=t("Sprache der Ausgabe (Standard: FED_LANG oder config.toml)"))
     sub = p.add_subparsers(dest="command", required=True)
 
-    new = sub.add_parser("new-case", help="Case anlegen")
-    new.add_argument("--target", type=Path, required=True, help="Zielordner (Datenträger)")
+    new = sub.add_parser("new-case", help=t("Case anlegen"))
+    new.add_argument("--target", type=Path, required=True, help=t("Zielordner (Datenträger)"))
     new.add_argument("--case", required=True, help="Casenumber")
-    new.add_argument("--examiner", help="Examiner (Standard aus Config)")
+    new.add_argument("--examiner", help=t("Examiner (Standard aus Config)"))
     new.add_argument("--notes", default="")
 
-    acq = sub.add_parser("acquire", help="Konto sichern")
+    acq = sub.add_parser("acquire", help=t("Konto sichern"))
     acq.add_argument("--case-dir", type=Path, required=True)
-    acq.add_argument("--account", required=True, help="E-Mail-Adresse")
-    acq.add_argument("--evidence", required=True, help="Evidence-/Asservatennummer")
-    acq.add_argument("--account-notes", default=None, help="Notiz zum Konto (erscheint im Bericht)")
-    acq.add_argument("--from", dest="date_from", help="Zeitraum ab (JJJJ-MM-TT)")
-    acq.add_argument("--to", dest="date_to", help="Zeitraum bis einschließlich (JJJJ-MM-TT)")
+    acq.add_argument("--account", required=True, help=t("E-Mail-Adresse"))
+    acq.add_argument("--evidence", required=True, help=t("Evidence-/Asservatennummer"))
+    acq.add_argument("--account-notes", default=None, help=t("Notiz zum Konto (erscheint im Bericht)"))
+    acq.add_argument("--from", dest="date_from", help=t("Zeitraum ab (JJJJ-MM-TT)"))
+    acq.add_argument("--to", dest="date_to", help=t("Zeitraum bis einschließlich (JJJJ-MM-TT)"))
+    for opt, key, what in (("--from-contains", "from", t("Absender")),
+                           ("--to-contains", "to", t("Empfänger (To/CC/BCC)")),
+                           ("--subject-contains", "subject", t("Betreff")), ("--text-contains", "text", t("Text"))):
+        acq.add_argument(opt, dest=f"flt_{key}", action="append", default=[], metavar=t("WERT"),
+                         help=t("Teilsicherung: {what} enthält (mehrfach = oder)", what=what))
     mode = acq.add_mutually_exclusive_group()
-    mode.add_argument("--resume", action="store_true", help="Fortsetzen (Standard)")
-    mode.add_argument("--force", action="store_true", help="Neubeginn")
-    acq.add_argument("--reason", default="", help="Grund für Neubeginn")
-    acq.add_argument("--delete-old", action="store_true", help="bei Neubeginn Altstand löschen statt verschieben")
-    acq.add_argument("--server", help="IMAP-Server (sonst Autoerkennung)")
+    mode.add_argument("--resume", action="store_true", help=t("Fortsetzen (Standard)"))
+    mode.add_argument("--force", action="store_true", help=t("Neubeginn"))
+    acq.add_argument("--reason", default="", help=t("Grund für Neubeginn"))
+    acq.add_argument("--delete-old", action="store_true", help=t("bei Neubeginn Altstand löschen statt verschieben"))
+    acq.add_argument("--server", help=t("IMAP-Server (sonst Autoerkennung)"))
     acq.add_argument("--port", type=int, default=993)
     acq.add_argument("--security", choices=["ssl", "starttls"], default="ssl")
-    acq.add_argument("--user", help="Benutzername (Standard: Adresse)")
-    acq.add_argument("--cafile", help="eigene CA-Datei (z. B. Behörden-CA oder Testserver)")
-    acq.add_argument("--exclude", action="append", default=[], metavar="ORDNER", help="Ordner auslassen (mehrfach)")
+    acq.add_argument("--user", help=t("Benutzername (Standard: Adresse)"))
+    acq.add_argument("--cafile", help=t("eigene CA-Datei (z. B. Behörden-CA oder Testserver)"))
+    acq.add_argument("--exclude", action="append", default=[], metavar=t("ORDNER"), help=t("Ordner auslassen (mehrfach)"))
+    acq.add_argument("--gmail-all-folders", action="store_true",
+                     help=t("Gmail: alle Label-Ordner sichern (Standard: Alle Nachrichten + Spam + Papierkorb)"))
     acq.add_argument("--auth", choices=["auto", "password", "google-app", "google", "microsoft"], default="auto",
-                     help="Anmeldeart (auto: Google per OAuth, ohne Client-ID per App-Passwort; Microsoft per "
-                          "OAuth; sonst Passwort)")
-    acq.add_argument("--device-code", action="store_true", help="Microsoft: Anmeldung per Gerätecode")
-    acq.add_argument("--login-as", help="OAuth: Konto, mit dem angemeldet wird (z. B. bei geteiltem Postfach)")
+                     help=t("Anmeldeart (auto: Google per OAuth, ohne Client-ID per App-Passwort; Microsoft per "
+                            "OAuth; sonst Passwort)"))
+    acq.add_argument("--device-code", action="store_true", help=t("Microsoft: Anmeldung per Gerätecode"))
+    acq.add_argument("--login-as", help=t("OAuth: Konto, mit dem angemeldet wird (z. B. bei geteiltem Postfach)"))
 
-    fin = sub.add_parser("finish", help="Case abschließen: ZIP, Hashes, Berichte")
+    fin = sub.add_parser("finish", help=t("Case abschließen: ZIP, Hashes, Berichte"))
     fin.add_argument("--case-dir", type=Path, required=True)
     wd = fin.add_mutually_exclusive_group()
-    wd.add_argument("--delete-work", action="store_true", help="work/ nach verifiziertem ZIP löschen")
-    wd.add_argument("--keep-work", action="store_true", help="work/ behalten")
+    wd.add_argument("--delete-work", action="store_true", help=t("work/ nach verifiziertem ZIP löschen"))
+    wd.add_argument("--keep-work", action="store_true", help=t("work/ behalten"))
+    enc = fin.add_mutually_exclusive_group()
+    enc.add_argument("--encrypt", action="store_true",
+                     help=t("verschlüsselte Kopie (AES-256); Passwort aus FED_ZIP_PASSWORD oder Abfrage"))
+    enc.add_argument("--encrypt-generate", action="store_true",
+                     help=t("verschlüsselte Kopie mit erzeugtem Passwort (wird einmal angezeigt)"))
     fin.add_argument("--zip", choices=["gesamt", "je-konto"], default=None,
-                     help="mehrere Konten: ein ZIP für alle oder eines je Konto (Standard: Wahl im Case, sonst config)")
+                     help=t("mehrere Konten: ein ZIP für alle oder eines je Konto (Standard: Wahl im Case, sonst config)"))
 
-    ver = sub.add_parser("verify", help="Hash-Kette und Dateien prüfen")
+    ver = sub.add_parser("verify", help=t("Hash-Kette und Dateien prüfen"))
     ver.add_argument("--case-dir", type=Path, required=True)
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
+    set_language(_choose_language(argv))
     args = build_parser().parse_args(argv)
     if args.command == "new-case":
         from fed.core import config as cfgmod
@@ -75,9 +112,10 @@ def main(argv: list[str] | None = None) -> int:
         info = syscheck.collect(args.target, cfg.programm.ntp_server if cfg.programm.ntp else None, cfg.proxy_url)
         case.record_system_check(info.as_dict())
         case.store_config_snapshot(cfg.raw_text, cfg.logo_path())
-        print(f"Case angelegt: {case.root}")
-        print(f"System: {info.user} @ {info.hostname} · online={info.online} · extern={info.target_removable} "
-              f"· frei {info.free_bytes / 1e9:.1f} GB · NTP-Abweichung {info.ntp_offset_s}")
+        print(t("Case angelegt: {path}", path=case.root))
+        print(t("System: {user} @ {host} · online={online} · extern={removable} · frei {free:.1f} GB · "
+                "NTP-Abweichung {ntp}", user=info.user, host=info.hostname, online=info.online,
+                removable=info.target_removable, free=info.free_bytes / 1e9, ntp=info.ntp_offset_s))
         case.close()
         return 0
     if args.command == "acquire":
@@ -95,25 +133,44 @@ def main(argv: list[str] | None = None) -> int:
             delete = True if args.delete_work else False if args.keep_work else None
             if delete is None and cfg.programm.arbeitsordner_loeschen == "fragen":
                 delete = sys.stdin.isatty() and input(
-                    "Arbeitsordner nach erfolgreicher ZIP-Verifikation löschen? [j/N] ").strip().lower() in ("j", "ja", "y")
+                    t("Arbeitsordner nach erfolgreicher ZIP-Verifikation löschen? [j/N] ")).strip().lower() in ("j", "ja", "y", "yes")
             if args.zip:
                 case.set_zip_mode(args.zip.replace("-", "_"), source="cli")
+            password = None
+            if args.encrypt_generate:
+                from fed.core.encrypt import generate_password
+
+                password = generate_password()
+            elif args.encrypt:
+                import getpass
+                import os
+
+                password = os.environ.get("FED_ZIP_PASSWORD")
+                if not password:
+                    password = getpass.getpass(t("Passwort für die verschlüsselte Kopie: "))
+                    if getpass.getpass(t("Wiederholen: ")) != password:
+                        print(t("Passwörter stimmen nicht überein"), file=sys.stderr)
+                        return 2
             with KeepAwake() if cfg.programm.wach_halten else _nullctx():
-                res = finish_case(case, cfg, delete_work=delete)
+                res = finish_case(case, cfg, delete_work=delete, encrypt_password=password)
         finally:
             case.close()
         for z, (ts, err) in zip(res.zips, res.timestamps, strict=True):
-            print(f"ZIP: {z.path}  ({z.files} Mails, verifiziert: {z.verified})")
+            print(t("ZIP: {path}  ({files} Mails, verifiziert: {ok})", path=z.path, files=z.files, ok=z.verified))
             for k, v in z.hashes.items():
                 print(f"  {k.upper():<7} {v}")
             if ts is not None:
-                print(f"  Zeitstempel (RFC 3161): {ts.gen_time}  Seriennr. {ts.serial}")
+                print(t("  Zeitstempel (RFC 3161): {time}  Seriennr. {serial}", time=ts.gen_time, serial=ts.serial))
             elif err:
-                print(f"  WARNUNG Zeitstempel: {err}")
+                print(t("  WARNUNG Zeitstempel: {error}", error=err))
             for p in z.problems:
-                print(f"  HINWEIS: {p}")
-        print(f"Berichte: {res.report_txt.name}, {res.report_pdf.name}"
-              + (f" + {len(res.account_reports)} Einzelberichte" if res.account_reports else ""))
+                print(t("  HINWEIS: {text}", text=describe(p)))
+        if res.encrypted:
+            print(t("Verschlüsselte Kopie: {file}  SHA-256 {sha}  (geprüft)", file=res.encrypted["file"], sha=res.encrypted["sha256"]))
+            if args.encrypt_generate:
+                print(t("  Passwort (wird nicht gespeichert, getrennt übermitteln): {pw}", pw=password))
+        print(t("Berichte: {txt}, {pdf}", txt=res.report_txt.name, pdf=res.report_pdf.name)
+              + (t(" + {n} Einzelberichte", n=len(res.account_reports)) if res.account_reports else ""))
         return 0
     if args.command == "verify":
         from fed.core.case import Case
@@ -121,9 +178,9 @@ def main(argv: list[str] | None = None) -> int:
         case = Case.open(args.case_dir)
         ok, bad = case.verify_log()
         case.close()
-        print("Log-Hash-Kette: OK" if ok else f"Log-Hash-Kette GEBROCHEN ab Eintrag {bad}")
+        print(t("Log-Hash-Kette: OK") if ok else t("Log-Hash-Kette GEBROCHEN ab Eintrag {n}", n=bad))
         return 0 if ok else 2
-    print(f"Befehl '{args.command}' ist noch nicht umgesetzt.", file=sys.stderr)
+    print(t("Befehl '{cmd}' ist noch nicht umgesetzt.", cmd=args.command), file=sys.stderr)
     return 1
 
 
@@ -157,13 +214,13 @@ def _acquire(args) -> int:
             acc_id, server, port, security, user = row
         else:
             if args.server:
-                server, port, security, source = args.server, args.port, args.security, "manuell"
+                server, port, security, source = args.server, args.port, args.security, "manual"
             else:
                 found, log = autoconfig.discover(args.account, proxy=cfg.proxy_url)
                 for line in log:
                     print("  " + line)
                 if not found:
-                    print("Keine IMAP-Einstellungen gefunden – bitte --server angeben.", file=sys.stderr)
+                    print(t("Keine IMAP-Einstellungen gefunden – bitte --server angeben."), file=sys.stderr)
                     return 1
                 server, port, security, source = found.host, found.port, found.security, found.source
             user = args.user or args.account
@@ -184,8 +241,8 @@ def _acquire(args) -> int:
                        "google-app": "app_password_google"}.get(method, "password")
         timeout = cfg.programm.socket_timeout_s
         if method in ("password", "google-app"):
-            prompt = (f"Google-App-Passwort für {user} ({APP_PASSWORD_URL}): " if method == "google-app"
-                      else f"Passwort für {user}: ")
+            prompt = (t("Google-App-Passwort für {user} ({url}): ", user=user, url=APP_PASSWORD_URL)
+                      if method == "google-app" else t("Passwort für {user}: ", user=user))
             password = os.environ.get("FED_PASSWORD") or getpass.getpass(prompt)
             if method == "google-app":
                 password = normalize_app_password(password)
@@ -197,20 +254,20 @@ def _acquire(args) -> int:
             else:
                 prov, cid, secret = oauth.microsoft(cfg.oauth_microsoft.tenant), cfg.oauth_microsoft.client_id, ""
             sess = OAuthSession(prov, cid, secret, cfg.proxy_url)
-            print(f"Anmeldung bei {method.title()} – " + ("Gerätecode folgt …" if args.device_code
-                                                          else "Browser wird geöffnet …"))
+            print(t("Anmeldung bei {provider} – ", provider=method.title())
+                  + (t("Gerätecode folgt …") if args.device_code else t("Browser wird geöffnet …")))
             try:
                 token = sess.login_interactive(
                     login_hint=args.login_as or args.account, device_code=args.device_code,
-                    show_device_code=lambda dc: print(dc.message or f"Öffne {dc.verification_uri} und gib {dc.user_code} ein"))
+                    show_device_code=lambda dc: print(dc.message or t("Öffne {url} und gib {code} ein", url=dc.verification_uri, code=dc.user_code)))
             except oauth.OAuthError as e:
                 case.log("ERROR", "oauth_failed", str(e))
-                print(f"Anmeldung fehlgeschlagen: {e}", file=sys.stderr)
+                print(t("Anmeldung fehlgeschlagen: {error}", error=e), file=sys.stderr)
                 return 1
             warning = log_oauth_login(case, token, args.account)
-            print(f"Angemeldet als {token.account or '?'}")
+            print(t("Angemeldet als {login}", login=token.account or "?"))
             if warning:
-                print(f"  WARNUNG: {warning}")
+                print(t("  WARNUNG: {text}", text=warning))
             connect = make_connector(server, port, security, user, oauth_session=sess, timeout=timeout,
                                      cafile=args.cafile)
 
@@ -227,9 +284,16 @@ def _acquire(args) -> int:
             folders = acqmod.scan(case, acc_id, imap)
             imap.logout()
             for f in folders:
-                print(f"  {f['name']:<40} {f['messages']:>7} Mails {f['size'] / 1e6:>9.1f} MB")
+                print(t("  {name:<40} {n:>7} Mails {mb:>9.1f} MB", name=f["name"], n=f["messages"], mb=f["size"] / 1e6))
         elif args.account_notes is not None:
             acqmod.set_account_notes(case, acc_id, args.account_notes)
+        flt = {k: getattr(args, f"flt_{k}") for k in ("from", "to", "subject", "text")}
+        if any(flt.values()):
+            acqmod.set_content_filter(case, acc_id, flt)
+        if args.gmail_all_folders and acqmod.is_gmail_account(case, acc_id):
+            acqmod.set_selection(case, acc_id, {r[0] for r in case.conn.execute(
+                "SELECT display_name FROM folder WHERE account_id = ? AND (flags IS NULL OR flags NOT LIKE '%Noselect%')",
+                (acc_id,))})
         if args.exclude:
             names = {r[0] for r in case.conn.execute(
                 "SELECT display_name FROM folder WHERE account_id = ? AND selected = 1", (acc_id,))}
@@ -243,8 +307,10 @@ def _acquire(args) -> int:
                 last[0] = time.monotonic()
                 bps, mpm = p.speed()
                 eta = p.eta_seconds()
-                print(f"\r  {p.mails_done}/{p.mails_total} Mails · {p.bytes_done / 1e6:.1f}/{p.bytes_total / 1e6:.1f} MB "
-                      f"· {bps / 1e6:.1f} MB/s · {mpm:.0f} Mails/min · Rest {int(eta) if eta else '?'} s · {p.folder[:30]:<30}",
+                print("\r" + t("  {done}/{total} Mails · {mb_done:.1f}/{mb_total:.1f} MB · {mbs:.1f} MB/s · "
+                                "{mpm:.0f} Mails/min · Rest {eta} s · {folder:<30}", done=p.mails_done,
+                                total=p.mails_total, mb_done=p.bytes_done / 1e6, mb_total=p.bytes_total / 1e6,
+                                mbs=bps / 1e6, mpm=mpm, eta=int(eta) if eta else "?", folder=p.folder[:30]),
                       end="", flush=True)
 
         mode = acqmod.Mode.RESTART if args.force else acqmod.Mode.RESUME
@@ -254,7 +320,7 @@ def _acquire(args) -> int:
         if cfg.programm.wach_halten:
             method = awake.acquire()
             case.log("INFO" if method else "WARNING", "keep_awake_on",
-                     {"for": "sicherung", "method": method or "nicht verfügbar"})
+                     {"for": "acquisition", "method": method or "unavailable"})
         try:
             res = acqmod.run_attempt(case, acc_id, connect, mode, token, show, args.reason, args.delete_old, cfg)
         except KeyboardInterrupt:
@@ -263,10 +329,10 @@ def _acquire(args) -> int:
         finally:
             awake.release()
         print()
-        print(f"Versuch {res.nr}: {res.status} · gesichert {res.saved} · bereits vorhanden {res.skipped_existing} "
-              f"· erwartet {res.expected}")
+        print(t("Versuch {nr}: {status} · gesichert {saved} · bereits vorhanden {skipped} · erwartet {expected}",
+                nr=res.nr, status=res.status, saved=res.saved, skipped=res.skipped_existing, expected=res.expected))
         for w in res.warnings:
-            print(f"  WARNUNG: {w}")
+            print(t("  WARNUNG: {text}", text=w))
         return 0 if res.status == "done" else 3
     finally:
         case.close()

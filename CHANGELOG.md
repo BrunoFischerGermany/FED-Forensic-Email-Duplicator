@@ -70,6 +70,27 @@
 - Evidence-Nummer wird vorgeschlagen: letzte Zahl der zuletzt vergebenen Nummer +1
   (`A-01` -> `A-02`, `VG-2026-009` -> `VG-2026-010`), vergebene Nummern werden übersprungen,
   doppelte Vergabe für ein anderes Konto abgelehnt
+- Echtheitsprüfung (DKIM) bei der Sicherung: Ergebnis je Mail (gültig, ungültig, nicht prüfbar,
+  nicht signiert), Begründung, Authentication-Results des Anbieters (SPF/DKIM/DMARC); abgefragte
+  DNS-Schlüssel werden mit Abrufzeit und SHA-256 in der Case-Datei aufbewahrt; Spalten in `log.csv`,
+  Abschnitte im Bericht; offene DNS-Fehler werden beim Fortsetzen erneut geprüft; abschaltbar
+  (`dkim_pruefen`); Testpostfach um zwei signierte Mails erweitert, Validierung V14
+- Gmail: Labels statt Ordner-Kopien – bei Gmail-Konten (`X-GM-EXT-1`) sind „Alle Nachrichten“,
+  „Spam“ und „Papierkorb“ vorausgewählt (über SPECIAL-USE, sprachunabhängig); je Mail werden
+  `X-GM-MSGID`, `X-GM-THRID` und `X-GM-LABELS` gespeichert (Labels mit Leerzeichen/Umlauten korrekt
+  gelesen), Mehrfachkopien gekennzeichnet; Hinweis mit Umschalter auf der Ordnerseite, CLI
+  `--gmail-all-folders`
+- Gezielte Teilsicherung: Inhaltsfilter je Konto (Absender, Empfänger To/CC/BCC, Betreff, Text);
+  Werte mit Komma = oder, Felder = und; Suche per IMAP SEARCH, Umlaute als UTF-8-Literal (jeder Begriff
+  einzeln gesucht, Treffer in FED verknüpft); protokolliert, im Bericht als Teilsicherung mit Kriterien;
+  Karte „Inhalt (optional)“ auf der Ordnerseite, CLI `--from-contains/--to-contains/--subject-contains/
+  --text-contains`; Validierung V15
+- Verschlüsselte Kopie für die Weitergabe: `<Casenumber>_encrypted.zip` (AES-256, WinZip-AES – öffnet
+  mit 7-Zip, WinRAR, Keka) mit Original-ZIP(s), Hash-/Zeitstempeldateien, log.csv und Berichten;
+  Original bleibt unverändert; Kopie wird nach dem Schreiben entschlüsselt und Datei für Datei geprüft;
+  Passwort selbst wählen oder erzeugen lassen (≈140 Bit), wird nie gespeichert oder protokolliert;
+  `.sha256` daneben, Hash im Log; Einstellung `verschluesselung` (fragen | aus), CLI
+  `fed finish --encrypt | --encrypt-generate`
 - ZIP-Aufteilung bei mehreren Konten wählbar: ein ZIP für alle Konten oder eines je Konto
   (`<Case>_<Evidence>_<Zeit>.zip` mit eigener `log.csv`, `.sha256` und Zeitstempel); Frage beim
   2. Konto (änderbar bis zum Abschluss), Voreinstellung `zip_aufteilung` (fragen | gesamt | je_konto),
@@ -89,6 +110,32 @@
   statt ihn auf „läuft“ stehen zu lassen; Befehlssperre blockiert zusätzlich FETCH ohne PEEK
   (würde das Gelesen-Flag setzen, Validierung V02); Kontenübersicht vergleicht mit dem
   Serverstand nach der Sicherung
+- Mail-Betrachter (nur lesend): Doppelklick in der Historie „Gesicherte Mails“ öffnet Kopfdaten,
+  Text (HTML ohne Nachladen externer Inhalte), Anlagen mit Größe/SHA-256 und „Speichern unter …“,
+  vollständige Kopfzeilen, Received-Kette mit Zeiten und Dauer, DKIM/Authentication-Results und
+  Gmail-Labels; liest aus `work/` oder aus dem ZIP, prüft dabei den SHA-256 gegen die Case-Datei
+  und protokolliert Ansehen (`message_viewed`) und Speichern (`attachment_exported`)
+- Betrachter: Anlagen-Vorschau im Speicher (Bilder, PDF über QtPdf, Text) mit Reitern „Vorschau“,
+  „Prüfung“ und „Hex“; eingebettete Bilder (`cid:`) in HTML-Mails werden angezeigt – nur aus der
+  Mail selbst, externe Inhalte bleiben gesperrt
+- Dateiprüfung je Anlage (`fed.core.filecheck`, angelehnt an Crush Forensics): Format an den
+  Magic Bytes erkannt und mit Endung und angegebenem MIME-Typ verglichen; MD5/SHA-1/SHA-256,
+  Entropie; Warnungen bei ausführbaren Inhalten, getarnten Endungen (doppelt, Leerzeichen,
+  Schreibrichtungs-Zeichen), Makros, nachgeladenen Vorlagen, aktiven PDF-Inhalten (JavaScript,
+  OpenAction, Launch …), eingebetteten Dateien, verschlüsselten Archiven, Programmen in Archiven,
+  Datenträger-Abbildern und Skripten; keine Vorschau für ausführbare Inhalte, Rückfrage vor dem
+  Speichern auffälliger Anlagen; jede Vorschau wird mit Hash und Befunden protokolliert
+  (`attachment_previewed`)
+- Vollständig zweisprachig: Meldungen des Programmkerns (Fehler, Autoerkennung, Anmelde-Hinweise,
+  Zeitstempel, DKIM-Begründungen, Empfänger-Hinweise, OAuth-Browserseite) und die Kommandozeile
+  über `core_<sprache>.json` (`fed --lang en`, `FED_LANG`); Zonenname im Englischen `CET` statt
+  `MEZ`; neuer Test durchläuft die ganze Oberfläche auf Englisch und prüft auf deutschen Text
+- Case-Datei und Log speichern sprachneutrale Codes statt deutscher Texte (DKIM-Begründung,
+  Empfänger-Hinweis, Herkunft der Servereinstellungen, ZIP-Prüfung, Wachhalten); Bericht und
+  Oberfläche übersetzen sie, Werte älterer Case-Dateien werden weiter erkannt
+- **`log.csv` mit festen englischen Spaltennamen** (`Account`, `Folder`, `Received_UTC`, `Subject`,
+  `File` …), unabhängig von der Sprache – wie die Namen im Case-Ordner
+- Historie „Dateien nachhashen“ prüft alle ZIPs des Case (auch je Konto), nicht nur das letzte
 
 ## 0.4-beta
 

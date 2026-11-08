@@ -33,12 +33,18 @@ def local(value) -> datetime | None:
         return None
 
 
+# Kurznamen der Zeitzonen je Sprache (Oberfläche: set_language; Bericht: with language(...))
+ZONE_NAMES = {"de": {"CET": "MEZ", "CEST": "MESZ"}}
+# Sprache wie die Meldungen des Kerns (fed.core.msg): Oberfläche bzw. Bericht
+from fed.core.msg import current_language, language, set_language  # noqa: E402, F401
+
+
 def offset(dt: datetime) -> str:
-    """``+01:00`` bzw. ``MEZ +01:00`` wenn ein kurzer Zonenname bekannt ist."""
+    """``+01:00`` bzw. ``MEZ +01:00`` (deutsch) / ``CET +01:00`` (englisch), wenn ein kurzer Zonenname bekannt ist."""
     off = dt.strftime("%z")
     off = f"{off[:3]}:{off[3:]}" if len(off) == 5 else off
     name = dt.tzname() or ""
-    name = {"CET": "MEZ", "CEST": "MESZ"}.get(name, name)
+    name = ZONE_NAMES.get(current_language(), {}).get(name, name)
     return f"{name} {off}" if name and len(name) <= 5 and not name.startswith(("+", "-", "UTC")) else off
 
 

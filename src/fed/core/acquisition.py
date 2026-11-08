@@ -34,6 +34,7 @@ from fed.core.config import Config
 from fed.core.hashing import hash_bytes, hash_file
 from fed.core.imap_reader import FolderInfo, ImapError, ReadOnlyImap
 from fed.core.naming import eml_filename, folder_to_zip_path, sanitize_component
+from fed.core.msg import t as _t
 
 MAX_RECONNECTS = 3
 NETWORK_ERRORS = (OSError, socket.timeout, ssl.SSLError, IMAP4.abort)
@@ -57,7 +58,7 @@ class AccountSpec:
     security: str = "ssl"
     username: str = ""
     auth_method: str = "password"
-    autoconfig_source: str = "manuell"
+    autoconfig_source: str = "manual"
     date_from: datetime | None = None
     date_to: datetime | None = None  # einschließlich
     notes: str = ""  # Notiz des Examiners zum Konto
@@ -109,7 +110,7 @@ def register_account(case: Case, spec: AccountSpec, imap: ReadOnlyImap) -> int:
 def set_account_notes(case: Case, account_id: int, notes: str) -> bool:
     """Notiz eines Kontos ändern (alter und neuer Text werden protokolliert). True, wenn geändert."""
     if case.closed:
-        raise RuntimeError("Case ist abgeschlossen")
+        raise RuntimeError(_t("Case ist abgeschlossen"))
     new = notes.strip() or None
     row = case.conn.execute("SELECT notes, email FROM account WHERE id = ?", (account_id,)).fetchone()
     if row is None or row[0] == new:
@@ -144,7 +145,35 @@ def scan(case: Case, account_id: int, imap: ReadOnlyImap, cancel: CancelToken | 
     case.log("INFO", "scan_done", {"account_id": account_id, "folders": len(rows),
                                    "messages": sum(r["messages"] for r in rows),
                                    "bytes": sum(r["size"] for r in rows)})
+    is_gmail = "X-GM-EXT-1" in imap.capabilities()
+    first = not case.conn.execute("SELECT 1 FROM attempt WHERE account_id = ? LIMIT 1", (account_id,)).fetchone()
+    if is_gmail and first:
+        names = gmail_recommended(case, account_id)
+        if names:
+            set_selection(case, account_id, set(names))
+            case.log("INFO", "gmail_selection", {"account_id": account_id, "selected": names,
+                                                 "reason": "gmail_all_mail"})
     return rows
+
+
+GMAIL_SPECIAL = ("\\All", "\\Junk", "\\Trash")
+
+
+def is_gmail_account(case: Case, account_id: int) -> bool:
+    caps = case.conn.execute("SELECT capabilities FROM account WHERE id = ?", (account_id,)).fetchone()
+    return bool(caps and caps[0] and "X-GM-EXT-1" in caps[0])
+
+
+def gmail_recommended(case: Case, account_id: int) -> list[str]:
+    """Gmail: „Alle Nachrichten“ + Spam + Papierkorb (über SPECIAL-USE, sprachunabhängig).
+
+    „Alle Nachrichten“ enthält jede Mail genau einmal – außer Spam und Papierkorb. Leer, wenn der
+    Server keine \\All-Kennung liefert."""
+    rows = case.conn.execute("SELECT display_name, flags FROM folder WHERE account_id = ?", (account_id,)).fetchall()
+    flags = {name: set((f or "").split()) for name, f in rows}
+    if not any("\\All" in f for f in flags.values()):
+        return []
+    return sorted(name for name, f in flags.items() if f & set(GMAIL_SPECIAL))
 
 
 def set_selection(case: Case, account_id: int, selected_names: set[str]) -> None:
@@ -154,6 +183,33 @@ def set_selection(case: Case, account_id: int, selected_names: set[str]) -> None
             case.conn.execute("UPDATE folder SET selected = 1 WHERE account_id = ? AND display_name = ?",
                               (account_id, name))
     case.log("INFO", "selection_set", {"account_id": account_id, "selected": sorted(selected_names)})
+
+
+def normalize_filters(filters: dict | None) -> dict[str, list[str]]:
+    """Leere Werte entfernen, Komma-getrennte Eingaben aufteilen, nur bekannte Felder."""
+    from fed.core.imap_reader import FILTER_KEYS
+
+    out: dict[str, list[str]] = {}
+    for key in FILTER_KEYS:
+        raw = (filters or {}).get(key) or []
+        values = raw.split(",") if isinstance(raw, str) else [v for x in raw for v in str(x).split(",")]
+        values = [v.strip() for v in values if v.strip()]
+        if values:
+            out[key] = values
+    return out
+
+
+def set_content_filter(case: Case, account_id: int, filters: dict | None) -> dict[str, list[str]]:
+    """Inhaltsfilter der Teilsicherung festlegen (protokolliert). Leer = ganze Ordner."""
+    f = normalize_filters(filters)
+    old = case.conn.execute("SELECT filters FROM account WHERE id = ?", (account_id,)).fetchone()
+    if (json.loads(old[0]) if old and old[0] else {}) == f:
+        return f
+    with case.conn:
+        case.conn.execute("UPDATE account SET filters = ? WHERE id = ?",
+                          (json.dumps(f, ensure_ascii=False) if f else None, account_id))
+    case.log("INFO", "content_filter_set", {"account_id": account_id, "filters": f})
+    return f
 
 
 def set_date_filter(case: Case, account_id: int, date_from: datetime | None, date_to: datetime | None) -> None:
@@ -179,18 +235,19 @@ def run_attempt(
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
     if case.closed:
-        raise ValueError("Case ist abgeschlossen – keine weiteren Versuche möglich")
+        raise ValueError(_t("Case ist abgeschlossen – keine weiteren Versuche möglich"))
     conn = case.conn
-    acc = conn.execute("SELECT email, date_from, date_to FROM account WHERE id = ?", (account_id,)).fetchone()
+    acc = conn.execute("SELECT email, date_from, date_to, filters FROM account WHERE id = ?", (account_id,)).fetchone()
     if not acc:
-        raise ValueError(f"Konto {account_id} unbekannt")
-    email, date_from, date_to = acc
+        raise ValueError(_t("Konto {id} unbekannt", id=account_id))
+    email, date_from, date_to, filters_json = acc
+    content_filter = json.loads(filters_json) if filters_json else None
     account_dir = case.work_dir / sanitize_component(email)
 
     prev_nr = conn.execute("SELECT COALESCE(MAX(nr), 0) FROM attempt WHERE account_id = ?", (account_id,)).fetchone()[0]
     nr = prev_nr + 1
     if mode is Mode.RESTART and not reason.strip():
-        raise ValueError("Für einen Neubeginn ist ein Grund Pflicht")
+        raise ValueError(_t("Für einen Neubeginn ist ein Grund Pflicht"))
     with conn:
         attempt_id = conn.execute(
             "INSERT INTO attempt (account_id, nr, mode, reason, started_utc, status, phase) VALUES (?,?,?,?,?,?,?)",
@@ -204,6 +261,8 @@ def run_attempt(
         prog.phase = p
         with conn:
             conn.execute("UPDATE attempt SET phase = ? WHERE id = ?", (p, attempt_id))
+        if progress:
+            progress(prog)
 
     imap: ReadOnlyImap | None = None
     try:
@@ -226,14 +285,14 @@ def run_attempt(
                 has_saved = conn.execute("SELECT 1 FROM message WHERE folder_id = ? AND status = 'valid' LIMIT 1",
                                          (row["id"],)).fetchone()
                 if has_saved:
-                    raise ResumeNotPossible(f"UIDVALIDITY von {f.name} hat sich geändert – nur Neubeginn möglich")
+                    raise ResumeNotPossible(_t("UIDVALIDITY von {folder} hat sich geändert – nur Neubeginn möglich", folder=f.name))
             with conn:
                 conn.execute("UPDATE folder SET status_before = COALESCE(status_before, ?), uidvalidity = ? WHERE id = ?",
                              (json.dumps(st), st.get("UIDVALIDITY"), row["id"]))
             imap.examine(f)
             since = datetime.fromisoformat(date_from).replace(tzinfo=UTC) if date_from else None
             before = (datetime.fromisoformat(date_to) + timedelta(days=1)).replace(tzinfo=UTC) if date_to else None
-            uids = imap.search_uids(since, before)
+            uids = imap.search_uids(since, before, content_filter)
             sizes = imap.sizes()
             done = {r[0] for r in conn.execute(
                 "SELECT uid FROM message WHERE folder_id = ? AND status = 'valid'", (row["id"],))}
@@ -248,6 +307,9 @@ def run_attempt(
         imap.logout()  # Download läuft über eigene Verbindungen je Worker
         imap = None
         _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, progress, prog, result)
+        if cfg.programm.dkim_pruefen:
+            set_phase("auth_check")
+            auth_check(case, account_id, attempt_id, cancel, cfg.programm.socket_timeout_s)
         imap = connect()
 
         set_phase("status_after")
@@ -492,15 +554,16 @@ def _store_message(case, attempt_id, row, f, msg, email, account_dir, cfg, resul
             "INSERT INTO message (attempt_id, folder_id, uid, zip_path, sha256, md5, sha512, size, size_server, "
             "internaldate, date_header, zip_time_source, flags, gm_msgid, gm_labels, message_id, msg_from, msg_to, "
             "msg_cc, msg_bcc, delivered_to, recipient_note, attachment_count, inline_count, attachments, subject, "
-            "subject_raw, saved_utc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "subject_raw, saved_utc, gm_thrid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (attempt_id, row["id"], msg.uid, zip_path, hashes["sha256"], hashes.get("md5"), hashes.get("sha512"),
              len(msg.raw), msg.size_server, msg.internaldate.astimezone(UTC).isoformat(), meta.date_header,
-             zsource, " ".join(msg.flags), msg.gm_msgid, json.dumps(msg.gm_labels) if msg.gm_labels else None,
+             zsource, " ".join(msg.flags), msg.gm_msgid,
+             json.dumps(msg.gm_labels, ensure_ascii=False) if msg.gm_labels else None,
              meta.message_id, json.dumps(meta.msg_from, ensure_ascii=False), json.dumps(meta.msg_to, ensure_ascii=False),
              json.dumps(meta.msg_cc, ensure_ascii=False), json.dumps(meta.msg_bcc, ensure_ascii=False),
              json.dumps(meta.delivered_to, ensure_ascii=False), meta.recipient_note, meta.attachment_count,
              meta.inline_count, json.dumps([a.__dict__ for a in meta.attachments], ensure_ascii=False),
-             meta.subject, meta.subject_raw, utc_now()),
+             meta.subject, meta.subject_raw, utc_now(), msg.gm_thrid),
         )
     if result is not None:
         result.saved += 1
@@ -567,6 +630,58 @@ def summary(case: Case, account_id: int) -> dict:
             "saved_total": sum(r[3] or 0 for r in rows if r[1])}
 
 
+def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cancel: CancelToken | None = None,
+               timeout: float = 5.0) -> dict[str, int]:
+    """DKIM/Authentication-Results für alle noch nicht (oder nur vorläufig) geprüften Mails eines Kontos.
+
+    Liest die gesicherten Dateien (unverändert), prüft parallel, schreibt das Ergebnis je Mail und
+    speichert die abgefragten DNS-Schlüssel. Abbruch jederzeit möglich (Rest wird beim Fortsetzen geprüft).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from fed.core import authcheck
+
+    cancel = cancel or CancelToken()
+    rows = case.conn.execute(
+        "SELECT m.id, m.zip_path FROM message m JOIN folder f ON f.id = m.folder_id WHERE f.account_id = ? "
+        "AND m.status = 'valid' AND (m.dkim_result IS NULL OR m.dkim_result = 'temperror') ORDER BY m.id",
+        (account_id,)).fetchall()
+    if not rows:
+        return {}
+    dns = authcheck.DnsCache(timeout=min(timeout, 10))
+
+    def one(row):
+        if cancel.is_cancelled:
+            return row[0], None
+        p = case.work_dir / row[1]
+        return row[0], authcheck.check(p.read_bytes(), dns) if p.exists() else None
+
+    counts: dict[str, int] = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(one, rows))
+    conn = case.conn
+    with conn:
+        for mid, r in results:
+            if r is None:
+                continue
+            counts[r.dkim] = counts.get(r.dkim, 0) + 1
+            conn.execute("UPDATE message SET dkim_result = ?, dkim_domain = ?, dkim_selector = ?, dkim_detail = ?, "
+                         "auth_results = ? WHERE id = ?",
+                         (r.dkim, r.dkim_domain or None, r.dkim_selector or None, r.dkim_detail or None,
+                          json.dumps(r.provider, ensure_ascii=False) if r.provider else None, mid))
+        for rec in dns.records.values():
+            known = conn.execute("SELECT 1 FROM dns_record WHERE name = ? AND COALESCE(sha256, '') = ? AND status = ?",
+                                 (rec.name, rec.sha256 or "", rec.status)).fetchone()
+            if not known:
+                conn.execute("INSERT INTO dns_record (name, record, sha256, status, error, fetched_utc, attempt_id) "
+                             "VALUES (?,?,?,?,?,?,?)", (rec.name, rec.record, rec.sha256, rec.status,
+                                                        rec.error or None, rec.fetched_utc, attempt_id))
+    case.log("INFO", "auth_check_done", {"account_id": account_id, "checked": sum(counts.values()), **counts,
+                                          "dns_records": len(dns.records)}, attempt_id)
+    cancel.raise_if_cancelled()
+    return counts
+
+
 def accounts_overview(case: Case) -> list[dict]:
     """Je Konto im Case: Stand der Sicherung für die Übersicht.
 
@@ -574,8 +689,9 @@ def accounts_overview(case: Case) -> list[dict]:
     (fertig, aber weniger gesichert als auf dem Server) | ``cancelled`` | ``failed``.
     """
     out = []
-    for acc_id, email, evidence, server, auth, dfrom, dto, notes in case.conn.execute(
-            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes FROM account ORDER BY id"):
+    for acc_id, email, evidence, server, auth, dfrom, dto, notes, filters in case.conn.execute(
+            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes, filters FROM account "
+            "ORDER BY id"):
         attempts = case.conn.execute("SELECT nr, status, started_utc, ended_utc FROM attempt WHERE account_id = ? "
                                      "ORDER BY nr", (acc_id,)).fetchall()
         folders = case.conn.execute("SELECT selected, count_server, status_after FROM folder WHERE account_id = ?",
@@ -590,12 +706,12 @@ def accounts_overview(case: Case) -> list[dict]:
             (acc_id,)).fetchone()
         last = attempts[-1] if attempts else None
         state = last[1] if last else "new"
-        if state == "done" and not (dfrom or dto) and saved < expected:
+        if state == "done" and not (dfrom or dto or filters) and saved < expected:
             state = "partial"
         out.append({"id": acc_id, "email": email, "evidence": evidence, "server": server, "auth": auth,
                     "attempts": len(attempts), "state": state, "saved": saved, "expected": expected,
                     "bytes": size, "folders_selected": sel, "folders_total": total,
-                    "date_filter": bool(dfrom or dto), "last_utc": (last[3] or last[2]) if last else None,
+                    "date_filter": bool(dfrom or dto or filters), "last_utc": (last[3] or last[2]) if last else None,
                     "notes": notes or ""})
     return out
 

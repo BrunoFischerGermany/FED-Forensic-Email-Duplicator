@@ -45,7 +45,7 @@ def test_srv_and_guess():
 
     s, log = discover("a@b.example", http_get=lambda u: None, dns_lookup=lambda *a: [],
                       port_open=lambda h, p: h == "mail.b.example")
-    assert s.host == "mail.b.example" and s.source == "geraten"
+    assert s.host == "mail.b.example" and s.source == "guessed"
     assert len(log) == 6
 
 

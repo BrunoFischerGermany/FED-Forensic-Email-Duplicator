@@ -24,7 +24,7 @@ ES_DISPLAY_REQUIRED = 0x00000002
 class KeepAwake:
     """Verschachtelbar: erst das letzte ``release()`` gibt den Rechner wieder frei."""
 
-    def __init__(self, reason: str = "FED: forensische Sicherung läuft") -> None:
+    def __init__(self, reason: str = "FED: forensic acquisition running") -> None:
         self.reason = reason
         self.method: str | None = None
         self._proc: subprocess.Popen | None = None

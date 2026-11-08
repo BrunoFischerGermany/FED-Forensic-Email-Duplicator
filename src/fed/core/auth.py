@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from fed.core import oauth
 from fed.core.case import Case
 from fed.core.imap_reader import ReadOnlyImap
+from fed.core.msg import t
 
 AUTH_METHODS = ("password", "app_password_google", "oauth_google", "oauth_microsoft")
 
@@ -40,12 +41,12 @@ def explain_login_error(host: str, error: str) -> str:
         return error
     low = error.lower()
     if "application-specific password required" in low:
-        return (f"{error} – Google verlangt ein App-Passwort (nicht das normale Kontopasswort), "
-                f"erstellen unter {APP_PASSWORD_URL}; Voraussetzung: 2-Schritt-Bestätigung")
+        return error + t(" – Google verlangt ein App-Passwort (nicht das normale Kontopasswort), "
+                         "erstellen unter {url}; Voraussetzung: 2-Schritt-Bestätigung", url=APP_PASSWORD_URL)
     if "authenticationfailed" in low or "invalid credentials" in low:
-        return (f"{error} – bei Google nur App-Passwort (16 Buchstaben, {APP_PASSWORD_URL}) oder OAuth; "
-                "das normale Kontopasswort wird abgelehnt. In Google Workspace muss der Administrator "
-                "App-Passwörter erlauben.")
+        return error + t(" – bei Google nur App-Passwort (16 Buchstaben, {url}) oder OAuth; "
+                         "das normale Kontopasswort wird abgelehnt. In Google Workspace muss der Administrator "
+                         "App-Passwörter erlauben.", url=APP_PASSWORD_URL)
     return error
 
 
@@ -94,7 +95,7 @@ def make_connector(
     cafile: str | None = None,
 ) -> Callable[[], ReadOnlyImap]:
     if (password is None) == (oauth_session is None):
-        raise ValueError("Genau eine Anmeldeart angeben: Passwort oder OAuth")
+        raise ValueError(t("Genau eine Anmeldeart angeben: Passwort oder OAuth"))
 
     def connect() -> ReadOnlyImap:
         c = ReadOnlyImap(host, port, security, timeout=timeout, cafile=cafile)
@@ -116,8 +117,8 @@ def log_oauth_login(case: Case, token: oauth.Token, target_email: str) -> str | 
     """Protokolliert, welches Konto zugestimmt hat. Gibt eine Warnung zurück, wenn es abweicht."""
     case.log("INFO", "oauth_login", token.audit())
     if token.account and token.account.lower() != target_email.lower():
-        msg = (f"Angemeldet als {token.account}, gesichert wird {target_email} "
-               "(nur korrekt bei geteiltem Postfach oder Stellvertretung)")
+        msg = t("Angemeldet als {login}, gesichert wird {target} "
+                "(nur korrekt bei geteiltem Postfach oder Stellvertretung)", login=token.account, target=target_email)
         case.log("WARNING", "oauth_account_mismatch", {"login": token.account, "target": target_email})
         return msg
     return None

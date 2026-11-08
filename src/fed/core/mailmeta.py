@@ -19,6 +19,8 @@ from email.message import EmailMessage
 from email.parser import BytesParser
 from email.utils import getaddresses
 
+from fed.core.msg import code, t
+
 DELIVERY_HEADERS = ("Delivered-To", "X-Original-To", "Envelope-To", "X-Envelope-To")
 UNDISCLOSED = ("undisclosed-recipients", "undisclosed recipients", "unbekannte empfänger")
 
@@ -58,10 +60,10 @@ class MailMeta:
         if self.msg_cc:
             return f"CC: {self.msg_cc[0]}" + (f" +{len(self.msg_cc) - 1}" if len(self.msg_cc) > 1 else "")
         if self.msg_bcc:
-            return f"nur BCC: {len(self.msg_bcc)} Empfänger"
+            return t("nur BCC: {n} Empfänger", n=len(self.msg_bcc))
         if self.delivered_to:
-            return f"kein To/CC – Delivered-To: {self.delivered_to[0]}"
-        return "kein Empfänger im Header"
+            return t("kein To/CC – Delivered-To: {addr}", addr=self.delivered_to[0])
+        return t("kein Empfänger im Header")
 
 
 def _addresses(msg: EmailMessage, name: str) -> list[str]:
@@ -95,11 +97,11 @@ def parse(raw: bytes) -> MailMeta:
     to_raw = " ".join(str(v) for v in msg.get_all("To", [])).lower()
     if not meta.msg_to and not meta.msg_cc:
         if meta.msg_bcc:
-            meta.recipient_note = "nur BCC"
+            meta.recipient_note = code("bcc_only")
         elif any(u in to_raw for u in UNDISCLOSED):
-            meta.recipient_note = "undisclosed-recipients"
+            meta.recipient_note = code("undisclosed-recipients")
         else:
-            meta.recipient_note = "kein To/CC"
+            meta.recipient_note = code("no_to_cc")
 
     for part in msg.walk():
         if part is msg or (part.is_multipart() and part.get_content_type() != "message/rfc822"):
@@ -120,7 +122,7 @@ def parse(raw: bytes) -> MailMeta:
             payload = payload or b""
             meta.attachments.append(
                 Attachment(
-                    name=filename or ("angehängte Mail.eml" if ctype == "message/rfc822" else "ohne Namen"),
+                    name=filename or ("attached_message.eml" if ctype == "message/rfc822" else "(unnamed)"),
                     mime=ctype,
                     size=len(payload),
                     sha256=hashlib.sha256(payload).hexdigest(),

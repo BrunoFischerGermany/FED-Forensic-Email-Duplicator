@@ -68,7 +68,7 @@ def test_full_acquisition(tmp_path, connect, imap_server, test_mails, cfg):
         assert int(os.stat(p).st_mtime) == int(exp[sha].received.timestamp())  # Zeitstempel = Eingangszeit
         assert p.name.startswith(exp[sha].received.strftime("%Y%m%dT%H%M%SZ_UID"))
     notes = {r[4] for r in rows}
-    assert {"nur BCC", "undisclosed-recipients"} <= notes
+    assert {"bcc_only", "undisclosed-recipients"} <= notes
     assert max(r[5] for r in rows) == 1 and max(r[6] for r in rows) == 1
     assert (case.work_dir / "test@example.de" / "Entwürfe").is_dir()
 
@@ -238,4 +238,66 @@ def test_unexpected_error_marks_attempt_failed(tmp_path, connect, imap_server, c
     status = case.conn.execute("SELECT status FROM attempt WHERE account_id = ?", (acc,)).fetchone()[0]
     assert status == "failed"
     assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'attempt_failed'").fetchone()[0] == 1
+    case.close()
+
+
+def test_dkim_checked_and_keys_stored(tmp_path, connect, imap_server, test_mails, cfg):
+    from fed.core.finalize import message_rows
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+    run_attempt(case, acc, connect, cfg=cfg)
+    res = dict(case.conn.execute("SELECT dkim_result, COUNT(*) FROM message GROUP BY dkim_result").fetchall())
+    assert res == {"pass": 1, "fail": 1, "none": len(test_mails) - 2}
+    rows = {r["Subject"]: r for r in message_rows(case)}
+    ok, bad = rows["Signierte Mitteilung"], rows["Nachtraeglich veraendert"]
+    assert (ok["DKIM"], ok["DKIM_Domain"], ok["Provider_SPF"], ok["Provider_DMARC"]) == ("pass", "dkim.example", "pass",
+                                                                                     "pass")
+    assert bad["DKIM"] == "fail" and bad["DKIM_Detail"] == "body_hash_mismatch"
+    keys = case.conn.execute("SELECT name, status, sha256 FROM dns_record").fetchall()
+    assert keys == [("fed2026._domainkey.dkim.example", "ok", keys[0][2])] and len(keys[0][2]) == 64
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'auth_check_done'").fetchone()[0] == 1
+    case.close()
+
+
+def test_dkim_temperror_rechecked_on_resume(tmp_path, connect, imap_server, cfg, monkeypatch):
+    from fed.core import authcheck
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+    monkeypatch.setattr(authcheck.DnsCache, "_query",
+                        lambda self, name: authcheck.DnsRecord(name, None, "error", "x", "timeout"))
+    run_attempt(case, acc, connect, cfg=cfg)
+    assert case.conn.execute("SELECT COUNT(*) FROM message WHERE dkim_result = 'temperror'").fetchone()[0] == 2
+    monkeypatch.undo()
+    authcheck.DNS_OVERRIDE = __import__("validation.testmailbox", fromlist=["x"]).dkim_dns()
+    run_attempt(case, acc, connect, cfg=cfg)  # Fortsetzen prüft offene DKIM-Ergebnisse erneut
+    assert case.conn.execute("SELECT COUNT(*) FROM message WHERE dkim_result = 'temperror'").fetchone()[0] == 0
+    case.close()
+
+
+def test_dkim_can_be_disabled(tmp_path, connect, imap_server, cfg):
+    case, acc = _setup(tmp_path, connect, imap_server)
+    cfg.programm.dkim_pruefen = False
+    run_attempt(case, acc, connect, cfg=cfg)
+    assert case.conn.execute("SELECT COUNT(*) FROM message WHERE dkim_result IS NOT NULL").fetchone()[0] == 0
+    case.close()
+
+
+def test_content_filter_partial_acquisition(tmp_path, connect, imap_server, cfg):
+    from fed.core.acquisition import accounts_overview, set_content_filter
+    from fed.core.report import render_txt
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+    f = set_content_filter(case, acc, {"subject": "Rechnung, übermorgen", "from": [" "], "text": ""})
+    assert f == {"subject": ["Rechnung", "übermorgen"]}
+    res = run_attempt(case, acc, connect, cfg=cfg)
+    subjects = sorted(r[0] for r in case.conn.execute("SELECT subject FROM message WHERE status = 'valid'"))
+    assert res.status == "done" and subjects == ["AW: Termin Donnerstag übermorgen", "Rechnung 2026-1187"]
+    assert res.expected == 2
+    o = accounts_overview(case)[0]
+    assert o["state"] == "done" and o["date_filter"]  # Teilsicherung, nicht „unvollständig“
+    # Felder untereinander = und
+    set_content_filter(case, acc, {"subject": ["Rechnung"], "from": ["j.beispiel"]})
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'content_filter_set'").fetchone()[0] == 2
+    txt = render_txt(case, "de")
+    assert "Inhaltsfilter" in txt and "Betreff enthält: Rechnung" in txt and "Absender enthält: j.beispiel" in txt
     case.close()

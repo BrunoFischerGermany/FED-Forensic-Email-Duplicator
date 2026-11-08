@@ -48,4 +48,7 @@ def install(language: str) -> str:
         app.installTranslator(qt)
         _installed.append(qt)
     QLocale.setDefault(QLocale(language))
+    from fed.core import msg
+
+    msg.set_language(language)
     return language

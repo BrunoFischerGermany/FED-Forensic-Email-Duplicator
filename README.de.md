@@ -12,6 +12,7 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 
 - jede Mail unverändert als `.eml`, benannt nach Eingangszeit und UID (`20261106T143012Z_UID00004711.eml`)
 - SHA-256 (zusätzlich MD5 und SHA-512) pro Mail und für das ZIP-Archiv
+- optional verschlüsselte Kopie für die Weitergabe (AES-256, Passwort wird nie gespeichert)
 - ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse; bei mehreren Konten wählbar: ein ZIP für alle oder eines je Konto
 - Case-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
 - mehrere Konten je Case mit Übersicht, was schon gesichert ist; Evidence-Nummer wird vorgeschlagen (`A-01` → `A-02`)

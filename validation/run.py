@@ -7,7 +7,7 @@ Voraussetzungen: ``dovecot`` und ``openssl`` im PATH (Linux/macOS; unter Windows
 z. B. in WSL). Der Zeitstempel-Test (V11) braucht ``openssl ts``.
 
 Ablauf: ein lokaler Dovecot stellt das Testpostfach aus ``testmailbox.py`` bereit
-(12 Mails in 10 Ordnern, erwartete Hashes in ``expected_hashes.csv``). FED sichert es
+(14 Mails in 11 Ordnern, erwartete Hashes in ``expected_hashes.csv``). FED sichert es
 wie im echten Einsatz; jede Prüfung vergleicht das Ergebnis mit dem erwarteten Wert.
 Ergebnis je Prüfung: BESTANDEN / NICHT BESTANDEN / NICHT GEPRÜFT. Rückgabewert 1, wenn
 eine Prüfung nicht bestanden ist.
@@ -123,6 +123,22 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
             "en": ("Umlauts in address, domain and password",
                    "Account bärbel.böhmer@ärzte.de (IDN domain, umlauts in name and password) signs in and is "
                    "acquired bit-exactly; the ZIP folder carries the address in Unicode (UTF-8 flag).")},
+    "V14": {"de": ("Echtheitsprüfung (DKIM)",
+                   "Gültig signierte Mail = gültig, nach dem Signieren veränderte Mail = ungültig, übrige = nicht "
+                   "signiert; der öffentliche Schlüssel ist mit SHA-256 in der Case-Datei aufbewahrt; "
+                   "Authentication-Results des Anbieters ausgewertet."),
+            "en": ("Authenticity check (DKIM)",
+                   "Validly signed message = valid, message modified after signing = invalid, others = not signed; "
+                   "the public key is preserved with SHA-256 in the case file; the provider's Authentication-Results "
+                   "are evaluated.")},
+    "V15": {"de": ("Gezielte Teilsicherung (Inhaltsfilter)",
+                   "Mit Betreff-Filter „Rechnung, übermorgen“ (inkl. Umlaut) werden genau die zwei passenden Mails "
+                   "gesichert; mit zusätzlichem Absender-Filter (und-Verknüpfung) keine; Kriterien protokolliert "
+                   "und im Bericht als Teilsicherung ausgewiesen."),
+            "en": ("Targeted partial acquisition (content filter)",
+                   "With subject filter “Rechnung, übermorgen” (incl. umlaut) exactly the two matching messages are "
+                   "acquired; with an additional sender filter (and) none; criteria logged and shown in the report "
+                   "as partial acquisition.")},
 }
 
 T = {
@@ -439,8 +455,9 @@ def v09_zip_tamper(ctx: Ctx) -> CheckResult:
                 data, done = data.replace(b"Subject:", b"Subjekt:"), True
             dst.writestr(info, data)
     v = verify_zip(ctx.case, bad)
-    r.details += v.problems or [_d("keine Abweichung gefunden", "no difference found")]
-    if v.verified or not any("Hash abweichend" in p for p in v.problems):
+    r.details += [_d(_describe(p, "de"), _describe(p, "en")) for p in v.problems] or [
+        _d("keine Abweichung gefunden", "no difference found")]
+    if v.verified or not any(p.startswith("hash_mismatch") for p in v.problems):
         r.status = FAIL
     return r
 
@@ -564,8 +581,72 @@ def v13_umlauts(ctx: Ctx) -> CheckResult:
     return r
 
 
+def _describe(value: str, lang: str) -> str:
+    from fed.core import msg
+
+    with msg.language(lang):
+        return msg.describe(value)
+
+
+def _desc(row, lang: str) -> str:
+    return _describe(row[2], lang) if row else ""
+
+
+def v14_dkim(ctx: Ctx) -> CheckResult:
+    r = CheckResult("V14", PASS)
+    rows = ctx.case.conn.execute("SELECT subject, dkim_result, dkim_detail, auth_results FROM message "
+                                 "WHERE status = 'valid'").fetchall()
+    res = Counter(x[1] for x in rows)
+    by_subject = {x[0]: x for x in rows}
+    ok, bad = by_subject.get("Signierte Mitteilung"), by_subject.get("Nachtraeglich veraendert")
+    key = ctx.case.conn.execute("SELECT name, record, sha256 FROM dns_record WHERE status = 'ok'").fetchall()
+    want_key = testmailbox.dkim_dns()
+    key_ok = len(key) == 1 and want_key.get(key[0][0]) == key[0][1] and \
+        hashlib.sha256(key[0][1].encode()).hexdigest() == key[0][2]
+    ar_ok = bool(ok and ok[3] and json.loads(ok[3]).get("dmarc") == "pass")
+    r.details += [_d(f"Ergebnisse: {dict(res)}", f"results: {dict(res)}"),
+                  _d(f"gültig signiert: {ok[1] if ok else '–'}; verändert: {bad[1] if bad else '–'} ({_desc(bad, 'de')})",
+                     f"validly signed: {ok[1] if ok else '–'}; modified: {bad[1] if bad else '–'} ({_desc(bad, 'en')})"),
+                  _d(f"Schlüssel aufbewahrt: {_yn(key_ok, 'de')} ({key[0][0] if key else '–'})",
+                     f"key preserved: {_yn(key_ok, 'en')} ({key[0][0] if key else '–'})"),
+                  _d(f"Authentication-Results ausgewertet: {_yn(ar_ok, 'de')}",
+                     f"Authentication-Results evaluated: {_yn(ar_ok, 'en')}")]
+    if not (ok and ok[1] == "pass" and bad and bad[1] == "fail" and res.get("none") == len(rows) - 2
+            and key_ok and ar_ok):
+        r.status = FAIL
+    return r
+
+
+def v15_content_filter(ctx: Ctx) -> CheckResult:
+    from fed.core.acquisition import set_content_filter
+    from fed.core.report import render_txt
+
+    r = CheckResult("V15", PASS)
+    case, acc = ctx.new_case("VAL-FILTER")
+    set_content_filter(case, acc, {"subject": "Rechnung, übermorgen"})
+    res = run_attempt(case, acc, ctx.connect, cfg=ctx.cfg)
+    got = sorted(x[0] for x in case.conn.execute("SELECT subject FROM message WHERE status = 'valid'"))
+    want = ["AW: Termin Donnerstag übermorgen", "Rechnung 2026-1187"]
+    txt = render_txt(case, "de")
+    logged = case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'content_filter_set'").fetchone()[0]
+    case.close()
+    case2, acc2 = ctx.new_case("VAL-FILTER-UND")
+    set_content_filter(case2, acc2, {"subject": ["Rechnung"], "from": ["j.beispiel"]})
+    res2 = run_attempt(case2, acc2, ctx.connect, cfg=ctx.cfg)
+    case2.close()
+    in_report = "Inhaltsfilter" in txt and "Teilsicherung" in txt
+    r.details += [_d(f"gesichert: {got}", f"acquired: {got}"),
+                  _d(f"Absender UND Betreff: {res2.saved} Mails", f"sender AND subject: {res2.saved} messages"),
+                  _d(f"protokolliert: {logged}×, im Bericht: {_yn(in_report, 'de')}",
+                     f"logged: {logged}×, in report: {_yn(in_report, 'en')}")]
+    if res.status != "done" or got != want or res2.saved != 0 or not logged or not in_report:
+        r.status = FAIL
+    return r
+
+
 STEPS = [v01_read_only, v02_guard, v03_completeness, v04_bit_exact, v05_times, v06_cancel_resume,
-         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts]
+         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts, v14_dkim,
+         v15_content_filter]
 
 
 # ---------------------------------------------------------------- Ablauf
@@ -577,6 +658,9 @@ def run(work: Path) -> Report:
         "server": _version(["dovecot", "--version"]), "openssl": _version(["openssl", "version"]),
         "mailbox": _expected(),
     }
+    from fed.core import authcheck
+
+    authcheck.DNS_OVERRIDE = testmailbox.dkim_dns()  # Test-Schlüssel lokal, keine echte DNS-Abfrage
     srv = dovecot_server.start()
     tsa = fake_tsa.FakeTsa() if fake_tsa.available() else None
     try:

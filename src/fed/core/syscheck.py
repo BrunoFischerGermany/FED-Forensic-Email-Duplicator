@@ -36,7 +36,7 @@ def current_user() -> str:
     try:
         user = getpass.getuser()
     except Exception:
-        user = "unbekannt"
+        user = "unknown"
     if sys.platform == "win32":
         import os
 

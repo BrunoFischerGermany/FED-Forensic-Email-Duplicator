@@ -44,3 +44,44 @@ def imap(imap_server):
 @pytest.fixture
 def test_mails():
     return testmailbox.mails()
+
+
+@pytest.fixture(autouse=True)
+def _dkim_test_dns():
+    """DKIM-Schlüssel des Testpostfachs lokal beantworten – Tests fragen nie echte DNS-Server."""
+    from fed.core import authcheck
+    from validation import testmailbox
+
+    old = authcheck.DNS_OVERRIDE
+    authcheck.DNS_OVERRIDE = testmailbox.dkim_dns()
+    yield
+    authcheck.DNS_OVERRIDE = old
+
+
+# Ein Konto aus dem Testpostfach, gesichert in einen frischen Case (für Abschluss und Betrachter)
+@pytest.fixture
+def acquired(tmp_path, imap_server):
+    def connect():
+        c = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+        c.connect()
+        c.login_password(imap_server.user, imap_server.password)
+        return c
+
+    logo = tmp_path / "logo.png"
+    logo.write_bytes(bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108020000009077"
+        "53de0000000c4944415408d763f8cfc00000030101009c18e5d20000000049454e44ae426082"))
+    from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan
+    from fed.core.case import Case, CaseInfo
+    from fed.core.config import Config
+    from fed.core.imap_reader import ReadOnlyImap
+
+    case = Case.create(tmp_path, CaseInfo("2026-0042", "Max Mustermann", "Test"))
+    case.store_config_snapshot('[agentur]\nname = "Muster Forensik GmbH"\nadresse = "Musterstr. 1"\n', logo)
+    imap = connect()
+    acc = register_account(case, AccountSpec(imap_server.user, "A-01", imap_server.host, imap_server.port), imap)
+    scan(case, acc, imap)
+    imap.logout()
+    run_attempt(case, acc, connect, cfg=Config())
+    yield case
+    case.close()

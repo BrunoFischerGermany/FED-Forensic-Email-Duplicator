@@ -74,7 +74,9 @@ def _recipient(to, cc, bcc, note, delivered) -> str:
         return QCoreApplication.translate("HistoryTab", "nur BCC: {0} Empfänger").format(len(bcc))
     if dl:
         return QCoreApplication.translate("HistoryTab", "kein To/CC · Delivered-To: {0}").format(dl[0])
-    return note or QCoreApplication.translate("HistoryTab", "kein Empfänger")
+    from fed.core.msg import describe
+
+    return describe(note) or QCoreApplication.translate("HistoryTab", "kein Empfänger")
 
 
 class Table(QWidget):
@@ -106,15 +108,17 @@ class Table(QWidget):
         self.count = label("", "Hint")
         lay.addWidget(self.count)
 
-    def fill(self, rows: list[list]) -> None:
+    def fill(self, rows: list[list], ids: list | None = None) -> None:
         self.model.setRowCount(0)
-        for r in rows:
+        for n, r in enumerate(rows):
             items = []
             for v in r:
                 it = QStandardItem("" if v is None else str(v))
                 if isinstance(v, int | float):
                     it.setData(v, Qt.ItemDataRole.DisplayRole)
                 items.append(it)
+            if ids is not None and items:
+                items[0].setData(ids[n], Qt.ItemDataRole.UserRole)
             self.model.appendRow(items)
         self.view.resizeColumnsToContents()
         self.count.setText(self.tr("{0} Einträge").format(len(rows)))
@@ -151,6 +155,8 @@ class HistoryTab(QWidget):
         lay.addWidget(att_card)
         self.tabs = QTabWidget()
         self.mails = Table(MAIL_COLS)
+        self.mails.view.doubleClicked.connect(self.open_mail)
+        self.mails.view.setToolTip(self.tr("Doppelklick: Mail ansehen (nur lesend)"))
         self.log = Table(LOG_COLS)
         self.folders = Table(FOLDER_COLS, search=False)
         from fed.gui.accounts import AccountsTable
@@ -170,6 +176,27 @@ class HistoryTab(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(3000)
+
+    def open_mail(self, index) -> None:
+        case = self.get_case()
+        if case is None or not index.isValid():
+            return
+        src = self.mails.proxy.mapToSource(index)
+        mid = self.mails.model.item(src.row(), 0).data(Qt.ItemDataRole.UserRole)
+        if mid is None:
+            return
+        from fed.gui.viewer import MailViewer
+
+        try:
+            dlg = MailViewer(case, int(mid), self)
+        except Exception as e:  # Datei fehlt o. Ä.
+            QMessageBox.warning(self, "FED", self.tr("Mail kann nicht geöffnet werden:\n{0}").format(e))
+            return
+        self.timer.stop()
+        try:
+            dlg.exec()
+        finally:
+            self.timer.start(3000)
 
     def showEvent(self, e) -> None:
         self.refresh()
@@ -195,13 +222,14 @@ class HistoryTab(QWidget):
         if self.tabs.currentIndex() == 0:
             self.accounts.refresh(case)
         if self.tabs.currentWidget() is self.mails or not self.mails.model.rowCount():
+            mrows = c.execute(
+                "SELECT f.display_name, m.internaldate, m.msg_from, m.msg_to, m.msg_cc, m.msg_bcc, m.recipient_note, "
+                "m.delivered_to, m.attachment_count, m.inline_count, m.subject, m.zip_path, m.sha256, t.nr, m.status, m.id "
+                "FROM message m JOIN folder f ON f.id = m.folder_id JOIN attempt t ON t.id = m.attempt_id "
+                "ORDER BY m.internaldate DESC").fetchall()
             self.mails.fill([[r[0], tf.utc_str(r[1])[:19], tf.local_str(r[1]), ", ".join(json.loads(r[2] or "[]")),
                               _recipient(*r[3:8]), str(r[8]) + (f" +{r[9]} inline" if r[9] else ""), r[10], r[11].split("/")[-1],
-                              r[12], r[13], r[14]] for r in c.execute(
-                "SELECT f.display_name, m.internaldate, m.msg_from, m.msg_to, m.msg_cc, m.msg_bcc, m.recipient_note, "
-                "m.delivered_to, m.attachment_count, m.inline_count, m.subject, m.zip_path, m.sha256, t.nr, m.status "
-                "FROM message m JOIN folder f ON f.id = m.folder_id JOIN attempt t ON t.id = m.attempt_id "
-                "ORDER BY m.internaldate DESC")])
+                              r[12], r[13], r[14]] for r in mrows], ids=[r[15] for r in mrows])
         if self.tabs.currentWidget() is self.log:
             self.log.fill([[tf.utc_str(r[0])[:19], tf.local_str(r[0]), r[1] or "", r[2], r[3], r[4][:300]] for r in c.execute(
                 "SELECT l.ts_utc, t.nr, l.level, l.event, l.details FROM log l LEFT JOIN attempt t ON t.id = l.attempt_id "
@@ -235,16 +263,16 @@ class HistoryTab(QWidget):
         self.chain.setText(self.tr("hashe nach …"))
 
         def work(cancel, report):
-            if not case.work_dir.exists():  # Arbeitsordner gelöscht -> gegen das ZIP prüfen
-                from fed.core.finalize import verify_zip
+            if not case.work_dir.exists():  # Arbeitsordner gelöscht -> gegen die ZIPs prüfen
+                from fed.core.finalize import verify_case_zips
 
-                row = case.conn.execute("SELECT file_name FROM output WHERE file_name LIKE '%.zip' "
-                                        "ORDER BY id DESC LIMIT 1").fetchone()
-                if not row:
+                results = verify_case_zips(case, cancel)
+                if not results:
                     raise RuntimeError(self.tr("Weder Arbeitsordner noch ZIP vorhanden"))
-                v = verify_zip(case, case.root / row[0], cancel=cancel)
-                case.log("INFO" if v.verified else "ERROR", "history_rehash_zip", {"zip": row[0], "problems": v.problems})
-                return v.files, v.problems
+                problems = [p for v in results for p in v.problems]
+                case.log("INFO" if not problems else "ERROR", "history_rehash_zip",
+                         {"zips": [v.path.name for v in results], "problems": problems})
+                return sum(v.files for v in results), problems
             bad, n = [], 0
             for zip_path, sha in case.conn.execute("SELECT zip_path, sha256 FROM message WHERE status = 'valid'"):
                 cancel.raise_if_cancelled()

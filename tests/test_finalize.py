@@ -12,29 +12,6 @@ from fed.core.finalize import finish_case, verify_zip
 from fed.core.imap_reader import ReadOnlyImap
 
 
-@pytest.fixture
-def acquired(tmp_path, imap_server):
-    def connect():
-        c = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
-        c.connect()
-        c.login_password(imap_server.user, imap_server.password)
-        return c
-
-    logo = tmp_path / "logo.png"
-    logo.write_bytes(bytes.fromhex(
-        "89504e470d0a1a0a0000000d49484452000000010000000108020000009077"
-        "53de0000000c4944415408d763f8cfc00000030101009c18e5d20000000049454e44ae426082"))
-    case = Case.create(tmp_path, CaseInfo("2026-0042", "Max Mustermann", "Test"))
-    case.store_config_snapshot('[agentur]\nname = "Muster Forensik GmbH"\nadresse = "Musterstr. 1"\n', logo)
-    imap = connect()
-    acc = register_account(case, AccountSpec(imap_server.user, "A-01", imap_server.host, imap_server.port), imap)
-    scan(case, acc, imap)
-    imap.logout()
-    run_attempt(case, acc, connect, cfg=Config())
-    yield case
-    case.close()
-
-
 def test_finish_creates_verified_zip_and_reports(acquired, test_mails):
     case = acquired
     res = finish_case(case, Config())
@@ -60,7 +37,7 @@ def test_finish_creates_verified_zip_and_reports(acquired, test_mails):
             tag, size, flags, mtime = struct.unpack("<HHBl", info.extra[:9])
             assert (tag, size, flags) == (0x5455, 5, 1) and datetime.fromtimestamp(mtime, UTC) == exp
         csv_text = zf.read("log.csv").decode("utf-8-sig")
-    assert "nur BCC" in csv_text and "Rechnung.pdf" in csv_text and csv_text.count("\n") == len(test_mails) + 1
+    assert "bcc_only" in csv_text and "Rechnung.pdf" in csv_text and csv_text.count("\n") == len(test_mails) + 1
 
     assert case.closed
     txt = res.report_txt.read_text(encoding="utf-8")
@@ -86,7 +63,7 @@ def test_verify_detects_tampering(acquired, tmp_path):
                 data, done = data.replace(b"Subject:", b"Subjekt:"), True
             dst.writestr(info, data)
     v = verify_zip(case, bad)
-    assert not v.verified and any("Hash abweichend" in p for p in v.problems)
+    assert not v.verified and any(p.startswith("hash_mismatch: ") for p in v.problems)
 
 
 def test_logo_validation(tmp_path):
@@ -111,7 +88,8 @@ def test_report_mail_list_modes(acquired):
     full = render_txt(case, "de", "liste")
     short = render_txt(case, "de", "auto", 5)
     assert "SHA-256 " in full and full.count("UID ") > 5
-    assert "steht in log.csv" in short and short.count("UID ") == 0
+    assert "steht in log.csv" in short and short.count("\n       SHA-256 ") == 0  # keine Mail-Liste
+    assert full.count("\n       SHA-256 ") > 5
     assert "Unterschrift" not in full and "Unterschrift" not in short
     # Ordnerstruktur als Baum mit Anzahl, auch ohne Liste
     assert "  └ Rechnungen" in short and "  └ 2025" in short and "Leer" in short
@@ -171,9 +149,8 @@ def test_finish_continues_when_timestamp_fails(acquired):
 def test_report_overview_per_account_and_notes(tmp_path, imap_server, test_mails):
     """Mehrere Konten: Gesamtbericht mit Übersicht und Abschnitt je Konto, Einzelbericht je Konto,
     Case-Anmerkungen und Konto-Notizen im Bericht."""
-    from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan, set_account_notes
+    from fed.core.acquisition import run_attempt, set_account_notes
     from fed.core.case import CaseInfo
-    from fed.core.imap_reader import ReadOnlyImap
     from validation import testmailbox
 
     def connector(user, pw):
@@ -218,9 +195,8 @@ def test_report_overview_per_account_and_notes(tmp_path, imap_server, test_mails
 
 
 def _two_accounts(tmp_path, imap_server):
-    from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan
+    from fed.core.acquisition import run_attempt
     from fed.core.case import CaseInfo
-    from fed.core.imap_reader import ReadOnlyImap
     from validation import testmailbox
 
     case = Case.create(tmp_path, CaseInfo("2026-0100", "Tester"))
@@ -295,3 +271,34 @@ def test_zip_mode_defaults(tmp_path, imap_server):
         case.set_zip_mode("irgendwas")
     assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'zip_mode_set'").fetchone()[0] == 1
     case.close()
+
+
+def test_encrypted_copy(acquired, tmp_path):
+    import pyzipper
+
+    from fed.core.encrypt import check_password, generate_password
+
+    pw = generate_password()
+    assert not check_password(pw) and len(pw) == 29 and check_password("kurz")
+    case = acquired
+    with pytest.raises(ValueError, match="ungeeignet"):
+        finish_case(case, Config(), encrypt_password="zu-kurz")
+    assert not case.closed
+    res = finish_case(case, Config(), language="de", encrypt_password=pw)
+    enc = res.encrypted
+    assert enc["verified"] and enc["method"].startswith("AES-256")
+    path = case.root / enc["file"]
+    assert path.name.endswith("_encrypted.zip") and path.with_name(path.name + ".sha256").exists()
+    with pyzipper.AESZipFile(path) as zf:
+        assert all(i.flag_bits & 0x1 for i in zf.infolist())  # verschlüsselt
+        with pytest.raises(RuntimeError):
+            zf.read(res.zip.path.name)  # ohne Passwort nicht lesbar
+        zf.setpassword(pw.encode())
+        assert hashlib.sha256(zf.read(res.zip.path.name)).hexdigest() == res.zip.hashes["sha256"]
+        assert {"report.pdf", "report.txt", "log.csv"} <= set(zf.namelist())
+    logged = case.conn.execute("SELECT details FROM log WHERE event = 'encrypted_copy_created'").fetchone()[0]
+    assert enc["sha256"] in logged and pw not in logged
+    all_log = " ".join(r[0] for r in case.conn.execute("SELECT details FROM log"))
+    assert pw not in all_log  # Passwort nirgends im Log
+    assert "Verschlüsselte Weitergabe-Kopie" in res.report_txt.read_text(encoding="utf-8")
+    assert path.name in {r[0] for r in case.conn.execute("SELECT file_name FROM output")}

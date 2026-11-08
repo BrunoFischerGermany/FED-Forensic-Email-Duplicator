@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -25,6 +26,7 @@ from fed.core.naming import next_evidence, normalize_email
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
 from fed.gui.widgets import Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, restyle, run_async, vbox
+from fed.core.msg import describe
 
 
 UROLE = Qt.ItemDataRole.UserRole
@@ -38,7 +40,7 @@ def stay_awake(st, what: str) -> None:
     method = keepawake.shared().acquire()
     if st.case:
         st.case.log("INFO" if method else "WARNING", "keep_awake_on",
-                    {"for": what, "method": method or "nicht verfügbar"})
+                    {"for": what, "method": method or "unavailable"})
 
 
 def allow_sleep(st) -> None:
@@ -481,7 +483,7 @@ class AccountPage(QWidget):
                 if s.username and s.username != email:
                     self.user.setText(s.username)
                 step = next((ln.split(".")[0] for ln in log if "gefunden (" in ln or "erreichbar" in ln), "?")
-                self.discover_info.setText(self.tr("Einstellungen gefunden – Quelle: ") + f"{s.source} "
+                self.discover_info.setText(self.tr("Einstellungen gefunden – Quelle: ") + f"{describe(s.source)} "
                                            + self.tr("(Versuch {0} von 6)").format(step))
                 restyle(self.discover_info, "Ok")
                 if s.provider is autoconfig.Provider.GOOGLE:
@@ -625,7 +627,7 @@ class AccountPage(QWidget):
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
             {"password": "password", "google_app": "app_password_google", "google": "oauth_google",
              "microsoft": "oauth_microsoft"}[self.method.value()],
-            self.found.source if self.found else "manuell", notes=self.acc_notes.toPlainText())
+            self.found.source if self.found else "manual", notes=self.acc_notes.toPlainText())
         if self.st.account_id is not None:
             acq.set_account_notes(case, self.st.account_id, self.acc_notes.toPlainText())
         self.next.emit()
@@ -649,6 +651,23 @@ class FolderPage(QWidget):
             b.clicked.connect(fn)
             top.addWidget(b)
         lay.addLayout(top)
+        self.gmail_box = Card()
+        self.gmail_lbl = label(self.tr(
+            "Gmail erkannt: Ordner sind bei Gmail Labels – eine Mail mit mehreren Labels stünde mehrfach im ZIP. "
+            "Empfohlen und vorausgewählt: „Alle Nachrichten“, „Spam“ und „Papierkorb“ (jede Mail genau einmal); "
+            "die Labels jeder Mail werden dokumentiert (Case-Datei, log.csv, Bericht)."), "Hint", wrap=True)
+        gb = QHBoxLayout()
+        b1 = QPushButton(self.tr("Gmail-Empfehlung"))
+        b1.clicked.connect(self._gmail_recommended)
+        b2 = QPushButton(self.tr("Alle Label-Ordner (mit Duplikaten)"))
+        b2.clicked.connect(lambda: self._check_all(True))
+        gb.addWidget(b1)
+        gb.addWidget(b2)
+        gb.addStretch(1)
+        self.gmail_box.add(self.gmail_lbl)
+        self.gmail_box.lay.addLayout(gb)
+        self.gmail_box.setVisible(False)
+        lay.addWidget(self.gmail_box)
         cols = QHBoxLayout()
         cols.setSpacing(24)
         self.tree = QTreeWidget()
@@ -676,6 +695,22 @@ class FolderPage(QWidget):
         c.add(label(self.tr("Bezieht sich auf die Eingangszeit auf dem Server. Mit Filter gilt die Sicherung als "
                             "Teilsicherung."), "Hint", wrap=True))
         right.addWidget(c)
+        cf = Card(self.tr("Inhalt (optional)"))
+        self.flt = {}
+        fg = QFormLayout()
+        for key, text, ph in (("from", self.tr("Absender enthält"), self.tr("z. B. mueller@firma.de, @lieferant.example")),
+                              ("to", self.tr("Empfänger enthält"), self.tr("To, CC oder BCC")),
+                              ("subject", self.tr("Betreff enthält"), self.tr("z. B. Rechnung, Angebot")),
+                              ("text", self.tr("Text enthält"), self.tr("Kopf und Inhalt, z. B. Kontonummer"))):
+            e = QLineEdit()
+            e.setPlaceholderText(ph)
+            self.flt[key] = e
+            fg.addRow(text, e)
+        cf.add(fg)
+        cf.add(label(self.tr("Mehrere Werte mit Komma = oder; ausgefüllte Felder untereinander = und. Die Suche führt "
+                             "der Server aus. Mit Inhaltsfilter gilt die Sicherung als Teilsicherung; die Kriterien "
+                             "stehen im Bericht."), "Hint", wrap=True))
+        right.addWidget(cf)
         s = Card(self.tr("Zusammenfassung"))
         self.summary = KeyValues()
         s.add(self.summary)
@@ -748,8 +783,22 @@ class FolderPage(QWidget):
         self.sub.setText(self.tr("Scan abgeschlossen um {0} UTC ({1}) · {2} Ordner · {3} Mails · {4} laut Server").format(
             datetime.now(UTC).strftime("%H:%M:%S"), tf.local_str(datetime.now(UTC), with_date=False), len(items), f"{total_m:,}".replace(",", "."), _fmt_bytes(total_b)))
         restyle(self.sub, "Muted")
+        self.gmail_box.setVisible(acq.is_gmail_account(self.st.case, self.st.account_id))
+        row = self.st.case.conn.execute("SELECT filters FROM account WHERE id = ?", (self.st.account_id,)).fetchone()
+        existing = json.loads(row[0]) if row and row[0] else {}
+        for k, e in self.flt.items():
+            e.setText(", ".join(existing.get(k, [])))
         self._update_summary()
         self.go.setEnabled(True)
+
+    def _gmail_recommended(self) -> None:
+        names = set(acq.gmail_recommended(self.st.case, self.st.account_id))
+        self.tree.blockSignals(True)
+        for it in self._iter():
+            if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                it.setCheckState(0, CHECKED if it.data(0, UROLE) in names else UNCHECKED)
+        self.tree.blockSignals(False)
+        self._update_summary()
 
     def _iter(self):
         stack = [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
@@ -761,7 +810,8 @@ class FolderPage(QWidget):
     def _check_all(self, on: bool) -> None:
         self.tree.blockSignals(True)
         for it in self._iter():
-            it.setCheckState(0, CHECKED if on else UNCHECKED)
+            if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:  # \\Noselect-Ordner bleiben aus
+                it.setCheckState(0, CHECKED if on else UNCHECKED)
         self.tree.blockSignals(False)
         self._update_summary()
 
@@ -786,6 +836,7 @@ class FolderPage(QWidget):
         df = datetime(*self.d_from.date().getDate(), tzinfo=UTC) if self.use_from.isChecked() else None
         dt = datetime(*self.d_to.date().getDate(), tzinfo=UTC) if self.use_to.isChecked() else None
         acq.set_date_filter(self.st.case, self.st.account_id, df, dt)
+        acq.set_content_filter(self.st.case, self.st.account_id, {k: e.text() for k, e in self.flt.items()})
         self.next.emit()
 
 
@@ -920,7 +971,7 @@ class AcquirePage(QWidget):
         def work(cancel, report):
             return acq.run_attempt(st.case, st.account_id, st.connect, mode, cancel, report, reason, delete_old, st.cfg)
 
-        stay_awake(st, "sicherung")
+        stay_awake(st, "acquisition")
         self.worker = run_async(work, self._done, self._failed, self._progress, parent=self)
 
     def _progress(self, p) -> None:
@@ -939,7 +990,10 @@ class AcquirePage(QWidget):
         self.stat["speed"][1].setText(self.tr("ca. {0} Mails/min · Mittel 30 s").format(int(mpm)))
         self.stat["time"][0].setText(fmt_secs(time.monotonic() - p.started))
         self.stat["time"][1].setText(self.tr("Restzeit ca. ") + fmt_secs(eta))
-        self.folder_lbl.setText(self.tr("Aktueller Ordner: ") + f"{p.folder}  ·  {p.folder_done} / {p.folder_total}")
+        if p.phase == "auth_check":
+            self.folder_lbl.setText(self.tr("Echtheitsprüfung (DKIM) der gesicherten Mails …"))
+        else:
+            self.folder_lbl.setText(self.tr("Aktueller Ordner: ") + f"{p.folder}  ·  {p.folder_done} / {p.folder_total}")
         self.folder_bar.setValue(int(100 * p.folder_done / p.folder_total) if p.folder_total else 100)
         self.uid_lbl.setText(f"UID {p.current_uid}")
         self.issues.setText(self.tr("{0} Warnungen · {1} Fehler").format(p.warnings, p.errors))
@@ -1094,6 +1148,16 @@ class FinishPage(QWidget):
                         "Die Löschung wird protokolliert und im Bericht vermerkt."),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             delete = r == QMessageBox.StandardButton.Yes
+        password = None
+        if st.cfg.programm.verschluesselung == "fragen":
+            from fed.gui.encrypt_dialog import EncryptDialog
+
+            dlg = EncryptDialog(self)
+            if not dlg.exec():
+                return  # Abbrechen = nicht abschließen
+            password = dlg.password
+            dlg.deleteLater()
+        self._password = password
         self.title.setText(self.tr("Case wird abgeschlossen …"))
         self.sub.setText(self.tr("ZIP packen, prüfen, Hashes und Berichte erzeugen"))
         self.sub.setVisible(True)
@@ -1101,12 +1165,13 @@ class FinishPage(QWidget):
         self.check_kv.clear()
 
         def work(cancel, report):
-            return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete)
+            return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete,
+                               encrypt_password=password)
 
         def progress(p):
             self.check_kv.set(self.tr("Fortschritt"), f"{p.phase}: {p.mails_done} / {p.mails_total}")
 
-        stay_awake(st, "abschluss")
+        stay_awake(st, "finish")
         run_async(work, self._done, self._failed, progress, parent=self)
 
     def _done(self, res) -> None:
@@ -1126,7 +1191,7 @@ class FinishPage(QWidget):
         for z in res.zips:
             k.set(self.tr("ZIP gepackt"), f"{z.path.name} · {_fmt_bytes(z.size)}", "ok")
             k.set(self.tr("ZIP verifiziert"), self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
-                  if z.verified else "; ".join(z.problems), "ok" if z.verified else "error")
+                  if z.verified else "; ".join(describe(p) for p in z.problems), "ok" if z.verified else "error")
         deleted = not self.st.case.work_dir.exists()
         k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
               else self.tr("behalten"), "ok" if deleted else None)
@@ -1140,9 +1205,14 @@ class FinishPage(QWidget):
         if res.account_reports:
             reports += self.tr(" · {0} Einzelberichte je Konto").format(len(res.account_reports) // 2)
         k.set(self.tr("Berichte erzeugt"), reports, "ok")
+        if res.encrypted:
+            k.set(self.tr("Verschlüsselte Kopie"), f"{res.encrypted['file']} · {_fmt_bytes(res.encrypted['size'])} · "
+                  + self.tr("geprüft"), "ok")
+            k.set(self.tr("Passwort (nur jetzt sichtbar)"), getattr(self, "_password", "") or "", mono=True)
+        self._password = None
         for z in res.zips:
             for p in z.problems:
-                k.set(self.tr("Hinweis"), p, "warn")
+                k.set(self.tr("Hinweis"), describe(p), "warn")
         h = self.hash_kv
         h.clear()
         for z in res.zips:

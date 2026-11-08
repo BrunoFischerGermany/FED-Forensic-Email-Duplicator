@@ -365,6 +365,10 @@
         <translation>approx. {0} messages/min · 30 s average</translation>
     </message>
     <message>
+        <source>Echtheitsprüfung (DKIM) der gesicherten Mails …</source>
+        <translation>Authenticity check (DKIM) of the saved messages …</translation>
+    </message>
+    <message>
         <source>Aktueller Ordner: </source>
         <translation>Current folder: </translation>
     </message>
@@ -678,6 +682,57 @@ After closing, the case cannot be extended. Close anyway?</translation>
     </message>
 </context>
 <context>
+    <name>EncryptDialog</name>
+    <message>
+        <source>Verschlüsselte Kopie für die Weitergabe</source>
+        <translation>Encrypted copy for transfer</translation>
+    </message>
+    <message>
+        <source>Zusätzlich zum geprüften Original kann FED eine mit AES-256 verschlüsselte Kopie erstellen (Original-ZIP, Hash- und Zeitstempeldateien, log.csv, Berichte) – z. B. für USB-Stick oder Versand. Das Original bleibt unverändert. Das Passwort wird nirgends gespeichert; bitte getrennt übermitteln.</source>
+        <translation>In addition to the verified original, FED can create an AES-256 encrypted copy (original ZIP, hash and timestamp files, log.csv, reports) – e.g. for a USB stick or shipping. The original stays unchanged. The password is not stored anywhere; please transmit it separately.</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Kopie erstellen</source>
+        <translation>Create encrypted copy</translation>
+    </message>
+    <message>
+        <source>Sicheres Passwort erzeugen</source>
+        <translation>Generate secure password</translation>
+    </message>
+    <message>
+        <source>Eigenes Passwort</source>
+        <translation>Own password</translation>
+    </message>
+    <message>
+        <source>Kopieren</source>
+        <translation>Copy</translation>
+    </message>
+    <message>
+        <source>Neu</source>
+        <translation>New</translation>
+    </message>
+    <message>
+        <source>Passwort</source>
+        <translation>Password</translation>
+    </message>
+    <message>
+        <source>Wiederholen</source>
+        <translation>Repeat</translation>
+    </message>
+    <message>
+        <source>Passwort: mindestens {0} Zeichen, nicht zu einfach.</source>
+        <translation>Password: at least {0} characters, not too simple.</translation>
+    </message>
+    <message>
+        <source>Die Passwörter stimmen nicht überein.</source>
+        <translation>The passwords do not match.</translation>
+    </message>
+    <message>
+        <source>Passwort jetzt notieren oder kopieren – es wird nach dem Abschluss noch einmal angezeigt, danach nicht mehr.</source>
+        <translation>Note or copy the password now – it is shown once more after closing, then never again.</translation>
+    </message>
+</context>
+<context>
     <name>FinishPage</name>
     <message>
         <source>Case abschließen</source>
@@ -788,6 +843,18 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Reports created</translation>
     </message>
     <message>
+        <source>Verschlüsselte Kopie</source>
+        <translation>Encrypted copy</translation>
+    </message>
+    <message>
+        <source>geprüft</source>
+        <translation>verified</translation>
+    </message>
+    <message>
+        <source>Passwort (nur jetzt sichtbar)</source>
+        <translation>Password (visible only now)</translation>
+    </message>
+    <message>
         <source>Hinweis</source>
         <translation>Note</translation>
     </message>
@@ -813,6 +880,18 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Neu scannen</source>
         <translation>Rescan</translation>
+    </message>
+    <message>
+        <source>Gmail erkannt: Ordner sind bei Gmail Labels – eine Mail mit mehreren Labels stünde mehrfach im ZIP. Empfohlen und vorausgewählt: „Alle Nachrichten“, „Spam“ und „Papierkorb“ (jede Mail genau einmal); die Labels jeder Mail werden dokumentiert (Case-Datei, log.csv, Bericht).</source>
+        <translation>Gmail detected: in Gmail, folders are labels – a message with several labels would appear several times in the ZIP. Recommended and preselected: “All Mail”, “Spam” and “Trash” (every message exactly once); the labels of every message are documented (case file, log.csv, report).</translation>
+    </message>
+    <message>
+        <source>Gmail-Empfehlung</source>
+        <translation>Gmail recommendation</translation>
+    </message>
+    <message>
+        <source>Alle Label-Ordner (mit Duplikaten)</source>
+        <translation>All label folders (with duplicates)</translation>
     </message>
     <message>
         <source>Ordner</source>
@@ -841,6 +920,46 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Bezieht sich auf die Eingangszeit auf dem Server. Mit Filter gilt die Sicherung als Teilsicherung.</source>
         <translation>Refers to the receipt time on the server. With a filter the acquisition counts as a partial acquisition.</translation>
+    </message>
+    <message>
+        <source>Inhalt (optional)</source>
+        <translation>Content (optional)</translation>
+    </message>
+    <message>
+        <source>Absender enthält</source>
+        <translation>Sender contains</translation>
+    </message>
+    <message>
+        <source>z. B. mueller@firma.de, @lieferant.example</source>
+        <translation>e.g. mueller@company.com, @supplier.example</translation>
+    </message>
+    <message>
+        <source>Empfänger enthält</source>
+        <translation>Recipient contains</translation>
+    </message>
+    <message>
+        <source>To, CC oder BCC</source>
+        <translation>To, CC or BCC</translation>
+    </message>
+    <message>
+        <source>Betreff enthält</source>
+        <translation>Subject contains</translation>
+    </message>
+    <message>
+        <source>z. B. Rechnung, Angebot</source>
+        <translation>e.g. invoice, offer</translation>
+    </message>
+    <message>
+        <source>Text enthält</source>
+        <translation>Text contains</translation>
+    </message>
+    <message>
+        <source>Kopf und Inhalt, z. B. Kontonummer</source>
+        <translation>header and body, e.g. account number</translation>
+    </message>
+    <message>
+        <source>Mehrere Werte mit Komma = oder; ausgefüllte Felder untereinander = und. Die Suche führt der Server aus. Mit Inhaltsfilter gilt die Sicherung als Teilsicherung; die Kriterien stehen im Bericht.</source>
+        <translation>Several values separated by commas = or; filled fields combined = and. The search is performed by the server. With a content filter the acquisition counts as a partial acquisition; the criteria appear in the report.</translation>
     </message>
     <message>
         <source>Zusammenfassung</source>
@@ -1046,6 +1165,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Read-only from case.sqlite · every check is itself logged</translation>
     </message>
     <message>
+        <source>Doppelklick: Mail ansehen (nur lesend)</source>
+        <translation>Double-click: view mail (read-only)</translation>
+    </message>
+    <message>
         <source>Konten</source>
         <translation>Accounts</translation>
     </message>
@@ -1064,6 +1187,12 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Kein Case geöffnet – unter „Sicherung“ einen Case anlegen oder öffnen.</source>
         <translation>No case open – create or open a case under “Acquisition”.</translation>
+    </message>
+    <message>
+        <source>Mail kann nicht geöffnet werden:
+{0}</source>
+        <translation>Cannot open mail:
+{0}</translation>
     </message>
     <message>
         <source>unverändert</source>
@@ -1108,6 +1237,621 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Ansicht als CSV speichern</source>
         <translation>Save view as CSV</translation>
+    </message>
+</context>
+<context>
+    <name>MailViewer</name>
+    <message>
+        <source>{0} Einträge</source>
+        <translation>{0} entries</translation>
+    </message>
+    <message>
+        <source>Ausführbarer Inhalt: {0} – nicht öffnen</source>
+        <translation>Executable content: {0} – do not open</translation>
+    </message>
+    <message>
+        <source>Endung .{0} passt nicht zum Inhalt ({1}, üblich: {2})</source>
+        <translation>Extension .{0} does not match the content ({1}, usual: {2})</translation>
+    </message>
+    <message>
+        <source>Angegebener Typ {0} weicht vom Inhalt ab ({1})</source>
+        <translation>Declared type {0} differs from the content ({1})</translation>
+    </message>
+    <message>
+        <source>Doppelte Endung {0} – typische Tarnung</source>
+        <translation>Double extension {0} – typical disguise</translation>
+    </message>
+    <message>
+        <source>Name enthält Steuerzeichen für die Schreibrichtung (verschleiert die Endung)</source>
+        <translation>Name contains text-direction control characters (hides the extension)</translation>
+    </message>
+    <message>
+        <source>Viele Leerzeichen vor der Endung (verschleiert die Endung)</source>
+        <translation>Many spaces before the extension (hides the extension)</translation>
+    </message>
+    <message>
+        <source>Enthält Makros (VBA)</source>
+        <translation>Contains macros (VBA)</translation>
+    </message>
+    <message>
+        <source>Lädt eine Vorlage/ein Objekt aus dem Internet nach</source>
+        <translation>Loads a template/object from the internet</translation>
+    </message>
+    <message>
+        <source>Enthält eingebettete Objekte</source>
+        <translation>Contains embedded objects</translation>
+    </message>
+    <message>
+        <source>PDF mit aktiven Inhalten: {0}</source>
+        <translation>PDF with active content: {0}</translation>
+    </message>
+    <message>
+        <source>PDF enthält eingebettete Dateien</source>
+        <translation>PDF contains embedded files</translation>
+    </message>
+    <message>
+        <source>PDF ist verschlüsselt</source>
+        <translation>PDF is encrypted</translation>
+    </message>
+    <message>
+        <source>PDF-Kennung erst ab Byte {0} (Daten davor)</source>
+        <translation>PDF signature only at byte {0} (data before it)</translation>
+    </message>
+    <message>
+        <source>Archiv ist verschlüsselt – Inhalt nicht prüfbar</source>
+        <translation>Archive is encrypted – content cannot be checked</translation>
+    </message>
+    <message>
+        <source>Archiv beschädigt oder unvollständig</source>
+        <translation>Archive damaged or incomplete</translation>
+    </message>
+    <message>
+        <source>Archiv enthält ausführbare Dateien: {0}</source>
+        <translation>Archive contains executable files: {0}</translation>
+    </message>
+    <message>
+        <source>Office-Datei ist verschlüsselt</source>
+        <translation>Office file is encrypted</translation>
+    </message>
+    <message>
+        <source>Skript (.{0}) – wird beim Doppelklick ausgeführt</source>
+        <translation>Script (.{0}) – runs on double-click</translation>
+    </message>
+    <message>
+        <source>Endung .{0} kann beim Öffnen Code ausführen</source>
+        <translation>Extension .{0} can run code when opened</translation>
+    </message>
+    <message>
+        <source>Datenträger-Abbild – häufig zum Verstecken von Schadsoftware genutzt</source>
+        <translation>Disk image – often used to hide malware</translation>
+    </message>
+    <message>
+        <source>Leere Datei</source>
+        <translation>Empty file</translation>
+    </message>
+    <message>
+        <source>Hohe Entropie ({0} Bit/Byte) – verschlüsselt oder komprimiert</source>
+        <translation>High entropy ({0} bit/byte) – encrypted or compressed</translation>
+    </message>
+    <message>
+        <source>PDF-Dokument</source>
+        <translation>PDF document</translation>
+    </message>
+    <message>
+        <source>PNG-Bild</source>
+        <translation>PNG image</translation>
+    </message>
+    <message>
+        <source>JPEG-Bild</source>
+        <translation>JPEG image</translation>
+    </message>
+    <message>
+        <source>GIF-Bild</source>
+        <translation>GIF image</translation>
+    </message>
+    <message>
+        <source>BMP-Bild</source>
+        <translation>BMP image</translation>
+    </message>
+    <message>
+        <source>TIFF-Bild</source>
+        <translation>TIFF image</translation>
+    </message>
+    <message>
+        <source>WebP-Bild</source>
+        <translation>WebP image</translation>
+    </message>
+    <message>
+        <source>Symbol (ICO)</source>
+        <translation>Icon (ICO)</translation>
+    </message>
+    <message>
+        <source>HEIC-Bild</source>
+        <translation>HEIC image</translation>
+    </message>
+    <message>
+        <source>SVG-Grafik</source>
+        <translation>SVG graphic</translation>
+    </message>
+    <message>
+        <source>Word-Dokument (OOXML)</source>
+        <translation>Word document (OOXML)</translation>
+    </message>
+    <message>
+        <source>Word-Dokument mit Makros</source>
+        <translation>Word document with macros</translation>
+    </message>
+    <message>
+        <source>Excel-Tabelle (OOXML)</source>
+        <translation>Excel workbook (OOXML)</translation>
+    </message>
+    <message>
+        <source>Excel-Tabelle mit Makros</source>
+        <translation>Excel workbook with macros</translation>
+    </message>
+    <message>
+        <source>PowerPoint (OOXML)</source>
+        <translation>PowerPoint (OOXML)</translation>
+    </message>
+    <message>
+        <source>PowerPoint mit Makros</source>
+        <translation>PowerPoint with macros</translation>
+    </message>
+    <message>
+        <source>OpenDocument</source>
+        <translation>OpenDocument</translation>
+    </message>
+    <message>
+        <source>Office 97–2003 / Outlook-Nachricht (OLE)</source>
+        <translation>Office 97–2003 / Outlook message (OLE)</translation>
+    </message>
+    <message>
+        <source>Java-Archiv</source>
+        <translation>Java archive</translation>
+    </message>
+    <message>
+        <source>Android-App</source>
+        <translation>Android app</translation>
+    </message>
+    <message>
+        <source>ZIP-Archiv</source>
+        <translation>ZIP archive</translation>
+    </message>
+    <message>
+        <source>RAR-Archiv</source>
+        <translation>RAR archive</translation>
+    </message>
+    <message>
+        <source>7-Zip-Archiv</source>
+        <translation>7-Zip archive</translation>
+    </message>
+    <message>
+        <source>GZIP-Archiv</source>
+        <translation>GZIP archive</translation>
+    </message>
+    <message>
+        <source>BZIP2-Archiv</source>
+        <translation>BZIP2 archive</translation>
+    </message>
+    <message>
+        <source>XZ-Archiv</source>
+        <translation>XZ archive</translation>
+    </message>
+    <message>
+        <source>Windows-Archiv (CAB)</source>
+        <translation>Windows archive (CAB)</translation>
+    </message>
+    <message>
+        <source>Datenträger-Abbild (ISO)</source>
+        <translation>Disk image (ISO)</translation>
+    </message>
+    <message>
+        <source>Windows-Programm (PE)</source>
+        <translation>Windows program (PE)</translation>
+    </message>
+    <message>
+        <source>Linux-Programm (ELF)</source>
+        <translation>Linux program (ELF)</translation>
+    </message>
+    <message>
+        <source>macOS-Programm (Mach-O)</source>
+        <translation>macOS program (Mach-O)</translation>
+    </message>
+    <message>
+        <source>Windows-Verknüpfung (LNK)</source>
+        <translation>Windows shortcut (LNK)</translation>
+    </message>
+    <message>
+        <source>RTF-Dokument</source>
+        <translation>RTF document</translation>
+    </message>
+    <message>
+        <source>MP3-Audio</source>
+        <translation>MP3 audio</translation>
+    </message>
+    <message>
+        <source>MP4/QuickTime-Video</source>
+        <translation>MP4/QuickTime video</translation>
+    </message>
+    <message>
+        <source>WAV-Audio</source>
+        <translation>WAV audio</translation>
+    </message>
+    <message>
+        <source>AVI-Video</source>
+        <translation>AVI video</translation>
+    </message>
+    <message>
+        <source>Ogg-Audio/Video</source>
+        <translation>Ogg audio/video</translation>
+    </message>
+    <message>
+        <source>FLAC-Audio</source>
+        <translation>FLAC audio</translation>
+    </message>
+    <message>
+        <source>E-Mail (RFC 5322)</source>
+        <translation>Email (RFC 5322)</translation>
+    </message>
+    <message>
+        <source>Kalendereintrag (iCalendar)</source>
+        <translation>Calendar entry (iCalendar)</translation>
+    </message>
+    <message>
+        <source>Kontakt (vCard)</source>
+        <translation>Contact (vCard)</translation>
+    </message>
+    <message>
+        <source>HTML-Seite</source>
+        <translation>HTML page</translation>
+    </message>
+    <message>
+        <source>HTML-Anwendung (HTA)</source>
+        <translation>HTML application (HTA)</translation>
+    </message>
+    <message>
+        <source>XML-Datei</source>
+        <translation>XML file</translation>
+    </message>
+    <message>
+        <source>PostScript</source>
+        <translation>PostScript</translation>
+    </message>
+    <message>
+        <source>Text</source>
+        <translation>Text</translation>
+    </message>
+    <message>
+        <source>leere Datei</source>
+        <translation>empty file</translation>
+    </message>
+    <message>
+        <source>unbekannt</source>
+        <translation>unknown</translation>
+    </message>
+    <message>
+        <source>Mail ansehen – {0}</source>
+        <translation>View mail – {0}</translation>
+    </message>
+    <message>
+        <source>(ohne Betreff)</source>
+        <translation>(no subject)</translation>
+    </message>
+    <message>
+        <source>Betreff</source>
+        <translation>Subject</translation>
+    </message>
+    <message>
+        <source>Von</source>
+        <translation>From</translation>
+    </message>
+    <message>
+        <source>An</source>
+        <translation>To</translation>
+    </message>
+    <message>
+        <source>Datum (Kopfzeile)</source>
+        <translation>Date (header)</translation>
+    </message>
+    <message>
+        <source>Eingang (Server)</source>
+        <translation>Received (server)</translation>
+    </message>
+    <message>
+        <source>Konto · Ordner · UID</source>
+        <translation>Account · folder · UID</translation>
+    </message>
+    <message>
+        <source>Arbeitsordner</source>
+        <translation>Working folder</translation>
+    </message>
+    <message>
+        <source>✓ SHA-256 stimmt mit der Case-Datei überein</source>
+        <translation>✓ SHA-256 matches the case file</translation>
+    </message>
+    <message>
+        <source>✗ SHA-256 weicht von der Case-Datei ab – Datei verändert!</source>
+        <translation>✗ SHA-256 differs from the case file – file modified!</translation>
+    </message>
+    <message>
+        <source>Quelle: {0}</source>
+        <translation>Source: {0}</translation>
+    </message>
+    <message>
+        <source>Nur lesend – die Datei wird nicht verändert. Ansehen und Speichern werden protokolliert.</source>
+        <translation>Read-only – the file is not modified. Viewing and saving are logged.</translation>
+    </message>
+    <message>
+        <source>Inhalt</source>
+        <translation>Content</translation>
+    </message>
+    <message>
+        <source>Anlagen ({0}) ⚠</source>
+        <translation>Attachments ({0}) ⚠</translation>
+    </message>
+    <message>
+        <source>Anlagen ({0})</source>
+        <translation>Attachments ({0})</translation>
+    </message>
+    <message>
+        <source>Kopfzeilen</source>
+        <translation>Headers</translation>
+    </message>
+    <message>
+        <source>Weg (Received)</source>
+        <translation>Route (Received)</translation>
+    </message>
+    <message>
+        <source>Echtheit</source>
+        <translation>Authenticity</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>HTML-Darstellung (ohne externe Inhalte, eingebettete Bilder aus der Mail)</source>
+        <translation>HTML view (no external content, embedded images from the mail)</translation>
+    </message>
+    <message>
+        <source>(nur HTML-Inhalt – Häkchen oben setzen)</source>
+        <translation>(HTML content only – tick the box above)</translation>
+    </message>
+    <message>
+        <source>(kein Text)</source>
+        <translation>(no text)</translation>
+    </message>
+    <message>
+        <source>Prüfung</source>
+        <translation>Check</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <source>Typ (angegeben)</source>
+        <translation>Type (declared)</translation>
+    </message>
+    <message>
+        <source>erkannt</source>
+        <translation>detected</translation>
+    </message>
+    <message>
+        <source>Größe</source>
+        <translation>Size</translation>
+    </message>
+    <message>
+        <source>eingebettet</source>
+        <translation>inline</translation>
+    </message>
+    <message>
+        <source>ja</source>
+        <translation>yes</translation>
+    </message>
+    <message>
+        <source>unauffällig</source>
+        <translation>no findings</translation>
+    </message>
+    <message>
+        <source>Vorschau</source>
+        <translation>Preview</translation>
+    </message>
+    <message>
+        <source>Anlage speichern unter …</source>
+        <translation>Save attachment as …</translation>
+    </message>
+    <message>
+        <source>Vorschau nur im Speicher – nichts wird ausgeführt oder auf die Festplatte geschrieben. Jede angesehene Anlage wird mit Hash protokolliert.</source>
+        <translation>Preview in memory only – nothing is executed or written to disk. Every attachment viewed is logged with its hash.</translation>
+    </message>
+    <message>
+        <source>Keine Anlagen</source>
+        <translation>No attachments</translation>
+    </message>
+    <message>
+        <source>… (gekürzt, {0} von {1})</source>
+        <translation>… (truncated, {0} of {1})</translation>
+    </message>
+    <message>
+        <source>passt</source>
+        <translation>matches</translation>
+    </message>
+    <message>
+        <source>passt NICHT</source>
+        <translation>does NOT match</translation>
+    </message>
+    <message>
+        <source>nicht beurteilbar</source>
+        <translation>cannot be assessed</translation>
+    </message>
+    <message>
+        <source>Erkannt am Inhalt</source>
+        <translation>Detected from content</translation>
+    </message>
+    <message>
+        <source>Endung</source>
+        <translation>Extension</translation>
+    </message>
+    <message>
+        <source>keine – </source>
+        <translation>none – </translation>
+    </message>
+    <message>
+        <source>Angegebener Typ</source>
+        <translation>Declared type</translation>
+    </message>
+    <message>
+        <source>Entropie</source>
+        <translation>Entropy</translation>
+    </message>
+    <message>
+        <source>Ergebnis</source>
+        <translation>Result</translation>
+    </message>
+    <message>
+        <source>✓ unauffällig</source>
+        <translation>✓ no findings</translation>
+    </message>
+    <message>
+        <source>ℹ Hinweise</source>
+        <translation>ℹ notes</translation>
+    </message>
+    <message>
+        <source>⚠ auffällig – mit Vorsicht behandeln</source>
+        <translation>⚠ suspicious – handle with care</translation>
+    </message>
+    <message>
+        <source>Keine Auffälligkeiten gefunden. Die Prüfung erkennt typische Tarnungen und aktive Inhalte, ersetzt aber keinen Virenscanner.</source>
+        <translation>No findings. The check detects typical disguises and active content but does not replace a virus scanner.</translation>
+    </message>
+    <message>
+        <source>Keine Vorschau: ausführbarer Inhalt. Siehe „Prüfung“ und „Hex“.</source>
+        <translation>No preview: executable content. See “Check” and “Hex”.</translation>
+    </message>
+    <message>
+        <source>Keine Vorschau: Datei größer als {0}.</source>
+        <translation>No preview: file larger than {0}.</translation>
+    </message>
+    <message>
+        <source>Bild lässt sich nicht darstellen (beschädigt oder unvollständig).</source>
+        <translation>Image cannot be displayed (damaged or incomplete).</translation>
+    </message>
+    <message>
+        <source>PDF lässt sich nicht darstellen (beschädigt, verschlüsselt oder leer).</source>
+        <translation>PDF cannot be displayed (damaged, encrypted or empty).</translation>
+    </message>
+    <message>
+        <source>… (gekürzt)</source>
+        <translation>… (truncated)</translation>
+    </message>
+    <message>
+        <source>Keine Vorschau für {0}. Siehe „Prüfung“ und „Hex“.</source>
+        <translation>No preview for {0}. See “Check” and “Hex”.</translation>
+    </message>
+    <message>
+        <source>Diese Anlage ist auffällig:
+
+{0}
+
+Trotzdem speichern? Die Datei nicht auf diesem Rechner öffnen.</source>
+        <translation>This attachment is suspicious:
+
+{0}
+
+Save anyway? Do not open the file on this computer.</translation>
+    </message>
+    <message>
+        <source>Anlage speichern</source>
+        <translation>Save attachment</translation>
+    </message>
+    <message>
+        <source>Gespeichert, SHA-256 geprüft:
+{0}</source>
+        <translation>Saved, SHA-256 verified:
+{0}</translation>
+    </message>
+    <message>
+        <source>Gespeichert, aber SHA-256 weicht ab:
+{0}</source>
+        <translation>Saved, but SHA-256 differs:
+{0}</translation>
+    </message>
+    <message>
+        <source>Nr.</source>
+        <translation>No.</translation>
+    </message>
+    <message>
+        <source>von</source>
+        <translation>from</translation>
+    </message>
+    <message>
+        <source>an Server</source>
+        <translation>by server</translation>
+    </message>
+    <message>
+        <source>Protokoll</source>
+        <translation>Protocol</translation>
+    </message>
+    <message>
+        <source>Zeit (UTC / lokal)</source>
+        <translation>Time (UTC / local)</translation>
+    </message>
+    <message>
+        <source>Dauer</source>
+        <translation>Delay</translation>
+    </message>
+    <message>
+        <source>Älteste Station oben (Absender-Seite). Nur die Einträge der eigenen Server des Anbieters sind verlässlich; frühere Stationen kann der Absender fälschen. Negative Dauer = Uhren der Server weichen ab.</source>
+        <translation>Oldest hop at the top (sender side). Only the entries of the provider's own servers are reliable; earlier hops can be forged by the sender. Negative delay = server clocks differ.</translation>
+    </message>
+    <message>
+        <source>gültig</source>
+        <translation>valid</translation>
+    </message>
+    <message>
+        <source>ungültig</source>
+        <translation>invalid</translation>
+    </message>
+    <message>
+        <source>nicht prüfbar</source>
+        <translation>not verifiable</translation>
+    </message>
+    <message>
+        <source>vorläufig nicht prüfbar (DNS)</source>
+        <translation>temporarily not verifiable (DNS)</translation>
+    </message>
+    <message>
+        <source>nicht signiert</source>
+        <translation>not signed</translation>
+    </message>
+    <message>
+        <source>nicht geprüft</source>
+        <translation>not checked</translation>
+    </message>
+    <message>
+        <source>DKIM (geprüft bei der Sicherung)</source>
+        <translation>DKIM (checked during acquisition)</translation>
+    </message>
+    <message>
+        <source>Signiert von</source>
+        <translation>Signed by</translation>
+    </message>
+    <message>
+        <source>Begründung</source>
+        <translation>Reason</translation>
+    </message>
+    <message>
+        <source>Prüfung durch den Anbieter</source>
+        <translation>Check by the provider</translation>
+    </message>
+    <message>
+        <source>keine Authentication-Results-Kopfzeile</source>
+        <translation>no Authentication-Results header</translation>
+    </message>
+    <message>
+        <source>Gmail-Labels</source>
+        <translation>Gmail labels</translation>
     </message>
 </context>
 <context>
@@ -1323,12 +2067,24 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>ZIP with several accounts</translation>
     </message>
     <message>
+        <source>aus</source>
+        <translation>off</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Weitergabe-Kopie</source>
+        <translation>Encrypted copy for transfer</translation>
+    </message>
+    <message>
         <source>Arbeitsordner nach Abschluss</source>
         <translation>Working folder after finishing</translation>
     </message>
     <message>
         <source>Rechner während Sicherung und Abschluss nicht sperren / nicht schlafen lassen</source>
         <translation>Keep the computer from locking / sleeping during acquisition and finishing</translation>
+    </message>
+    <message>
+        <source>DKIM-Signaturen bei der Sicherung prüfen und DNS-Schlüssel aufbewahren</source>
+        <translation>Check DKIM signatures during acquisition and preserve the DNS keys</translation>
     </message>
     <message>
         <source>Netzwerk und Zeit</source>
