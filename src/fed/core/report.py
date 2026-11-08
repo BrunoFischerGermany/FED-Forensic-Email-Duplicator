@@ -14,6 +14,8 @@ from pathlib import Path
 
 from fed import APP_NAME, __version__
 from fed.core import timefmt as tf
+from fed.core.msg import describe
+from fed.core.msg import language as msg_language
 from fed.core.case import Case
 
 def _load_labels() -> dict[str, dict[str, str]]:
@@ -26,6 +28,22 @@ def _load_labels() -> dict[str, dict[str, str]]:
 
 
 LABELS = _load_labels()
+
+
+def _time_language(fn):
+    """Zonennamen (MEZ/CET) in der Sprache des Berichts, nicht der Oberfläche."""
+    import functools
+    import inspect
+
+    sig = inspect.signature(fn)
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        lang = sig.bind_partial(*args, **kwargs).arguments.get("language", sig.parameters["language"].default)
+        with msg_language(lang):
+            return fn(*args, **kwargs)
+
+    return wrapper
 
 
 def labels(language: str) -> dict[str, str]:
@@ -89,7 +107,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         attempts = [a for a in attempts if a["account_id"] == account_id]
         folders = [f for f in folders if f["account_id"] == account_id]
         issues = [x for x in issues if x["account_id"] == account_id or _details_account(x["details"]) == account_id]
-        messages = [m for m in messages if m["Konto"] == email]
+        messages = [m for m in messages if m["Account"] == email]
         outputs = [o for o in outputs if o.get("account_id") in (None, account_id)]
         timestamps = [x for x in timestamps if x.get("account_id") in (None, account_id)]
         dkim_issues = [x for x in dkim_issues if x["account_id"] == account_id]
@@ -242,7 +260,7 @@ def _account_items(a: dict, L: dict, dkim_counts: dict | None = None) -> list[tu
     return [
         (L["evidence"], a["evidence_number"]), (L["server"], f"{a['server']}:{a['port']} ({a['security']})"),
         (L["username"], a["username"]),
-        (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], a["autoconfig_source"] or "–"),
+        (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], describe(a["autoconfig_source"]) or "–"),
         (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
         (L["dkim"], _dkim_summary((dkim_counts or {}).get(a["id"], {}), L)),
         *_filter_items(a, L),
@@ -300,7 +318,7 @@ def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
 
 def _dkim_issue_rows(d: dict, L: dict) -> list[list[str]]:
     return [[x["evidence_number"], f"{x['display_name']} · UID {x['uid']}", x["subject"] or "–",
-             L["dkim_" + x["dkim_result"]], f"{x['dkim_domain'] or ''} {x['dkim_detail'] or ''}".strip()]
+             L["dkim_" + x["dkim_result"]], f"{x['dkim_domain'] or ''} {describe(x['dkim_detail'])}".strip()]
             for x in d["dkim_issues"]]
 
 
@@ -334,6 +352,7 @@ def _folder_lines(d: dict, L: dict, email: str) -> list[str]:
     return out
 
 
+@_time_language
 def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
                account_id: int | None = None, encrypted_planned: bool = False) -> str:
     L = labels(language)
@@ -398,11 +417,11 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         return "\n".join(out)
     for n, m in enumerate(d["messages"], 1):
         acc = f"{m['Evidence']}  " if d["all_accounts"] > 1 and account_id is None else ""
-        out.append(f"{n:>5}  {acc}{tf.both(m['Eingangszeit_UTC'])}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
-                   f"{L['to']}: {m['An'] or m['CC'] or m['Empfaenger_Hinweis']}  {L['att']} {m['Anlagen']}  "
+        out.append(f"{n:>5}  {acc}{tf.both(m['Received_UTC'])}  {m['Folder']}  UID {m['UID']}  {m['From']}  "
+                   f"{L['to']}: {m['To'] or m['CC'] or describe(m['Recipient_Note'])}  {L['att']} {m['Attachments']}  "
                    f"DKIM {L.get('dkim_' + m['DKIM'], '–') if m['DKIM'] else '–'}  "
                    + (f"Labels: {m['Gmail_Labels']}  " if m["Gmail_Labels"] else "")
-                   + f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
+                   + f"{m['Subject']}\n       {m['File']}\n       SHA-256 {m['SHA256']}")
     out.append("")
     return "\n".join(out)
 
@@ -420,6 +439,7 @@ def _encrypted_name(d: dict) -> str:
 
 
 # ---------------------------------------------------------------- PDF
+@_time_language
 def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
               account_id: int | None = None, encrypted_planned: bool = False) -> None:
     from fpdf import FPDF
@@ -626,13 +646,13 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         t.row([L["nr"], f"{L['received']} / UID", (f"{L['evidence']} / " if multi else "") + f"{L['folders']} / {L['from']}",
                f"{L['subject']} · {L['to']} · {L['att']} / {L['file']} / SHA-256"])
         for n, m in enumerate(d["messages"], 1):
-            to = m["An"] or (f"CC: {m['CC']}" if m["CC"] else m["Empfaenger_Hinweis"] or "–")
-            t.row([str(n), f"{tf.both_short(m['Eingangszeit_UTC'])}\nUID {m['UID']}",
-                   (f"{m['Evidence']} · " if multi else "") + f"{m['Ordner']}\n{m['Absender']}",
-                   f"{m['Betreff']} · {to} · {L['att']} {m['Anlagen']}"
+            to = m["To"] or (f"CC: {m['CC']}" if m["CC"] else describe(m["Recipient_Note"]) or "–")
+            t.row([str(n), f"{tf.both_short(m['Received_UTC'])}\nUID {m['UID']}",
+                   (f"{m['Evidence']} · " if multi else "") + f"{m['Folder']}\n{m['From']}",
+                   f"{m['Subject']} · {to} · {L['att']} {m['Attachments']}"
                    + (f" · DKIM {L.get('dkim_' + m['DKIM'], m['DKIM'])}" if m["DKIM"] else "")
                    + (f" · Labels: {m['Gmail_Labels']}" if m["Gmail_Labels"] else "")
-                   + f"\n{m['Datei']}\n{m['SHA256']}"])
+                   + f"\n{m['File']}\n{m['SHA256']}"])
     pdf.output(str(path))
 
 
@@ -643,6 +663,7 @@ def account_report_name(evidence: str, email: str, suffix: str) -> str:
     return f"report_{sanitize_component(evidence or email)}{suffix}"
 
 
+@_time_language
 def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
                   mail_list_max: int = 500, encrypted_planned: bool = False) -> tuple[Path, Path]:
     """Gesamtbericht ``report.txt``/``report.pdf`` und – bei mehreren Konten – je Konto

@@ -20,6 +20,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from fed.core.case import Case
+from fed.core.msg import t as _t
 
 
 @dataclass
@@ -70,7 +71,7 @@ def _row(case: Case, message_id: int) -> dict:
         (message_id,))
     r = cur.fetchone()
     if r is None:
-        raise KeyError(f"Mail {message_id} nicht in der Case-Datei")
+        raise KeyError(_t("Mail {id} nicht in der Case-Datei", id=message_id))
     return dict(zip([c[0] for c in cur.description], r, strict=True))
 
 
@@ -93,7 +94,7 @@ def load_raw(case: Case, message_id: int) -> tuple[bytes, str, dict]:
                 return zf.read(row["zip_path"]), z.name, row
             except KeyError:
                 continue
-    raise FileNotFoundError(f"{row['zip_path']} weder in work/ noch in einem ZIP gefunden")
+    raise FileNotFoundError(_t("{file} weder in work/ noch in einem ZIP gefunden", file=row["zip_path"]))
 
 
 

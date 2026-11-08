@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from pathlib import Path
+from fed.core.msg import t
 
 METHOD = "AES-256 (WinZip AES, AE-2)"
 MIN_LENGTH = 12
@@ -65,7 +66,7 @@ def create_copy(target: Path, files: list[Path], password: str) -> dict:
 
     problem = check_password(password)
     if problem:
-        raise ValueError(f"Passwort ungeeignet: {problem}")
+        raise ValueError(t("Passwort ungeeignet: {problem}", problem=problem))
     part = target.with_name(target.name + ".part")
     expected = {p.name: _sha256(p) for p in files}
     with pyzipper.AESZipFile(part, "w", compression=pyzipper.ZIP_DEFLATED, encryption=pyzipper.WZ_AES) as zf:

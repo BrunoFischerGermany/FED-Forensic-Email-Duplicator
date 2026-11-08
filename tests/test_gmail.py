@@ -91,11 +91,11 @@ def test_gmail_fields_saved_and_reported(gmail_case):
     rows = message_rows(case)
     assert {r["Gmail_Labels"] for r in rows} == {"\\Important, Projekt Ost, Entwürfe"}
     assert all(r["Gmail_MsgID"].startswith("9000") and r["Gmail_ThrID"].startswith("7000") for r in rows)
-    assert not any(r["Gmail_Duplikat"] for r in rows)
+    assert not any(r["Gmail_Duplicate"] for r in rows)
     # zwei Kopien derselben Mail (gleiche X-GM-MSGID) werden als Duplikat gekennzeichnet
     with case.conn:
         case.conn.execute("UPDATE message SET gm_msgid = '42'")
-    assert {r["Gmail_Duplikat"] for r in message_rows(case)} == {"ja"}
+    assert {r["Gmail_Duplicate"] for r in message_rows(case)} == {"yes"}
     fin = finish_case(case, Config(), language="de")
     txt = fin.report_txt.read_text(encoding="utf-8")
     assert "Gmail-Kennung" in txt and "1 Mehrfachkopien von 1 Mails" in txt and "Labels: \\Important" in txt

@@ -30,13 +30,16 @@ from fed.core.config import Config
 from fed.core.hashing import MultiHasher, hash_file
 from fed.core.naming import folder_to_zip_path, sanitize_component
 from fed.core.timefmt import local_str
+from fed.core.msg import code, describe
+from fed.core.msg import t as _t
 
+# Feste englische Spaltennamen (unabhängig von der Sprache, wie die Namen im Case-Ordner)
 CSV_COLUMNS = [
-    "Konto", "Evidence", "Ordner", "UID", "Eingangszeit_UTC", "Eingangszeit_lokal", "Date_Header", "Absender", "An", "CC", "BCC",
-    "Empfaenger_Hinweis", "Delivered_To", "Anlagen", "Inline", "Anlagen_Namen", "Betreff", "Message_ID",
-    "Groesse", "Datei", "SHA256", "MD5", "SHA512", "Versuch",
-    "DKIM", "DKIM_Domain", "DKIM_Detail", "Anbieter_SPF", "Anbieter_DKIM", "Anbieter_DMARC", "Anbieter_Pruefer",
-    "Gmail_MsgID", "Gmail_ThrID", "Gmail_Labels", "Gmail_Duplikat",
+    "Account", "Evidence", "Folder", "UID", "Received_UTC", "Received_Local", "Date_Header", "From", "To", "CC", "BCC",
+    "Recipient_Note", "Delivered_To", "Attachments", "Inline", "Attachment_Names", "Subject", "Message_ID",
+    "Size", "File", "SHA256", "MD5", "SHA512", "Attempt",
+    "DKIM", "DKIM_Domain", "DKIM_Detail", "Provider_SPF", "Provider_DKIM", "Provider_DMARC", "Provider_Authserv",
+    "Gmail_MsgID", "Gmail_ThrID", "Gmail_Labels", "Gmail_Duplicate",
 ]
 _CHUNK = 1024 * 1024
 
@@ -78,7 +81,7 @@ def message_rows(case: Case) -> list[dict]:
             _j(r[11]), r[12], r[13], names, r[15] or "", r[16] or "", r[17], r[18], r[19], r[20] or "",
             r[21] or "", r[22], r[23] or "", r[24] or "", r[25] or "", ar.get("spf", ""), ar.get("dkim", ""),
             ar.get("dmarc", ""), ar.get("authserv", ""), r[27] or "", r[28] or "",
-            ", ".join(json.loads(r[29])) if r[29] else "", "ja" if r[27] and r[30] > 1 else ""], strict=True)))
+            ", ".join(json.loads(r[29])) if r[29] else "", "yes" if r[27] and r[30] > 1 else ""], strict=True)))
     return rows
 
 
@@ -124,18 +127,18 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     else:
         email, evidence = case.conn.execute("SELECT email, evidence_number FROM account WHERE id = ?",
                                             (account_id,)).fetchone()
-        rows = [r for r in rows if r["Konto"] == email]
+        rows = [r for r in rows if r["Account"] == email]
         ev = sanitize_component(evidence or email)
         zip_path = case.root / f"{sanitize_component(info['case_number'])}_{ev}_{stamp}.zip"
         csv_path = case.root / f"log_{ev}.csv"
         scope = case.work_dir / sanitize_component(email)
         account_sql, account_args = " AND a.id = ?", (account_id,)
     tmp = zip_path.with_suffix(".zip.part")
-    prog = Progress(phase="zip", mails_total=len(rows), bytes_total=sum(r["Groesse"] for r in rows))
+    prog = Progress(phase="zip", mails_total=len(rows), bytes_total=sum(r["Size"] for r in rows))
     case.log("INFO", "zip_started", {"file": zip_path.name, "messages": len(rows), "account_id": account_id})
 
     _write_csv(rows, csv_path)
-    known = {r["Datei"] for r in rows}
+    known = {r["File"] for r in rows}
     stray = [str(p.relative_to(case.work_dir)).replace("\\", "/") for p in scope.rglob("*.eml")
              if str(p.relative_to(case.work_dir)).replace("\\", "/") not in known] if scope.exists() else []
     for s in stray:
@@ -154,9 +157,9 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
                 zf.writestr(zi, b"")
             for r in rows:
                 cancel.raise_if_cancelled()
-                src = case.work_dir / r["Datei"]
+                src = case.work_dir / r["File"]
                 mtime = src.stat().st_mtime
-                zi = zipfile.ZipInfo(r["Datei"], date_time=_zip_time(mtime))
+                zi = zipfile.ZipInfo(r["File"], date_time=_zip_time(mtime))
                 zi.compress_type = zipfile.ZIP_DEFLATED
                 zi.extra = _ext_timestamp(mtime)
                 zi.external_attr = 0o100644 << 16
@@ -164,7 +167,7 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
                     while chunk := fin.read(_CHUNK):
                         fout.write(chunk)
                 prog.mails_done += 1
-                prog.bytes_done += r["Groesse"]
+                prog.bytes_done += r["Size"]
                 prog.sample()
                 if progress:
                     progress(prog)
@@ -175,7 +178,7 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     tmp.replace(zip_path)
 
     result = verify_zip(case, zip_path, rows, cancel, progress)
-    result.problems = [f"nicht in der Case-Datei, nicht übernommen: {s}" for s in stray] + result.problems
+    result.problems = [code("not_in_case", s) for s in stray] + result.problems
     result.hashes = hash_file(zip_path, cfg.programm.hash_extra)
     (zip_path.parent / (zip_path.name + ".sha256")).write_text(f"{result.hashes['sha256']}  {zip_path.name}\n",
                                                                encoding="utf-8")
@@ -202,7 +205,7 @@ def verify_case_zips(case: Case, cancel: CancelToken | None = None) -> list[ZipR
             subset = rows
         else:
             email = case.conn.execute("SELECT email FROM account WHERE id = ?", (acc,)).fetchone()[0]
-            subset = [r for r in rows if r["Konto"] == email]
+            subset = [r for r in rows if r["Account"] == email]
         out.append(verify_zip(case, path, subset, cancel))
     return out
 
@@ -212,17 +215,17 @@ def verify_zip(case: Case, zip_path: Path, rows: list[dict] | None = None, cance
     """Öffnet das ZIP neu und hasht jede .eml gegen die Case-Datei."""
     rows = rows if rows is not None else message_rows(case)
     cancel = cancel or CancelToken()
-    expected = {r["Datei"]: r["SHA256"] for r in rows}
+    expected = {r["File"]: r["SHA256"] for r in rows}
     problems: list[str] = []
     prog = Progress(phase="verify", mails_total=len(rows))
     with zipfile.ZipFile(zip_path) as zf:
         if zf.testzip() is not None:
-            problems.append("ZIP-Prüfsumme (CRC) fehlerhaft")
+            problems.append(code("crc_error"))
         names = {n for n in zf.namelist() if n.endswith(".eml")}
         for missing in sorted(set(expected) - names):
-            problems.append(f"fehlt im ZIP: {missing}")
+            problems.append(code("missing_in_zip", missing))
         for extra in sorted(names - set(expected)):
-            problems.append(f"unerwartet im ZIP: {extra}")
+            problems.append(code("unexpected_in_zip", extra))
         for name in sorted(names & set(expected)):
             cancel.raise_if_cancelled()
             h = MultiHasher()
@@ -230,11 +233,11 @@ def verify_zip(case: Case, zip_path: Path, rows: list[dict] | None = None, cance
                 while chunk := f.read(_CHUNK):
                     h.update(chunk)
             if h.hexdigests()["sha256"] != expected[name]:
-                problems.append(f"Hash abweichend: {name}")
+                problems.append(code("hash_mismatch", name))
             prog.mails_done += 1
             if progress:
                 progress(prog)
-    ok = not [p for p in problems if not p.startswith("nicht in der Case-Datei")]
+    ok = not [p for p in problems if not p.startswith("not_in_case")]
     case.log("INFO" if ok else "ERROR", "zip_verified", {"file": zip_path.name, "checked": len(names),
                                                           "problems": problems})
     return ZipResult(zip_path, {}, len(names), zip_path.stat().st_size, ok, problems)
@@ -321,7 +324,7 @@ def delete_work_dir(case: Case, zip_result: ZipResult | list[ZipResult]) -> dict
 
     zips = zip_result if isinstance(zip_result, list) else [zip_result]
     if not zips or not all(z.verified for z in zips):
-        raise RuntimeError("Arbeitsordner wird nur nach erfolgreicher ZIP-Verifikation gelöscht")
+        raise RuntimeError(_t("Arbeitsordner wird nur nach erfolgreicher ZIP-Verifikation gelöscht"))
     files = [p for p in case.work_dir.rglob("*") if p.is_file()] if case.work_dir.exists() else []
     info = {"files": len(files), "bytes": sum(p.stat().st_size for p in files),
             "zip": ", ".join(z.path.name for z in zips),
@@ -345,16 +348,16 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
 
     cfg = cfg or Config()
     if case.closed:
-        raise ValueError("Case ist bereits abgeschlossen")
+        raise ValueError(_t("Case ist bereits abgeschlossen"))
     if encrypt_password is not None:
         from fed.core.encrypt import check_password
 
         problem = check_password(encrypt_password)
         if problem:
-            raise ValueError(f"Passwort für die verschlüsselte Kopie ungeeignet: {problem}")
+            raise ValueError(_t("Passwort für die verschlüsselte Kopie ungeeignet: {problem}", problem=problem))
     running = case.conn.execute("SELECT COUNT(*) FROM attempt WHERE status = 'running'").fetchone()[0]
     if running:
-        raise ValueError("Es läuft noch ein Versuch")
+        raise ValueError(_t("Es läuft noch ein Versuch"))
     mode = zip_mode_for(case, cfg)
     case.log("INFO", "zip_mode_used", {"mode": mode})
     if mode == "je_konto":
@@ -367,7 +370,7 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         zips = [build_zip(case, cfg, cancel, progress)]
     bad = [z for z in zips if not z.verified]
     if bad:
-        raise RuntimeError("ZIP-Verifikation fehlgeschlagen: " + "; ".join(p for z in bad for p in z.problems))
+        raise RuntimeError(_t("ZIP-Verifikation fehlgeschlagen: {problems}", problems="; ".join(describe(p) for z in bad for p in z.problems)))
     timestamps = [add_timestamp(case, cfg, z, acc) for z, acc in zip(zips, ids, strict=True)]
     close_case(case)
     if delete_work is None:
@@ -399,7 +402,7 @@ def encrypted_copy(case: Case, zip_paths: list[Path], password: str, cfg: Config
     info = create_copy(target, files_for_copy(case.root, zip_paths), password)
     if not info["verified"]:
         case.log("ERROR", "encrypted_copy_failed", {k: v for k, v in info.items() if k != "files"})
-        raise RuntimeError("Prüfung der verschlüsselten Kopie fehlgeschlagen")
+        raise RuntimeError(_t("Prüfung der verschlüsselten Kopie fehlgeschlagen"))
     side = target.with_name(target.name + ".sha256")
     side.write_text(f"{info['sha256']}  {target.name}\n", encoding="utf-8")
     record_output(case, target, cfg)

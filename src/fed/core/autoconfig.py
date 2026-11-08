@@ -15,6 +15,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from enum import StrEnum
+from fed.core.msg import t
 
 
 class Provider(StrEnum):
@@ -30,7 +31,7 @@ class ImapSettings:
     security: str = "ssl"  # ssl | starttls
     username: str = ""
     provider: Provider = Provider.GENERIC
-    source: str = "manuell"
+    source: str = "manual"
 
 
 KNOWN_PROVIDERS = {
@@ -138,12 +139,12 @@ def discover(
                 s = None
             if s:
                 s.source = label
-                log.append(f"{step}. {label}: gefunden ({url})")
+                log.append(t("{step}. {label}: gefunden ({url})", step=step, label=label, url=url))
                 return s
-        log.append(f"{step}. {label}: nicht gefunden ({url})")
+        log.append(t("{step}. {label}: nicht gefunden ({url})", step=step, label=label, url=url))
         return None
 
-    s = (try_xml(1, "autoconfig-Subdomain", f"https://autoconfig.{domain}/mail/config-v1.1.xml?emailaddress={quote(email, safe='@')}")
+    s = (try_xml(1, "autoconfig subdomain", f"https://autoconfig.{domain}/mail/config-v1.1.xml?emailaddress={quote(email, safe='@')}")
          or try_xml(2, "well-known", f"https://{domain}/.well-known/autoconfig/mail/config-v1.1.xml")
          or try_xml(3, "Thunderbird-ISPDB", f"{ISPDB}{domain}"))
     if s:
@@ -158,19 +159,19 @@ def discover(
         if s:
             return s, log
     else:
-        log.append("4. MX: kein Eintrag")
+        log.append(t("4. MX: kein Eintrag"))
 
     srv = sorted(dns_lookup(f"_imaps._tcp.{domain}", "SRV"), key=lambda r: getattr(r, "priority", 0))
     if srv and str(srv[0].target).rstrip(".") not in ("", "."):
         host = str(srv[0].target).rstrip(".")
-        log.append(f"5. DNS-SRV: gefunden ({host}:{srv[0].port})")
+        log.append(t("5. DNS-SRV: gefunden ({host}:{port})", host=host, port=srv[0].port))
         return ImapSettings(host, int(srv[0].port), "ssl", email,
                             KNOWN_PROVIDERS.get(host.lower(), Provider.GENERIC), "DNS-SRV"), log
-    log.append("5. DNS-SRV _imaps._tcp: nicht gefunden")
+    log.append(t("5. DNS-SRV _imaps._tcp: nicht gefunden"))
 
     for host in (f"imap.{domain}", f"mail.{domain}"):
         if port_open(host, 993):
-            log.append(f"6. Raten: {host}:993 erreichbar")
-            return ImapSettings(host, 993, "ssl", email, Provider.GENERIC, "geraten"), log
-    log.append("6. Raten: imap./mail. nicht erreichbar")
+            log.append(t("6. Raten: {host}:993 erreichbar", host=host))
+            return ImapSettings(host, 993, "ssl", email, Provider.GENERIC, "guessed"), log
+    log.append(t("6. Raten: imap./mail. nicht erreichbar"))
     return None, log

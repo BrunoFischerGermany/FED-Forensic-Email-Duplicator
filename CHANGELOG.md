@@ -126,6 +126,15 @@
   Datenträger-Abbildern und Skripten; keine Vorschau für ausführbare Inhalte, Rückfrage vor dem
   Speichern auffälliger Anlagen; jede Vorschau wird mit Hash und Befunden protokolliert
   (`attachment_previewed`)
+- Vollständig zweisprachig: Meldungen des Programmkerns (Fehler, Autoerkennung, Anmelde-Hinweise,
+  Zeitstempel, DKIM-Begründungen, Empfänger-Hinweise, OAuth-Browserseite) und die Kommandozeile
+  über `core_<sprache>.json` (`fed --lang en`, `FED_LANG`); Zonenname im Englischen `CET` statt
+  `MEZ`; neuer Test durchläuft die ganze Oberfläche auf Englisch und prüft auf deutschen Text
+- Case-Datei und Log speichern sprachneutrale Codes statt deutscher Texte (DKIM-Begründung,
+  Empfänger-Hinweis, Herkunft der Servereinstellungen, ZIP-Prüfung, Wachhalten); Bericht und
+  Oberfläche übersetzen sie, Werte älterer Case-Dateien werden weiter erkannt
+- **`log.csv` mit festen englischen Spaltennamen** (`Account`, `Folder`, `Received_UTC`, `Subject`,
+  `File` …), unabhängig von der Sprache – wie die Namen im Case-Ordner
 - Historie „Dateien nachhashen“ prüft alle ZIPs des Case (auch je Konto), nicht nur das letzte
 
 ## 0.4-beta

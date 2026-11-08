@@ -34,6 +34,7 @@ from fed.core.config import Config
 from fed.core.hashing import hash_bytes, hash_file
 from fed.core.imap_reader import FolderInfo, ImapError, ReadOnlyImap
 from fed.core.naming import eml_filename, folder_to_zip_path, sanitize_component
+from fed.core.msg import t as _t
 
 MAX_RECONNECTS = 3
 NETWORK_ERRORS = (OSError, socket.timeout, ssl.SSLError, IMAP4.abort)
@@ -57,7 +58,7 @@ class AccountSpec:
     security: str = "ssl"
     username: str = ""
     auth_method: str = "password"
-    autoconfig_source: str = "manuell"
+    autoconfig_source: str = "manual"
     date_from: datetime | None = None
     date_to: datetime | None = None  # einschließlich
     notes: str = ""  # Notiz des Examiners zum Konto
@@ -109,7 +110,7 @@ def register_account(case: Case, spec: AccountSpec, imap: ReadOnlyImap) -> int:
 def set_account_notes(case: Case, account_id: int, notes: str) -> bool:
     """Notiz eines Kontos ändern (alter und neuer Text werden protokolliert). True, wenn geändert."""
     if case.closed:
-        raise RuntimeError("Case ist abgeschlossen")
+        raise RuntimeError(_t("Case ist abgeschlossen"))
     new = notes.strip() or None
     row = case.conn.execute("SELECT notes, email FROM account WHERE id = ?", (account_id,)).fetchone()
     if row is None or row[0] == new:
@@ -151,7 +152,7 @@ def scan(case: Case, account_id: int, imap: ReadOnlyImap, cancel: CancelToken | 
         if names:
             set_selection(case, account_id, set(names))
             case.log("INFO", "gmail_selection", {"account_id": account_id, "selected": names,
-                                                 "reason": "Gmail: Labels statt Ordner-Kopien"})
+                                                 "reason": "gmail_all_mail"})
     return rows
 
 
@@ -234,11 +235,11 @@ def run_attempt(
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
     if case.closed:
-        raise ValueError("Case ist abgeschlossen – keine weiteren Versuche möglich")
+        raise ValueError(_t("Case ist abgeschlossen – keine weiteren Versuche möglich"))
     conn = case.conn
     acc = conn.execute("SELECT email, date_from, date_to, filters FROM account WHERE id = ?", (account_id,)).fetchone()
     if not acc:
-        raise ValueError(f"Konto {account_id} unbekannt")
+        raise ValueError(_t("Konto {id} unbekannt", id=account_id))
     email, date_from, date_to, filters_json = acc
     content_filter = json.loads(filters_json) if filters_json else None
     account_dir = case.work_dir / sanitize_component(email)
@@ -246,7 +247,7 @@ def run_attempt(
     prev_nr = conn.execute("SELECT COALESCE(MAX(nr), 0) FROM attempt WHERE account_id = ?", (account_id,)).fetchone()[0]
     nr = prev_nr + 1
     if mode is Mode.RESTART and not reason.strip():
-        raise ValueError("Für einen Neubeginn ist ein Grund Pflicht")
+        raise ValueError(_t("Für einen Neubeginn ist ein Grund Pflicht"))
     with conn:
         attempt_id = conn.execute(
             "INSERT INTO attempt (account_id, nr, mode, reason, started_utc, status, phase) VALUES (?,?,?,?,?,?,?)",
@@ -284,7 +285,7 @@ def run_attempt(
                 has_saved = conn.execute("SELECT 1 FROM message WHERE folder_id = ? AND status = 'valid' LIMIT 1",
                                          (row["id"],)).fetchone()
                 if has_saved:
-                    raise ResumeNotPossible(f"UIDVALIDITY von {f.name} hat sich geändert – nur Neubeginn möglich")
+                    raise ResumeNotPossible(_t("UIDVALIDITY von {folder} hat sich geändert – nur Neubeginn möglich", folder=f.name))
             with conn:
                 conn.execute("UPDATE folder SET status_before = COALESCE(status_before, ?), uidvalidity = ? WHERE id = ?",
                              (json.dumps(st), st.get("UIDVALIDITY"), row["id"]))

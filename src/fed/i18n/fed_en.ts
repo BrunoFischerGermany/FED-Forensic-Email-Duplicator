@@ -1574,6 +1574,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>✗ SHA-256 differs from the case file – file modified!</translation>
     </message>
     <message>
+        <source>Quelle: {0}</source>
+        <translation>Source: {0}</translation>
+    </message>
+    <message>
         <source>Nur lesend – die Datei wird nicht verändert. Ansehen und Speichern werden protokolliert.</source>
         <translation>Read-only – the file is not modified. Viewing and saving are logged.</translation>
     </message>

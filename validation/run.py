@@ -455,8 +455,9 @@ def v09_zip_tamper(ctx: Ctx) -> CheckResult:
                 data, done = data.replace(b"Subject:", b"Subjekt:"), True
             dst.writestr(info, data)
     v = verify_zip(ctx.case, bad)
-    r.details += v.problems or [_d("keine Abweichung gefunden", "no difference found")]
-    if v.verified or not any("Hash abweichend" in p for p in v.problems):
+    r.details += [_d(_describe(p, "de"), _describe(p, "en")) for p in v.problems] or [
+        _d("keine Abweichung gefunden", "no difference found")]
+    if v.verified or not any(p.startswith("hash_mismatch") for p in v.problems):
         r.status = FAIL
     return r
 
@@ -580,6 +581,17 @@ def v13_umlauts(ctx: Ctx) -> CheckResult:
     return r
 
 
+def _describe(value: str, lang: str) -> str:
+    from fed.core import msg
+
+    with msg.language(lang):
+        return msg.describe(value)
+
+
+def _desc(row, lang: str) -> str:
+    return _describe(row[2], lang) if row else ""
+
+
 def v14_dkim(ctx: Ctx) -> CheckResult:
     r = CheckResult("V14", PASS)
     rows = ctx.case.conn.execute("SELECT subject, dkim_result, dkim_detail, auth_results FROM message "
@@ -593,8 +605,8 @@ def v14_dkim(ctx: Ctx) -> CheckResult:
         hashlib.sha256(key[0][1].encode()).hexdigest() == key[0][2]
     ar_ok = bool(ok and ok[3] and json.loads(ok[3]).get("dmarc") == "pass")
     r.details += [_d(f"Ergebnisse: {dict(res)}", f"results: {dict(res)}"),
-                  _d(f"gültig signiert: {ok[1] if ok else '–'}; verändert: {bad[1] if bad else '–'} ({bad[2] if bad else ''})",
-                     f"validly signed: {ok[1] if ok else '–'}; modified: {bad[1] if bad else '–'} ({bad[2] if bad else ''})"),
+                  _d(f"gültig signiert: {ok[1] if ok else '–'}; verändert: {bad[1] if bad else '–'} ({_desc(bad, 'de')})",
+                     f"validly signed: {ok[1] if ok else '–'}; modified: {bad[1] if bad else '–'} ({_desc(bad, 'en')})"),
                   _d(f"Schlüssel aufbewahrt: {_yn(key_ok, 'de')} ({key[0][0] if key else '–'})",
                      f"key preserved: {_yn(key_ok, 'en')} ({key[0][0] if key else '–'})"),
                   _d(f"Authentication-Results ausgewertet: {_yn(ar_ok, 'de')}",

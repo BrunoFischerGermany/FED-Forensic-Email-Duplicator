@@ -68,7 +68,7 @@ def test_full_acquisition(tmp_path, connect, imap_server, test_mails, cfg):
         assert int(os.stat(p).st_mtime) == int(exp[sha].received.timestamp())  # Zeitstempel = Eingangszeit
         assert p.name.startswith(exp[sha].received.strftime("%Y%m%dT%H%M%SZ_UID"))
     notes = {r[4] for r in rows}
-    assert {"nur BCC", "undisclosed-recipients"} <= notes
+    assert {"bcc_only", "undisclosed-recipients"} <= notes
     assert max(r[5] for r in rows) == 1 and max(r[6] for r in rows) == 1
     assert (case.work_dir / "test@example.de" / "Entwürfe").is_dir()
 
@@ -248,11 +248,11 @@ def test_dkim_checked_and_keys_stored(tmp_path, connect, imap_server, test_mails
     run_attempt(case, acc, connect, cfg=cfg)
     res = dict(case.conn.execute("SELECT dkim_result, COUNT(*) FROM message GROUP BY dkim_result").fetchall())
     assert res == {"pass": 1, "fail": 1, "none": len(test_mails) - 2}
-    rows = {r["Betreff"]: r for r in message_rows(case)}
+    rows = {r["Subject"]: r for r in message_rows(case)}
     ok, bad = rows["Signierte Mitteilung"], rows["Nachtraeglich veraendert"]
-    assert (ok["DKIM"], ok["DKIM_Domain"], ok["Anbieter_SPF"], ok["Anbieter_DMARC"]) == ("pass", "dkim.example", "pass",
+    assert (ok["DKIM"], ok["DKIM_Domain"], ok["Provider_SPF"], ok["Provider_DMARC"]) == ("pass", "dkim.example", "pass",
                                                                                      "pass")
-    assert bad["DKIM"] == "fail" and "Body-Hash" in bad["DKIM_Detail"]
+    assert bad["DKIM"] == "fail" and bad["DKIM_Detail"] == "body_hash_mismatch"
     keys = case.conn.execute("SELECT name, status, sha256 FROM dns_record").fetchall()
     assert keys == [("fed2026._domainkey.dkim.example", "ok", keys[0][2])] and len(keys[0][2]) == 64
     assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'auth_check_done'").fetchone()[0] == 1

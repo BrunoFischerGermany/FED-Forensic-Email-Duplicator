@@ -12,6 +12,7 @@ import base64
 import re
 import unicodedata
 from datetime import UTC, datetime
+from fed.core.msg import t
 
 # In Windows ungültige Zeichen und Steuerzeichen
 _INVALID = re.compile(r'[<>:"|?*\\\x00-\x1f]')
@@ -43,7 +44,7 @@ def idna_host(host: str) -> str:
     except ImportError:
         return host.encode("idna").decode("ascii").lower()
     except idna.IDNAError as e:
-        raise ValueError(f"Ungültiger Domainname: {host} ({e})") from e
+        raise ValueError(t("Ungültiger Domainname: {host} ({error})", host=host, error=e)) from e
 
 
 def email_domain(address: str) -> str:

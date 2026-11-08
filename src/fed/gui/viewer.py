@@ -17,6 +17,7 @@ from fed.core.report import _fmt_bytes
 from fed.core.viewer import (MailView, auth_summary, check_attachment, export_attachment, inline_resource,
                              open_message)
 from fed.gui.widgets import ElidedLabel, KeyValues, restyle
+from fed.core.msg import describe
 
 IMAGE_FORMATS = {"png", "jpeg", "gif", "bmp", "tiff", "webp", "ico"}
 PREVIEW_LIMIT = 50 * 1024 * 1024  # größere Anlagen nur Prüfung + Hex
@@ -178,7 +179,7 @@ class MailViewer(QDialog):
         src = self.tr("Arbeitsordner") if v.source == "work" else v.source
         integrity.setText((self.tr("✓ SHA-256 stimmt mit der Case-Datei überein") if v.sha256_ok
                            else self.tr("✗ SHA-256 weicht von der Case-Datei ab – Datei verändert!"))
-                          + f" · {self.tr('Quelle')}: {src} · {v.db['zip_path']}")
+                          + " · " + self.tr("Quelle: {0}").format(src) + f" · {v.db['zip_path']}")
         restyle(integrity, "Ok" if v.sha256_ok else "Error")
         note = QLabel(self.tr("Nur lesend – die Datei wird nicht verändert. Ansehen und Speichern werden protokolliert."))
         note.setObjectName("Hint")
@@ -485,7 +486,7 @@ class MailViewer(QDialog):
         if s["domain"]:
             kv.set(self.tr("Signiert von"), f"{s['domain']} (Selector {s['selector']})")
         if s["detail"]:
-            kv.set(self.tr("Begründung"), s["detail"])
+            kv.set(self.tr("Begründung"), describe(s["detail"]))
         p = s["provider"]
         if p:
             kv.set(self.tr("Prüfung durch den Anbieter"), p.get("authserv", "–"))

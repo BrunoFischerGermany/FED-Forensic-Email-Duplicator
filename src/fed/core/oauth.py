@@ -30,6 +30,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from fed.core.cancel import Cancelled, CancelToken
+from fed.core.msg import current_language, t
 
 
 class OAuthError(RuntimeError):
@@ -143,7 +144,7 @@ def _post(url: str, data: dict, proxy: str = "", timeout: float = 30) -> dict:
 
 def _token_from_response(resp: dict, provider: OAuthProvider, old_refresh: str | None = None) -> Token:
     if "access_token" not in resp:
-        raise OAuthError(f"{provider.name}: {resp.get('error', 'Fehler')} – {resp.get('error_description', '')}".strip())
+        raise OAuthError(f"{provider.name}: {resp.get('error', 'error')} – {resp.get('error_description', '')}".strip())
     return Token(
         access_token=resp["access_token"],
         expires_at=time.time() + int(resp.get("expires_in", 3600)),
@@ -161,7 +162,7 @@ def _free_port(host: str) -> int:
 
 
 # ---------------------------------------------------------------- Loopback-Ablauf
-_PAGE = """<!doctype html><html lang="de"><meta charset="utf-8"><title>FED</title>
+_PAGE = """<!doctype html><html lang="{lang}"><meta charset="utf-8"><title>FED</title>
 <body style="font-family:system-ui;margin:4em;color:#16181D"><h1>{title}</h1><p>{text}</p></body></html>"""
 
 
@@ -177,7 +178,7 @@ def authorize(
 ) -> Token:
     """Interaktive Anmeldung im System-Browser; liefert ein Token."""
     if not client_id:
-        raise OAuthError(f"Keine Client-ID für {provider.name} in der config.toml – siehe docs/oauth-einrichtung.md")
+        raise OAuthError(t("Keine Client-ID für {provider} in der config.toml – siehe docs/oauth-einrichtung.md", provider=provider.name))
     cancel = cancel or CancelToken()
     verifier, challenge = pkce_pair()
     state = secrets.token_urlsafe(24)
@@ -194,15 +195,16 @@ def authorize(
                 self.end_headers()
                 return
             if q.get("state") != state:
-                result["error"] = "state stimmt nicht überein (möglicher Angriff) – Anmeldung verworfen"
+                result["error"] = t("state stimmt nicht überein (möglicher Angriff) – Anmeldung verworfen")
             elif "error" in q:
                 result["error"] = f"{q['error']}: {q.get('error_description', '')}"
             else:
                 result["code"] = q.get("code")
             ok = "code" in result
             body = _PAGE.format(
-                title="Anmeldung abgeschlossen" if ok else "Anmeldung fehlgeschlagen",
-                text="Sie können dieses Fenster schließen und zu FED zurückkehren." if ok else result.get("error", ""),
+                lang=current_language(),
+                title=t("Anmeldung abgeschlossen") if ok else t("Anmeldung fehlgeschlagen"),
+                text=t("Sie können dieses Fenster schließen und zu FED zurückkehren.") if ok else result.get("error", ""),
             ).encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -236,7 +238,7 @@ def authorize(
             if cancel.is_cancelled:
                 raise Cancelled()
             if time.monotonic() > deadline:
-                raise OAuthError("Zeitüberschreitung bei der Anmeldung im Browser")
+                raise OAuthError(t("Zeitüberschreitung bei der Anmeldung im Browser"))
             server.handle_request()
     finally:
         server.server_close()
@@ -251,7 +253,7 @@ def authorize(
 
 def refresh(provider: OAuthProvider, token: Token, client_id: str, client_secret: str = "", proxy: str = "") -> Token:
     if not token.refresh_token:
-        raise OAuthError("Kein Refresh-Token – erneute Anmeldung nötig")
+        raise OAuthError(t("Kein Refresh-Token – erneute Anmeldung nötig"))
     data = {"grant_type": "refresh_token", "refresh_token": token.refresh_token, "client_id": client_id}
     if client_secret:
         data["client_secret"] = client_secret
@@ -273,12 +275,12 @@ class DeviceCode:
 
 def device_code_start(provider: OAuthProvider, client_id: str, proxy: str = "") -> DeviceCode:
     if not provider.device_url:
-        raise OAuthError(f"{provider.name} unterstützt hier keinen Gerätecode")
+        raise OAuthError(t("{provider} unterstützt hier keinen Gerätecode", provider=provider.name))
     if not client_id:
-        raise OAuthError(f"Keine Client-ID für {provider.name} in der config.toml")
+        raise OAuthError(t("Keine Client-ID für {provider} in der config.toml – siehe docs/oauth-einrichtung.md", provider=provider.name))
     r = _post(provider.device_url, {"client_id": client_id, "scope": " ".join(provider.scopes)}, proxy)
     if "device_code" not in r:
-        raise OAuthError(f"Gerätecode: {r.get('error', 'Fehler')} – {r.get('error_description', '')}")
+        raise OAuthError(t("Gerätecode: {error}", error=f"{r.get('error', 'error')} – {r.get('error_description', '')}"))
     return DeviceCode(r["user_code"], r.get("verification_uri") or r.get("verification_url", ""),
                       r.get("message", ""), r["device_code"], int(r.get("interval", 5)),
                       time.time() + int(r.get("expires_in", 900)))
@@ -302,8 +304,8 @@ def device_code_poll(provider: OAuthProvider, dc: DeviceCode, client_id: str,
             interval += 5
             sleep(interval)
         else:
-            raise OAuthError(f"Gerätecode: {err} – {r.get('error_description', '')}")
-    raise OAuthError("Gerätecode abgelaufen")
+            raise OAuthError(t("Gerätecode: {error}", error=f"{err} – {r.get('error_description', '')}"))
+    raise OAuthError(t("Gerätecode abgelaufen"))
 
 
 def provider_for(name: str, tenant: str = "organizations") -> OAuthProvider:

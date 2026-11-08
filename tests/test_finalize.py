@@ -37,7 +37,7 @@ def test_finish_creates_verified_zip_and_reports(acquired, test_mails):
             tag, size, flags, mtime = struct.unpack("<HHBl", info.extra[:9])
             assert (tag, size, flags) == (0x5455, 5, 1) and datetime.fromtimestamp(mtime, UTC) == exp
         csv_text = zf.read("log.csv").decode("utf-8-sig")
-    assert "nur BCC" in csv_text and "Rechnung.pdf" in csv_text and csv_text.count("\n") == len(test_mails) + 1
+    assert "bcc_only" in csv_text and "Rechnung.pdf" in csv_text and csv_text.count("\n") == len(test_mails) + 1
 
     assert case.closed
     txt = res.report_txt.read_text(encoding="utf-8")
@@ -63,7 +63,7 @@ def test_verify_detects_tampering(acquired, tmp_path):
                 data, done = data.replace(b"Subject:", b"Subjekt:"), True
             dst.writestr(info, data)
     v = verify_zip(case, bad)
-    assert not v.verified and any("Hash abweichend" in p for p in v.problems)
+    assert not v.verified and any(p.startswith("hash_mismatch: ") for p in v.problems)
 
 
 def test_logo_validation(tmp_path):

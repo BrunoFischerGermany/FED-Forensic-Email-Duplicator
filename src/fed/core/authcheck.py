@@ -27,6 +27,7 @@ from email.parser import BytesHeaderParser
 from email.policy import compat32
 
 from fed.core.case import utc_now
+from fed.core.msg import code
 
 # Für Tests/Validierung: feste DNS-Antworten statt echter Abfragen ({"sel._domainkey.domain": "v=DKIM1; …"})
 DNS_OVERRIDE: dict[str, str] | None = None
@@ -142,7 +143,7 @@ def check(raw: bytes, dns: DnsCache) -> AuthResult:
         try:
             ok = d.verify(idx=idx, dnsfunc=dns.dnsfunc)
         except DnsUnavailable as e:
-            outcomes.append(("temperror", tags, f"DNS: {e}"))
+            outcomes.append(("temperror", tags, code("dns_unreachable", str(e))))
             continue
         except (dkim.KeyFormatError, dkim.ParameterError, dkim.MessageFormatError) as e:
             outcomes.append(("permerror", tags, str(e)))
@@ -150,7 +151,7 @@ def check(raw: bytes, dns: DnsCache) -> AuthResult:
         except dkim.ValidationError as e:
             text = str(e)
             if "body hash mismatch" in text:
-                text = "Text verändert (Body-Hash stimmt nicht)"
+                text = code("body_hash_mismatch")
             outcomes.append(("permerror" if "public key" in text.lower() else "fail", tags, text))
             continue
         except Exception as e:  # dkimpy wirft je nach Fehler unterschiedliche Typen
@@ -162,11 +163,11 @@ def check(raw: bytes, dns: DnsCache) -> AuthResult:
         # dkimpy meldet manche Fälle nur mit False – anhand der DNS-Antwort unterscheiden
         rec = dns.records.get(f"{tags.get('s', '')}._domainkey.{tags.get('d', '')}".lower())
         if rec is not None and rec.status == "error":
-            outcomes.append(("temperror", tags, f"DNS nicht erreichbar: {rec.error}"))
+            outcomes.append(("temperror", tags, code("dns_unreachable", rec.error)))
         elif rec is not None and rec.record is None:
-            outcomes.append(("permerror", tags, f"Schlüssel nicht im DNS ({rec.name})"))
+            outcomes.append(("permerror", tags, code("key_not_in_dns", rec.name)))
         else:
-            outcomes.append(("fail", tags, "Signatur ungültig (Inhalt oder signierte Kopfzeilen verändert)"))
+            outcomes.append(("fail", tags, code("signature_invalid")))
     for rank in ("pass", "fail", "permerror", "temperror"):
         hit = next((o for o in outcomes if o[0] == rank), None)
         if hit:

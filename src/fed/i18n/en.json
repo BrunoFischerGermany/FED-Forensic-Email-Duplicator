@@ -501,5 +501,6 @@
   "PDF lässt sich nicht darstellen (beschädigt, verschlüsselt oder leer).": "PDF cannot be displayed (damaged, encrypted or empty).",
   "… (gekürzt)": "… (truncated)",
   "Keine Vorschau für {0}. Siehe „Prüfung“ und „Hex“.": "No preview for {0}. See “Check” and “Hex”.",
-  "Diese Anlage ist auffällig:\n\n{0}\n\nTrotzdem speichern? Die Datei nicht auf diesem Rechner öffnen.": "This attachment is suspicious:\n\n{0}\n\nSave anyway? Do not open the file on this computer."
+  "Diese Anlage ist auffällig:\n\n{0}\n\nTrotzdem speichern? Die Datei nicht auf diesem Rechner öffnen.": "This attachment is suspicious:\n\n{0}\n\nSave anyway? Do not open the file on this computer.",
+  "Quelle: {0}": "Source: {0}"
 }

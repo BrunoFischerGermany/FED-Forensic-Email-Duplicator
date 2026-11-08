@@ -74,7 +74,9 @@ def _recipient(to, cc, bcc, note, delivered) -> str:
         return QCoreApplication.translate("HistoryTab", "nur BCC: {0} Empfänger").format(len(bcc))
     if dl:
         return QCoreApplication.translate("HistoryTab", "kein To/CC · Delivered-To: {0}").format(dl[0])
-    return note or QCoreApplication.translate("HistoryTab", "kein Empfänger")
+    from fed.core.msg import describe
+
+    return describe(note) or QCoreApplication.translate("HistoryTab", "kein Empfänger")
 
 
 class Table(QWidget):

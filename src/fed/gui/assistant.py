@@ -26,6 +26,7 @@ from fed.core.naming import next_evidence, normalize_email
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
 from fed.gui.widgets import Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, restyle, run_async, vbox
+from fed.core.msg import describe
 
 
 UROLE = Qt.ItemDataRole.UserRole
@@ -39,7 +40,7 @@ def stay_awake(st, what: str) -> None:
     method = keepawake.shared().acquire()
     if st.case:
         st.case.log("INFO" if method else "WARNING", "keep_awake_on",
-                    {"for": what, "method": method or "nicht verfügbar"})
+                    {"for": what, "method": method or "unavailable"})
 
 
 def allow_sleep(st) -> None:
@@ -482,7 +483,7 @@ class AccountPage(QWidget):
                 if s.username and s.username != email:
                     self.user.setText(s.username)
                 step = next((ln.split(".")[0] for ln in log if "gefunden (" in ln or "erreichbar" in ln), "?")
-                self.discover_info.setText(self.tr("Einstellungen gefunden – Quelle: ") + f"{s.source} "
+                self.discover_info.setText(self.tr("Einstellungen gefunden – Quelle: ") + f"{describe(s.source)} "
                                            + self.tr("(Versuch {0} von 6)").format(step))
                 restyle(self.discover_info, "Ok")
                 if s.provider is autoconfig.Provider.GOOGLE:
@@ -626,7 +627,7 @@ class AccountPage(QWidget):
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
             {"password": "password", "google_app": "app_password_google", "google": "oauth_google",
              "microsoft": "oauth_microsoft"}[self.method.value()],
-            self.found.source if self.found else "manuell", notes=self.acc_notes.toPlainText())
+            self.found.source if self.found else "manual", notes=self.acc_notes.toPlainText())
         if self.st.account_id is not None:
             acq.set_account_notes(case, self.st.account_id, self.acc_notes.toPlainText())
         self.next.emit()
@@ -970,7 +971,7 @@ class AcquirePage(QWidget):
         def work(cancel, report):
             return acq.run_attempt(st.case, st.account_id, st.connect, mode, cancel, report, reason, delete_old, st.cfg)
 
-        stay_awake(st, "sicherung")
+        stay_awake(st, "acquisition")
         self.worker = run_async(work, self._done, self._failed, self._progress, parent=self)
 
     def _progress(self, p) -> None:
@@ -1170,7 +1171,7 @@ class FinishPage(QWidget):
         def progress(p):
             self.check_kv.set(self.tr("Fortschritt"), f"{p.phase}: {p.mails_done} / {p.mails_total}")
 
-        stay_awake(st, "abschluss")
+        stay_awake(st, "finish")
         run_async(work, self._done, self._failed, progress, parent=self)
 
     def _done(self, res) -> None:
@@ -1190,7 +1191,7 @@ class FinishPage(QWidget):
         for z in res.zips:
             k.set(self.tr("ZIP gepackt"), f"{z.path.name} · {_fmt_bytes(z.size)}", "ok")
             k.set(self.tr("ZIP verifiziert"), self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
-                  if z.verified else "; ".join(z.problems), "ok" if z.verified else "error")
+                  if z.verified else "; ".join(describe(p) for p in z.problems), "ok" if z.verified else "error")
         deleted = not self.st.case.work_dir.exists()
         k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
               else self.tr("behalten"), "ok" if deleted else None)
@@ -1211,7 +1212,7 @@ class FinishPage(QWidget):
         self._password = None
         for z in res.zips:
             for p in z.problems:
-                k.set(self.tr("Hinweis"), p, "warn")
+                k.set(self.tr("Hinweis"), describe(p), "warn")
         h = self.hash_kv
         h.clear()
         for z in res.zips:

@@ -24,6 +24,7 @@ from pathlib import Path
 
 from fed import __version__
 from fed.core.naming import sanitize_component
+from fed.core.msg import t
 
 SCHEMA_VERSION = "1"
 _LOG_LOCK = threading.Lock()
@@ -68,9 +69,9 @@ class Case:
     @classmethod
     def create(cls, base_dir: Path, info: CaseInfo, tool_sha256: str | None = None) -> Case:
         if not info.case_number.strip():
-            raise ValueError("Casenumber fehlt")
+            raise ValueError(t("Casenumber fehlt"))
         if not info.examiner.strip():
-            raise ValueError("Examiner fehlt")
+            raise ValueError(t("Examiner fehlt"))
         root = base_dir / sanitize_component(info.case_number.strip())
         if (root / CASE_DB).exists():
             raise FileExistsError(f"Case existiert bereits: {root}")
@@ -133,9 +134,9 @@ class Case:
     def set_zip_mode(self, mode: str, source: str = "examiner") -> None:
         """ZIP-Aufteilung festlegen (protokolliert); nach Abschluss nicht mehr änderbar."""
         if mode not in self.ZIP_MODES:
-            raise ValueError(f"ZIP-Aufteilung unbekannt: {mode}")
+            raise ValueError(t("ZIP-Aufteilung unbekannt: {mode}", mode=mode))
         if self.closed:
-            raise RuntimeError("Case ist abgeschlossen")
+            raise RuntimeError(t("Case ist abgeschlossen"))
         old = self.zip_mode()
         if old == mode:
             return
@@ -181,13 +182,13 @@ class Case:
         if logo_path and logo_path.exists():
             blob = logo_path.read_bytes()
             if len(blob) > self.MAX_LOGO_BYTES:
-                raise ValueError("Logo größer als 2 MB")
+                raise ValueError(t("Logo größer als 2 MB"))
             if blob[:8] == b"\x89PNG\r\n\x1a\n":
                 mime = "image/png"
             elif blob[:3] == b"\xff\xd8\xff":
                 mime = "image/jpeg"
             else:
-                raise ValueError("Logo muss PNG oder JPG sein")
+                raise ValueError(t("Logo muss PNG oder JPG sein"))
             sha = hashlib.sha256(blob).hexdigest()
             name = logo_path.name
         with self.conn:
