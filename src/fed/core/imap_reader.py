@@ -100,6 +100,7 @@ class FetchedMessage:
     size_server: int
     gm_msgid: str | None = None
     gm_labels: tuple[str, ...] = field(default_factory=tuple)
+    gm_thrid: str | None = None
 
 
 def quote(raw_name: str) -> str:
@@ -318,7 +319,7 @@ class ReadOnlyImap:
     def fetch(self, uid: int, chunk_bytes: int | None = None) -> FetchedMessage:
         """Lädt eine Mail unverändert. Ab ``chunk_bytes`` stückweise per ``BODY.PEEK[]<o.l>``."""
         gm = "X-GM-EXT-1" in self.capabilities()
-        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-LABELS" if gm else "") + ")"
+        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-THRID X-GM-LABELS" if gm else "") + ")"
         typ, data = self.imap.uid("FETCH", str(uid), items)
         if typ != "OK" or not data or data[0] is None:
             raise ImapError(f"Mail UID {uid} nicht gefunden")
@@ -327,13 +328,7 @@ class ReadOnlyImap:
         idate = parse_internaldate(re.search(rb'INTERNALDATE "([^"]+)"', meta).group(1).decode())
         fm = re.search(rb"FLAGS \(([^)]*)\)", meta)
         flags = tuple(fm.group(1).decode().split()) if fm else ()
-        gm_msgid = None
-        gm_labels: tuple[str, ...] = ()
-        if gm:
-            mm = re.search(rb"X-GM-MSGID (\d+)", meta)
-            gm_msgid = mm.group(1).decode() if mm else None
-            lm = re.search(rb"X-GM-LABELS \(([^)]*)\)", meta)
-            gm_labels = tuple(lm.group(1).decode("utf-8", "replace").split()) if lm else ()
+        gm_msgid, gm_thrid, gm_labels = parse_gmail(meta) if gm else (None, None, ())
 
         if chunk_bytes and size > chunk_bytes:
             parts = []
@@ -348,7 +343,7 @@ class ReadOnlyImap:
             raw = self._body(uid, "BODY.PEEK[]")
         if len(raw) != size:
             raise ImapError(f"UID {uid}: {len(raw)} Bytes geladen, Server meldet {size}")
-        return FetchedMessage(uid, raw, flags, idate, size, gm_msgid, gm_labels)
+        return FetchedMessage(uid, raw, flags, idate, size, gm_msgid, gm_labels, gm_thrid)
 
     def fetch_many(self, uids: list[int]) -> dict[int, FetchedMessage]:
         """Lädt mehrere Mails mit einem einzigen ``UID FETCH`` (spart je Mail einen Server-Umlauf).
@@ -359,7 +354,7 @@ class ReadOnlyImap:
         if not uids:
             return {}
         gm = "X-GM-EXT-1" in self.capabilities()
-        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-LABELS" if gm else "") + " BODY.PEEK[])"
+        items = "(UID FLAGS INTERNALDATE RFC822.SIZE" + (" X-GM-MSGID X-GM-THRID X-GM-LABELS" if gm else "") + " BODY.PEEK[])"
         typ, data = self.imap.uid("FETCH", ",".join(str(u) for u in uids), items)
         if typ != "OK":
             raise ImapError(f"FETCH {len(uids)} Mails fehlgeschlagen: {data}")
@@ -385,13 +380,10 @@ class ReadOnlyImap:
             if len(raw) != size:
                 raise ImapError(f"UID {uid}: {len(raw)} Bytes geladen, Server meldet {size}")
             fm = re.search(rb"FLAGS \(([^)]*)\)", meta)
-            gm_id = re.search(rb"X-GM-MSGID (\d+)", meta) if gm else None
-            gl = re.search(rb"X-GM-LABELS \(([^)]*)\)", meta) if gm else None
+            gm_id, gm_thr, gm_lab = parse_gmail(meta) if gm else (None, None, ())
             result[uid] = FetchedMessage(
                 uid, raw, tuple(fm.group(1).decode().split()) if fm else (),
-                parse_internaldate(im.group(1).decode()), size,
-                gm_id.group(1).decode() if gm_id else None,
-                tuple(gl.group(1).decode("utf-8", "replace").split()) if gl else ())
+                parse_internaldate(im.group(1).decode()), size, gm_id, gm_lab, gm_thr)
         return result
 
     def _body(self, uid: int, item: str) -> bytes:
@@ -402,6 +394,40 @@ class ReadOnlyImap:
             if isinstance(d, tuple) and b"BODY[" in d[0]:
                 return d[1]
         return b""
+
+
+def parse_gmail(meta: bytes) -> tuple[str | None, str | None, tuple[str, ...]]:
+    """``X-GM-MSGID``, ``X-GM-THRID`` und ``X-GM-LABELS`` aus einer FETCH-Antwort.
+
+    Labels sind Atome oder Strings in Anführungszeichen (mit Leerzeichen, ``\\"``-Escapes) und
+    in Modified UTF-7 kodiert, z. B. ``("\\Important" "Projekt Ost" Entw&APw-rfe)``.
+    """
+    mm = re.search(rb"X-GM-MSGID (\d+)", meta)
+    tm = re.search(rb"X-GM-THRID (\d+)", meta)
+    labels: list[str] = []
+    lm = re.search(rb"X-GM-LABELS \(", meta)
+    if lm:
+        i, s = lm.end(), meta
+        while i < len(s) and s[i:i + 1] != b")":
+            c = s[i:i + 1]
+            if c == b" ":
+                i += 1
+            elif c == b'"':
+                j, buf = i + 1, bytearray()
+                while j < len(s) and s[j:j + 1] != b'"':
+                    if s[j:j + 1] == b"\\" and j + 1 < len(s):
+                        j += 1
+                    buf += s[j:j + 1]
+                    j += 1
+                labels.append(decode_imap_utf7(bytes(buf)))
+                i = j + 1
+            else:
+                j = i
+                while j < len(s) and s[j:j + 1] not in (b" ", b")"):
+                    j += 1
+                labels.append(decode_imap_utf7(s[i:j]))
+                i = j
+    return (mm.group(1).decode() if mm else None, tm.group(1).decode() if tm else None, tuple(labels))
 
 
 def to_utc(dt: datetime) -> datetime:

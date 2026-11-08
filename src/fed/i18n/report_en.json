@@ -121,5 +121,8 @@
   "fetched": "fetched",
   "mail": "Message",
   "result": "Result",
-  "detail": "Domain / reason"
+  "detail": "Domain / reason",
+  "gmail": "Gmail",
+  "gmail_text": "{n} messages documented with Gmail ID (X-GM-MSGID), conversation (X-GM-THRID) and labels (X-GM-LABELS)",
+  "gmail_dups": "{n} duplicate copies of {ids} messages (same X-GM-MSGID in several label folders, marked in log.csv)"
 }

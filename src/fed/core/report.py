@@ -74,6 +74,12 @@ def collect(case: Case, account_id: int | None = None) -> dict:
                            "JOIN account a ON a.id = f.account_id WHERE m.status = 'valid' "
                            "AND m.dkim_result IN ('fail', 'permerror', 'temperror') ORDER BY a.id, m.zip_path")
     dns_rows = _q(case, "SELECT * FROM dns_record ORDER BY name, id")
+    gmail = {}
+    for acc, total, dup_ids, dups in case.conn.execute(
+            "SELECT account_id, SUM(n), SUM(n > 1), SUM(CASE WHEN n > 1 THEN n - 1 ELSE 0 END) FROM ("
+            " SELECT f.account_id, m.gm_msgid, COUNT(*) n FROM message m JOIN folder f ON f.id = m.folder_id "
+            " WHERE m.status = 'valid' AND m.gm_msgid IS NOT NULL GROUP BY f.account_id, m.gm_msgid) GROUP BY account_id"):
+        gmail[acc] = {"messages": total, "dup_ids": dup_ids, "dups": dups}
     timestamps = _timestamp_state(case)
     all_accounts = len(accounts)
     if account_id is not None:
@@ -105,6 +111,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "issues": issues,
         "outputs": outputs,
         "dkim_counts": dkim_counts,
+        "gmail": gmail,
         "dkim_issues": dkim_issues,
         "dns": dns_rows,
         "zip_mode": case.zip_mode(),
@@ -241,6 +248,16 @@ def _account_items(a: dict, L: dict, dkim_counts: dict | None = None) -> list[tu
     ]
 
 
+def _gmail_items(a: dict, d: dict, L: dict) -> list[tuple[str, str]]:
+    g = d.get("gmail", {}).get(a["id"])
+    if not g:
+        return []
+    text = L["gmail_text"].format(n=g["messages"])
+    if g["dups"]:
+        text += " · " + L["gmail_dups"].format(n=g["dups"], ids=g["dup_ids"])
+    return [(L["gmail"], text)]
+
+
 def _dkim_summary(counts: dict, L: dict) -> str:
     if not counts:
         return "–"
@@ -336,7 +353,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                                              size=_fmt_bytes(sum(o["bytes"] for o in tot))), ""]
     for a in d["accounts"]:
         head = f"{L['account']} {a['evidence_number']} · {a['email']}"
-        out += [head, "=" * len(head), *_kv_txt(_account_items(a, L, d["dkim_counts"]))]
+        out += [head, "=" * len(head), *_kv_txt(_account_items(a, L, d["dkim_counts"]) + _gmail_items(a, d, L))]
         if a.get("notes"):
             out += ["", f"{L['account_notes']}:", *("  " + x for x in a["notes"].splitlines())]
         out += ["", f"{L['attempts']}:"]
@@ -372,7 +389,8 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out.append(f"{n:>5}  {acc}{tf.both(m['Eingangszeit_UTC'])}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
                    f"{L['to']}: {m['An'] or m['CC'] or m['Empfaenger_Hinweis']}  {L['att']} {m['Anlagen']}  "
                    f"DKIM {L.get('dkim_' + m['DKIM'], '–') if m['DKIM'] else '–'}  "
-                   f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
+                   + (f"Labels: {m['Gmail_Labels']}  " if m["Gmail_Labels"] else "")
+                   + f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
     out.append("")
     return "\n".join(out)
 
@@ -498,7 +516,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         if account_id is None:
             pdf.add_page()
         h2(f"{L['account']} {a['evidence_number']} · {a['email']}")
-        kv(_account_items(a, L, d["dkim_counts"]))
+        kv(_account_items(a, L, d["dkim_counts"]) + _gmail_items(a, d, L))
         if a.get("notes"):
             h3(L["account_notes"])
             note(a["notes"])
@@ -588,6 +606,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                    (f"{m['Evidence']} · " if multi else "") + f"{m['Ordner']}\n{m['Absender']}",
                    f"{m['Betreff']} · {to} · {L['att']} {m['Anlagen']}"
                    + (f" · DKIM {L.get('dkim_' + m['DKIM'], m['DKIM'])}" if m["DKIM"] else "")
+                   + (f" · Labels: {m['Gmail_Labels']}" if m["Gmail_Labels"] else "")
                    + f"\n{m['Datei']}\n{m['SHA256']}"])
     pdf.output(str(path))
 

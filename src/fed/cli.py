@@ -43,6 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
     acq.add_argument("--user", help="Benutzername (Standard: Adresse)")
     acq.add_argument("--cafile", help="eigene CA-Datei (z. B. Behörden-CA oder Testserver)")
     acq.add_argument("--exclude", action="append", default=[], metavar="ORDNER", help="Ordner auslassen (mehrfach)")
+    acq.add_argument("--gmail-all-folders", action="store_true",
+                     help="Gmail: alle Label-Ordner sichern (Standard: Alle Nachrichten + Spam + Papierkorb)")
     acq.add_argument("--auth", choices=["auto", "password", "google-app", "google", "microsoft"], default="auto",
                      help="Anmeldeart (auto: Google per OAuth, ohne Client-ID per App-Passwort; Microsoft per "
                           "OAuth; sonst Passwort)")
@@ -230,6 +232,10 @@ def _acquire(args) -> int:
                 print(f"  {f['name']:<40} {f['messages']:>7} Mails {f['size'] / 1e6:>9.1f} MB")
         elif args.account_notes is not None:
             acqmod.set_account_notes(case, acc_id, args.account_notes)
+        if args.gmail_all_folders and acqmod.is_gmail_account(case, acc_id):
+            acqmod.set_selection(case, acc_id, {r[0] for r in case.conn.execute(
+                "SELECT display_name FROM folder WHERE account_id = ? AND (flags IS NULL OR flags NOT LIKE '%Noselect%')",
+                (acc_id,))})
         if args.exclude:
             names = {r[0] for r in case.conn.execute(
                 "SELECT display_name FROM folder WHERE account_id = ? AND selected = 1", (acc_id,))}

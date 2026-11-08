@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS message (
     flags           TEXT,
     gm_msgid        TEXT,
     gm_labels       TEXT,
+    gm_thrid        TEXT,                    -- Gmail: Konversation (X-GM-THRID)
     message_id      TEXT,
     msg_from        TEXT,
     msg_to          TEXT,                    -- JSON-Liste, dekodiert

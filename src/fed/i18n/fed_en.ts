@@ -819,6 +819,18 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Rescan</translation>
     </message>
     <message>
+        <source>Gmail erkannt: Ordner sind bei Gmail Labels – eine Mail mit mehreren Labels stünde mehrfach im ZIP. Empfohlen und vorausgewählt: „Alle Nachrichten“, „Spam“ und „Papierkorb“ (jede Mail genau einmal); die Labels jeder Mail werden dokumentiert (Case-Datei, log.csv, Bericht).</source>
+        <translation>Gmail detected: in Gmail, folders are labels – a message with several labels would appear several times in the ZIP. Recommended and preselected: “All Mail”, “Spam” and “Trash” (every message exactly once); the labels of every message are documented (case file, log.csv, report).</translation>
+    </message>
+    <message>
+        <source>Gmail-Empfehlung</source>
+        <translation>Gmail recommendation</translation>
+    </message>
+    <message>
+        <source>Alle Label-Ordner (mit Duplikaten)</source>
+        <translation>All label folders (with duplicates)</translation>
+    </message>
+    <message>
         <source>Ordner</source>
         <translation>Folder</translation>
     </message>

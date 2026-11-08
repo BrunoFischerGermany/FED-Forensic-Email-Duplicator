@@ -144,7 +144,35 @@ def scan(case: Case, account_id: int, imap: ReadOnlyImap, cancel: CancelToken | 
     case.log("INFO", "scan_done", {"account_id": account_id, "folders": len(rows),
                                    "messages": sum(r["messages"] for r in rows),
                                    "bytes": sum(r["size"] for r in rows)})
+    is_gmail = "X-GM-EXT-1" in imap.capabilities()
+    first = not case.conn.execute("SELECT 1 FROM attempt WHERE account_id = ? LIMIT 1", (account_id,)).fetchone()
+    if is_gmail and first:
+        names = gmail_recommended(case, account_id)
+        if names:
+            set_selection(case, account_id, set(names))
+            case.log("INFO", "gmail_selection", {"account_id": account_id, "selected": names,
+                                                 "reason": "Gmail: Labels statt Ordner-Kopien"})
     return rows
+
+
+GMAIL_SPECIAL = ("\\All", "\\Junk", "\\Trash")
+
+
+def is_gmail_account(case: Case, account_id: int) -> bool:
+    caps = case.conn.execute("SELECT capabilities FROM account WHERE id = ?", (account_id,)).fetchone()
+    return bool(caps and caps[0] and "X-GM-EXT-1" in caps[0])
+
+
+def gmail_recommended(case: Case, account_id: int) -> list[str]:
+    """Gmail: „Alle Nachrichten“ + Spam + Papierkorb (über SPECIAL-USE, sprachunabhängig).
+
+    „Alle Nachrichten“ enthält jede Mail genau einmal – außer Spam und Papierkorb. Leer, wenn der
+    Server keine \\All-Kennung liefert."""
+    rows = case.conn.execute("SELECT display_name, flags FROM folder WHERE account_id = ?", (account_id,)).fetchall()
+    flags = {name: set((f or "").split()) for name, f in rows}
+    if not any("\\All" in f for f in flags.values()):
+        return []
+    return sorted(name for name, f in flags.items() if f & set(GMAIL_SPECIAL))
 
 
 def set_selection(case: Case, account_id: int, selected_names: set[str]) -> None:
@@ -497,15 +525,16 @@ def _store_message(case, attempt_id, row, f, msg, email, account_dir, cfg, resul
             "INSERT INTO message (attempt_id, folder_id, uid, zip_path, sha256, md5, sha512, size, size_server, "
             "internaldate, date_header, zip_time_source, flags, gm_msgid, gm_labels, message_id, msg_from, msg_to, "
             "msg_cc, msg_bcc, delivered_to, recipient_note, attachment_count, inline_count, attachments, subject, "
-            "subject_raw, saved_utc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "subject_raw, saved_utc, gm_thrid) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (attempt_id, row["id"], msg.uid, zip_path, hashes["sha256"], hashes.get("md5"), hashes.get("sha512"),
              len(msg.raw), msg.size_server, msg.internaldate.astimezone(UTC).isoformat(), meta.date_header,
-             zsource, " ".join(msg.flags), msg.gm_msgid, json.dumps(msg.gm_labels) if msg.gm_labels else None,
+             zsource, " ".join(msg.flags), msg.gm_msgid,
+             json.dumps(msg.gm_labels, ensure_ascii=False) if msg.gm_labels else None,
              meta.message_id, json.dumps(meta.msg_from, ensure_ascii=False), json.dumps(meta.msg_to, ensure_ascii=False),
              json.dumps(meta.msg_cc, ensure_ascii=False), json.dumps(meta.msg_bcc, ensure_ascii=False),
              json.dumps(meta.delivered_to, ensure_ascii=False), meta.recipient_note, meta.attachment_count,
              meta.inline_count, json.dumps([a.__dict__ for a in meta.attachments], ensure_ascii=False),
-             meta.subject, meta.subject_raw, utc_now()),
+             meta.subject, meta.subject_raw, utc_now(), msg.gm_thrid),
         )
     if result is not None:
         result.saved += 1

@@ -75,6 +75,11 @@
   DNS-Schlüssel werden mit Abrufzeit und SHA-256 in der Case-Datei aufbewahrt; Spalten in `log.csv`,
   Abschnitte im Bericht; offene DNS-Fehler werden beim Fortsetzen erneut geprüft; abschaltbar
   (`dkim_pruefen`); Testpostfach um zwei signierte Mails erweitert, Validierung V14
+- Gmail: Labels statt Ordner-Kopien – bei Gmail-Konten (`X-GM-EXT-1`) sind „Alle Nachrichten“,
+  „Spam“ und „Papierkorb“ vorausgewählt (über SPECIAL-USE, sprachunabhängig); je Mail werden
+  `X-GM-MSGID`, `X-GM-THRID` und `X-GM-LABELS` gespeichert (Labels mit Leerzeichen/Umlauten korrekt
+  gelesen), Mehrfachkopien gekennzeichnet; Hinweis mit Umschalter auf der Ordnerseite, CLI
+  `--gmail-all-folders`
 - ZIP-Aufteilung bei mehreren Konten wählbar: ein ZIP für alle Konten oder eines je Konto
   (`<Case>_<Evidence>_<Zeit>.zip` mit eigener `log.csv`, `.sha256` und Zeitstempel); Frage beim
   2. Konto (änderbar bis zum Abschluss), Voreinstellung `zip_aufteilung` (fragen | gesamt | je_konto),

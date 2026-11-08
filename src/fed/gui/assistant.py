@@ -649,6 +649,23 @@ class FolderPage(QWidget):
             b.clicked.connect(fn)
             top.addWidget(b)
         lay.addLayout(top)
+        self.gmail_box = Card()
+        self.gmail_lbl = label(self.tr(
+            "Gmail erkannt: Ordner sind bei Gmail Labels – eine Mail mit mehreren Labels stünde mehrfach im ZIP. "
+            "Empfohlen und vorausgewählt: „Alle Nachrichten“, „Spam“ und „Papierkorb“ (jede Mail genau einmal); "
+            "die Labels jeder Mail werden dokumentiert (Case-Datei, log.csv, Bericht)."), "Hint", wrap=True)
+        gb = QHBoxLayout()
+        b1 = QPushButton(self.tr("Gmail-Empfehlung"))
+        b1.clicked.connect(self._gmail_recommended)
+        b2 = QPushButton(self.tr("Alle Label-Ordner (mit Duplikaten)"))
+        b2.clicked.connect(lambda: self._check_all(True))
+        gb.addWidget(b1)
+        gb.addWidget(b2)
+        gb.addStretch(1)
+        self.gmail_box.add(self.gmail_lbl)
+        self.gmail_box.lay.addLayout(gb)
+        self.gmail_box.setVisible(False)
+        lay.addWidget(self.gmail_box)
         cols = QHBoxLayout()
         cols.setSpacing(24)
         self.tree = QTreeWidget()
@@ -748,8 +765,18 @@ class FolderPage(QWidget):
         self.sub.setText(self.tr("Scan abgeschlossen um {0} UTC ({1}) · {2} Ordner · {3} Mails · {4} laut Server").format(
             datetime.now(UTC).strftime("%H:%M:%S"), tf.local_str(datetime.now(UTC), with_date=False), len(items), f"{total_m:,}".replace(",", "."), _fmt_bytes(total_b)))
         restyle(self.sub, "Muted")
+        self.gmail_box.setVisible(acq.is_gmail_account(self.st.case, self.st.account_id))
         self._update_summary()
         self.go.setEnabled(True)
+
+    def _gmail_recommended(self) -> None:
+        names = set(acq.gmail_recommended(self.st.case, self.st.account_id))
+        self.tree.blockSignals(True)
+        for it in self._iter():
+            if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:
+                it.setCheckState(0, CHECKED if it.data(0, UROLE) in names else UNCHECKED)
+        self.tree.blockSignals(False)
+        self._update_summary()
 
     def _iter(self):
         stack = [self.tree.topLevelItem(i) for i in range(self.tree.topLevelItemCount())]
@@ -761,7 +788,8 @@ class FolderPage(QWidget):
     def _check_all(self, on: bool) -> None:
         self.tree.blockSignals(True)
         for it in self._iter():
-            it.setCheckState(0, CHECKED if on else UNCHECKED)
+            if it.flags() & Qt.ItemFlag.ItemIsUserCheckable:  # \\Noselect-Ordner bleiben aus
+                it.setCheckState(0, CHECKED if on else UNCHECKED)
         self.tree.blockSignals(False)
         self._update_summary()
 

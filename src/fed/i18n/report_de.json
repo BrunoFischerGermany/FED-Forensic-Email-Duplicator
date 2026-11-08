@@ -121,5 +121,8 @@
   "fetched": "abgerufen",
   "mail": "Mail",
   "result": "Ergebnis",
-  "detail": "Domain / Begründung"
+  "detail": "Domain / Begründung",
+  "gmail": "Gmail",
+  "gmail_text": "{n} Mails mit Gmail-Kennung (X-GM-MSGID), Konversation (X-GM-THRID) und Labels (X-GM-LABELS) dokumentiert",
+  "gmail_dups": "{n} Mehrfachkopien von {ids} Mails (gleiche X-GM-MSGID in mehreren Label-Ordnern, in log.csv gekennzeichnet)"
 }
