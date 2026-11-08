@@ -129,4 +129,4 @@ GPL-3.0-only, siehe [LICENSE](LICENSE). Der Code unter `legacy/` bleibt unter MI
 ## Autoren
 
 - [@BrunoFischerGermany](https://github.com/BrunoFischerGermany)
-- [@ma-fox](https://github.com/ma-fox) (v0.4)
+- Claude (Anthropic) – KI-Assistent, Code, Tests und Dokumentation ab v1.0 mitentwickelt

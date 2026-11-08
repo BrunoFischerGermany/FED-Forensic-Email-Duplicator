@@ -151,4 +151,4 @@ GPL-3.0-only, see [LICENSE](LICENSE). The code in `legacy/` remains under MIT ([
 ## Authors
 
 - [@BrunoFischerGermany](https://github.com/BrunoFischerGermany)
-- [@ma-fox](https://github.com/ma-fox) (v0.4)
+- Claude (Anthropic) – AI assistant, co-developed code, tests and documentation from v1.0
