@@ -124,5 +124,11 @@
   "detail": "Domain / Begründung",
   "gmail": "Gmail",
   "gmail_text": "{n} Mails mit Gmail-Kennung (X-GM-MSGID), Konversation (X-GM-THRID) und Labels (X-GM-LABELS) dokumentiert",
-  "gmail_dups": "{n} Mehrfachkopien von {ids} Mails (gleiche X-GM-MSGID in mehreren Label-Ordnern, in log.csv gekennzeichnet)"
+  "gmail_dups": "{n} Mehrfachkopien von {ids} Mails (gleiche X-GM-MSGID in mehreren Label-Ordnern, in log.csv gekennzeichnet)",
+  "content_filter": "Inhaltsfilter",
+  "flt_from": "Absender enthält",
+  "flt_to": "Empfänger (To/CC/BCC) enthält",
+  "flt_subject": "Betreff enthält",
+  "flt_text": "Text (Kopf und Inhalt) enthält",
+  "flt_note": "Mehrere Werte eines Feldes = oder, Felder untereinander = und. Die Treffer bestimmt die Suche des Servers (IMAP SEARCH); Genauigkeit und Umgang mit Kodierungen unterscheiden sich je Anbieter."
 }

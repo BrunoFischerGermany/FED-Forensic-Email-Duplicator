@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS account (
     quota             TEXT,
     date_from         TEXT,                   -- optionaler Zeitraum-Filter
     date_to           TEXT,
-    notes             TEXT                    -- Notiz des Examiners zum Konto (Änderungen im Log)
+    notes             TEXT,                   -- Notiz des Examiners zum Konto (Änderungen im Log)
+    filters           TEXT                    -- JSON: Inhaltsfilter der Teilsicherung {from, to, subject, text}
 );
 
 CREATE TABLE IF NOT EXISTS attempt (

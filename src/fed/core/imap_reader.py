@@ -286,16 +286,40 @@ class ReadOnlyImap:
         self.current = folder
         return int(data[0] or 0)
 
-    def search_uids(self, since: datetime | None = None, before: datetime | None = None) -> list[int]:
+    def search_uids(self, since: datetime | None = None, before: datetime | None = None,
+                    filters: dict[str, list[str]] | None = None) -> list[int]:
+        """UIDs im geöffneten Ordner – optional nach Zeitraum und Inhalt (``filters``, siehe
+        :data:`FILTER_KEYS`): Werte eines Feldes = „oder“, Felder untereinander = „und“.
+
+        Jeder Suchbegriff wird einzeln gesucht (Umlaute per ``CHARSET UTF-8`` als Literal),
+        die Treffer werden hier verknüpft – so geht auch mehr als ein Begriff mit Umlauten."""
         criteria = []
         if since:
             criteria += ["SINCE", imap_date(since)]
         if before:
             criteria += ["BEFORE", imap_date(before)]
-        typ, data = self.imap.uid("SEARCH", *(criteria or ["ALL"]))
+        result = set(self._search(criteria or ["ALL"]))
+        for name, values in (filters or {}).items():
+            keys = FILTER_KEYS[name]
+            hits: set[int] = set()
+            for v in values:
+                for key in keys:
+                    hits |= set(self._search(criteria, key, v))
+            result &= hits
+        return sorted(result)
+
+    def _search(self, criteria: list[str], key: str | None = None, value: str | None = None) -> list[int]:
+        args = list(criteria)
+        if key is not None and value is not None:
+            if value.isascii():
+                args += [key, '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"']
+            else:
+                args = ["CHARSET", "UTF-8", *args, key]
+                self.imap.literal = value.encode("utf-8")
+        typ, data = self.imap.uid("SEARCH", *(args or ["ALL"]))
         if typ != "OK":
             raise ImapError(f"SEARCH fehlgeschlagen: {data}")
-        return sorted(int(x) for x in (data[0] or b"").split())
+        return [int(x) for x in (data[0] or b"").split()]
 
     def sizes(self) -> dict[int, int]:
         """UID -> RFC822.SIZE für alle Mails im geöffneten Ordner."""
@@ -394,6 +418,15 @@ class ReadOnlyImap:
             if isinstance(d, tuple) and b"BODY[" in d[0]:
                 return d[1]
         return b""
+
+
+# Inhaltsfilter der Teilsicherung -> IMAP-SEARCH-Schlüssel (je Wert werden alle Schlüssel „oder“ verknüpft)
+FILTER_KEYS: dict[str, tuple[str, ...]] = {
+    "from": ("FROM",),
+    "to": ("TO", "CC", "BCC"),
+    "subject": ("SUBJECT",),
+    "text": ("TEXT",),
+}
 
 
 def parse_gmail(meta: bytes) -> tuple[str | None, str | None, tuple[str, ...]]:

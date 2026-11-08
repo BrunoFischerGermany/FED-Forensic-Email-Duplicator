@@ -238,7 +238,8 @@ def _migrate(case: Case) -> None:
     for table, col, ddl in (("account", "notes", "TEXT"), ("output", "account_id", "INTEGER"),
                             ("message", "dkim_result", "TEXT"), ("message", "dkim_domain", "TEXT"),
                             ("message", "dkim_selector", "TEXT"), ("message", "dkim_detail", "TEXT"),
-                            ("message", "auth_results", "TEXT"), ("message", "gm_thrid", "TEXT")):
+                            ("message", "auth_results", "TEXT"), ("message", "gm_thrid", "TEXT"),
+                            ("account", "filters", "TEXT")):
         cols = {r[1] for r in case.conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
             with case.conn:

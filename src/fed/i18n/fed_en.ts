@@ -859,6 +859,46 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Refers to the receipt time on the server. With a filter the acquisition counts as a partial acquisition.</translation>
     </message>
     <message>
+        <source>Inhalt (optional)</source>
+        <translation>Content (optional)</translation>
+    </message>
+    <message>
+        <source>Absender enthält</source>
+        <translation>Sender contains</translation>
+    </message>
+    <message>
+        <source>z. B. mueller@firma.de, @lieferant.example</source>
+        <translation>e.g. mueller@company.com, @supplier.example</translation>
+    </message>
+    <message>
+        <source>Empfänger enthält</source>
+        <translation>Recipient contains</translation>
+    </message>
+    <message>
+        <source>To, CC oder BCC</source>
+        <translation>To, CC or BCC</translation>
+    </message>
+    <message>
+        <source>Betreff enthält</source>
+        <translation>Subject contains</translation>
+    </message>
+    <message>
+        <source>z. B. Rechnung, Angebot</source>
+        <translation>e.g. invoice, offer</translation>
+    </message>
+    <message>
+        <source>Text enthält</source>
+        <translation>Text contains</translation>
+    </message>
+    <message>
+        <source>Kopf und Inhalt, z. B. Kontonummer</source>
+        <translation>header and body, e.g. account number</translation>
+    </message>
+    <message>
+        <source>Mehrere Werte mit Komma = oder; ausgefüllte Felder untereinander = und. Die Suche führt der Server aus. Mit Inhaltsfilter gilt die Sicherung als Teilsicherung; die Kriterien stehen im Bericht.</source>
+        <translation>Several values separated by commas = or; filled fields combined = and. The search is performed by the server. With a content filter the acquisition counts as a partial acquisition; the criteria appear in the report.</translation>
+    </message>
+    <message>
         <source>Zusammenfassung</source>
         <translation>Summary</translation>
     </message>

@@ -80,6 +80,11 @@
   `X-GM-MSGID`, `X-GM-THRID` und `X-GM-LABELS` gespeichert (Labels mit Leerzeichen/Umlauten korrekt
   gelesen), Mehrfachkopien gekennzeichnet; Hinweis mit Umschalter auf der Ordnerseite, CLI
   `--gmail-all-folders`
+- Gezielte Teilsicherung: Inhaltsfilter je Konto (Absender, Empfänger To/CC/BCC, Betreff, Text);
+  Werte mit Komma = oder, Felder = und; Suche per IMAP SEARCH, Umlaute als UTF-8-Literal (jeder Begriff
+  einzeln gesucht, Treffer in FED verknüpft); protokolliert, im Bericht als Teilsicherung mit Kriterien;
+  Karte „Inhalt (optional)“ auf der Ordnerseite, CLI `--from-contains/--to-contains/--subject-contains/
+  --text-contains`; Validierung V15
 - ZIP-Aufteilung bei mehreren Konten wählbar: ein ZIP für alle Konten oder eines je Konto
   (`<Case>_<Evidence>_<Zeit>.zip` mit eigener `log.csv`, `.sha256` und Zeitstempel); Frage beim
   2. Konto (änderbar bis zum Abschluss), Voreinstellung `zip_aufteilung` (fragen | gesamt | je_konto),

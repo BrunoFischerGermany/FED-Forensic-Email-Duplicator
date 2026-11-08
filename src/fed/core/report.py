@@ -245,7 +245,16 @@ def _account_items(a: dict, L: dict, dkim_counts: dict | None = None) -> list[tu
         (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], a["autoconfig_source"] or "–"),
         (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
         (L["dkim"], _dkim_summary((dkim_counts or {}).get(a["id"], {}), L)),
+        *_filter_items(a, L),
     ]
+
+
+def _filter_items(a: dict, L: dict) -> list[tuple[str, str]]:
+    f = json.loads(a["filters"]) if a.get("filters") else {}
+    if not f:
+        return []
+    parts = [f"{L['flt_' + k]}: {', '.join(v)}" for k, v in f.items()]
+    return [(L["content_filter"], f"{L['partial']} – " + " · ".join(parts) + f"\n{L['flt_note']}")]
 
 
 def _gmail_items(a: dict, d: dict, L: dict) -> list[tuple[str, str]]:

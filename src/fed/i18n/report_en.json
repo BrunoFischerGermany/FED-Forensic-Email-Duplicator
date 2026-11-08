@@ -124,5 +124,11 @@
   "detail": "Domain / reason",
   "gmail": "Gmail",
   "gmail_text": "{n} messages documented with Gmail ID (X-GM-MSGID), conversation (X-GM-THRID) and labels (X-GM-LABELS)",
-  "gmail_dups": "{n} duplicate copies of {ids} messages (same X-GM-MSGID in several label folders, marked in log.csv)"
+  "gmail_dups": "{n} duplicate copies of {ids} messages (same X-GM-MSGID in several label folders, marked in log.csv)",
+  "content_filter": "Content filter",
+  "flt_from": "Sender contains",
+  "flt_to": "Recipient (To/CC/BCC) contains",
+  "flt_subject": "Subject contains",
+  "flt_text": "Text (header and body) contains",
+  "flt_note": "Several values of a field = or, fields combined = and. Matches are determined by the server's search (IMAP SEARCH); precision and handling of encodings differ between providers."
 }

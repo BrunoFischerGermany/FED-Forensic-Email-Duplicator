@@ -131,6 +131,14 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
                    "Validly signed message = valid, message modified after signing = invalid, others = not signed; "
                    "the public key is preserved with SHA-256 in the case file; the provider's Authentication-Results "
                    "are evaluated.")},
+    "V15": {"de": ("Gezielte Teilsicherung (Inhaltsfilter)",
+                   "Mit Betreff-Filter „Rechnung, übermorgen“ (inkl. Umlaut) werden genau die zwei passenden Mails "
+                   "gesichert; mit zusätzlichem Absender-Filter (und-Verknüpfung) keine; Kriterien protokolliert "
+                   "und im Bericht als Teilsicherung ausgewiesen."),
+            "en": ("Targeted partial acquisition (content filter)",
+                   "With subject filter “Rechnung, übermorgen” (incl. umlaut) exactly the two matching messages are "
+                   "acquired; with an additional sender filter (and) none; criteria logged and shown in the report "
+                   "as partial acquisition.")},
 }
 
 T = {
@@ -597,8 +605,36 @@ def v14_dkim(ctx: Ctx) -> CheckResult:
     return r
 
 
+def v15_content_filter(ctx: Ctx) -> CheckResult:
+    from fed.core.acquisition import set_content_filter
+    from fed.core.report import render_txt
+
+    r = CheckResult("V15", PASS)
+    case, acc = ctx.new_case("VAL-FILTER")
+    set_content_filter(case, acc, {"subject": "Rechnung, übermorgen"})
+    res = run_attempt(case, acc, ctx.connect, cfg=ctx.cfg)
+    got = sorted(x[0] for x in case.conn.execute("SELECT subject FROM message WHERE status = 'valid'"))
+    want = ["AW: Termin Donnerstag übermorgen", "Rechnung 2026-1187"]
+    txt = render_txt(case, "de")
+    logged = case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'content_filter_set'").fetchone()[0]
+    case.close()
+    case2, acc2 = ctx.new_case("VAL-FILTER-UND")
+    set_content_filter(case2, acc2, {"subject": ["Rechnung"], "from": ["j.beispiel"]})
+    res2 = run_attempt(case2, acc2, ctx.connect, cfg=ctx.cfg)
+    case2.close()
+    in_report = "Inhaltsfilter" in txt and "Teilsicherung" in txt
+    r.details += [_d(f"gesichert: {got}", f"acquired: {got}"),
+                  _d(f"Absender UND Betreff: {res2.saved} Mails", f"sender AND subject: {res2.saved} messages"),
+                  _d(f"protokolliert: {logged}×, im Bericht: {_yn(in_report, 'de')}",
+                     f"logged: {logged}×, in report: {_yn(in_report, 'en')}")]
+    if res.status != "done" or got != want or res2.saved != 0 or not logged or not in_report:
+        r.status = FAIL
+    return r
+
+
 STEPS = [v01_read_only, v02_guard, v03_completeness, v04_bit_exact, v05_times, v06_cancel_resume,
-         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts, v14_dkim]
+         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts, v14_dkim,
+         v15_content_filter]
 
 
 # ---------------------------------------------------------------- Ablauf

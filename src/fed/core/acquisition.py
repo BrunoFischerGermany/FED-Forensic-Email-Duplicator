@@ -184,6 +184,33 @@ def set_selection(case: Case, account_id: int, selected_names: set[str]) -> None
     case.log("INFO", "selection_set", {"account_id": account_id, "selected": sorted(selected_names)})
 
 
+def normalize_filters(filters: dict | None) -> dict[str, list[str]]:
+    """Leere Werte entfernen, Komma-getrennte Eingaben aufteilen, nur bekannte Felder."""
+    from fed.core.imap_reader import FILTER_KEYS
+
+    out: dict[str, list[str]] = {}
+    for key in FILTER_KEYS:
+        raw = (filters or {}).get(key) or []
+        values = raw.split(",") if isinstance(raw, str) else [v for x in raw for v in str(x).split(",")]
+        values = [v.strip() for v in values if v.strip()]
+        if values:
+            out[key] = values
+    return out
+
+
+def set_content_filter(case: Case, account_id: int, filters: dict | None) -> dict[str, list[str]]:
+    """Inhaltsfilter der Teilsicherung festlegen (protokolliert). Leer = ganze Ordner."""
+    f = normalize_filters(filters)
+    old = case.conn.execute("SELECT filters FROM account WHERE id = ?", (account_id,)).fetchone()
+    if (json.loads(old[0]) if old and old[0] else {}) == f:
+        return f
+    with case.conn:
+        case.conn.execute("UPDATE account SET filters = ? WHERE id = ?",
+                          (json.dumps(f, ensure_ascii=False) if f else None, account_id))
+    case.log("INFO", "content_filter_set", {"account_id": account_id, "filters": f})
+    return f
+
+
 def set_date_filter(case: Case, account_id: int, date_from: datetime | None, date_to: datetime | None) -> None:
     with case.conn:
         case.conn.execute("UPDATE account SET date_from = ?, date_to = ? WHERE id = ?",
@@ -209,10 +236,11 @@ def run_attempt(
     if case.closed:
         raise ValueError("Case ist abgeschlossen – keine weiteren Versuche möglich")
     conn = case.conn
-    acc = conn.execute("SELECT email, date_from, date_to FROM account WHERE id = ?", (account_id,)).fetchone()
+    acc = conn.execute("SELECT email, date_from, date_to, filters FROM account WHERE id = ?", (account_id,)).fetchone()
     if not acc:
         raise ValueError(f"Konto {account_id} unbekannt")
-    email, date_from, date_to = acc
+    email, date_from, date_to, filters_json = acc
+    content_filter = json.loads(filters_json) if filters_json else None
     account_dir = case.work_dir / sanitize_component(email)
 
     prev_nr = conn.execute("SELECT COALESCE(MAX(nr), 0) FROM attempt WHERE account_id = ?", (account_id,)).fetchone()[0]
@@ -263,7 +291,7 @@ def run_attempt(
             imap.examine(f)
             since = datetime.fromisoformat(date_from).replace(tzinfo=UTC) if date_from else None
             before = (datetime.fromisoformat(date_to) + timedelta(days=1)).replace(tzinfo=UTC) if date_to else None
-            uids = imap.search_uids(since, before)
+            uids = imap.search_uids(since, before, content_filter)
             sizes = imap.sizes()
             done = {r[0] for r in conn.execute(
                 "SELECT uid FROM message WHERE folder_id = ? AND status = 'valid'", (row["id"],))}
@@ -660,8 +688,9 @@ def accounts_overview(case: Case) -> list[dict]:
     (fertig, aber weniger gesichert als auf dem Server) | ``cancelled`` | ``failed``.
     """
     out = []
-    for acc_id, email, evidence, server, auth, dfrom, dto, notes in case.conn.execute(
-            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes FROM account ORDER BY id"):
+    for acc_id, email, evidence, server, auth, dfrom, dto, notes, filters in case.conn.execute(
+            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes, filters FROM account "
+            "ORDER BY id"):
         attempts = case.conn.execute("SELECT nr, status, started_utc, ended_utc FROM attempt WHERE account_id = ? "
                                      "ORDER BY nr", (acc_id,)).fetchall()
         folders = case.conn.execute("SELECT selected, count_server, status_after FROM folder WHERE account_id = ?",
@@ -676,12 +705,12 @@ def accounts_overview(case: Case) -> list[dict]:
             (acc_id,)).fetchone()
         last = attempts[-1] if attempts else None
         state = last[1] if last else "new"
-        if state == "done" and not (dfrom or dto) and saved < expected:
+        if state == "done" and not (dfrom or dto or filters) and saved < expected:
             state = "partial"
         out.append({"id": acc_id, "email": email, "evidence": evidence, "server": server, "auth": auth,
                     "attempts": len(attempts), "state": state, "saved": saved, "expected": expected,
                     "bytes": size, "folders_selected": sel, "folders_total": total,
-                    "date_filter": bool(dfrom or dto), "last_utc": (last[3] or last[2]) if last else None,
+                    "date_filter": bool(dfrom or dto or filters), "last_utc": (last[3] or last[2]) if last else None,
                     "notes": notes or ""})
     return out
 

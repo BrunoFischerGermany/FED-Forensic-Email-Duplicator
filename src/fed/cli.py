@@ -32,6 +32,10 @@ def build_parser() -> argparse.ArgumentParser:
     acq.add_argument("--account-notes", default=None, help="Notiz zum Konto (erscheint im Bericht)")
     acq.add_argument("--from", dest="date_from", help="Zeitraum ab (JJJJ-MM-TT)")
     acq.add_argument("--to", dest="date_to", help="Zeitraum bis einschließlich (JJJJ-MM-TT)")
+    for opt, key, what in (("--from-contains", "from", "Absender"), ("--to-contains", "to", "Empfänger (To/CC/BCC)"),
+                           ("--subject-contains", "subject", "Betreff"), ("--text-contains", "text", "Text")):
+        acq.add_argument(opt, dest=f"flt_{key}", action="append", default=[], metavar="WERT",
+                         help=f"Teilsicherung: {what} enthält (mehrfach = oder)")
     mode = acq.add_mutually_exclusive_group()
     mode.add_argument("--resume", action="store_true", help="Fortsetzen (Standard)")
     mode.add_argument("--force", action="store_true", help="Neubeginn")
@@ -232,6 +236,9 @@ def _acquire(args) -> int:
                 print(f"  {f['name']:<40} {f['messages']:>7} Mails {f['size'] / 1e6:>9.1f} MB")
         elif args.account_notes is not None:
             acqmod.set_account_notes(case, acc_id, args.account_notes)
+        flt = {k: getattr(args, f"flt_{k}") for k in ("from", "to", "subject", "text")}
+        if any(flt.values()):
+            acqmod.set_content_filter(case, acc_id, flt)
         if args.gmail_all_folders and acqmod.is_gmail_account(case, acc_id):
             acqmod.set_selection(case, acc_id, {r[0] for r in case.conn.execute(
                 "SELECT display_name FROM folder WHERE account_id = ? AND (flags IS NULL OR flags NOT LIKE '%Noselect%')",

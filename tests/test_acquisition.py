@@ -280,3 +280,24 @@ def test_dkim_can_be_disabled(tmp_path, connect, imap_server, cfg):
     run_attempt(case, acc, connect, cfg=cfg)
     assert case.conn.execute("SELECT COUNT(*) FROM message WHERE dkim_result IS NOT NULL").fetchone()[0] == 0
     case.close()
+
+
+def test_content_filter_partial_acquisition(tmp_path, connect, imap_server, cfg):
+    from fed.core.acquisition import accounts_overview, set_content_filter
+    from fed.core.report import render_txt
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+    f = set_content_filter(case, acc, {"subject": "Rechnung, übermorgen", "from": [" "], "text": ""})
+    assert f == {"subject": ["Rechnung", "übermorgen"]}
+    res = run_attempt(case, acc, connect, cfg=cfg)
+    subjects = sorted(r[0] for r in case.conn.execute("SELECT subject FROM message WHERE status = 'valid'"))
+    assert res.status == "done" and subjects == ["AW: Termin Donnerstag übermorgen", "Rechnung 2026-1187"]
+    assert res.expected == 2
+    o = accounts_overview(case)[0]
+    assert o["state"] == "done" and o["date_filter"]  # Teilsicherung, nicht „unvollständig“
+    # Felder untereinander = und
+    set_content_filter(case, acc, {"subject": ["Rechnung"], "from": ["j.beispiel"]})
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'content_filter_set'").fetchone()[0] == 2
+    txt = render_txt(case, "de")
+    assert "Inhaltsfilter" in txt and "Betreff enthält: Rechnung" in txt and "Absender enthält: j.beispiel" in txt
+    case.close()

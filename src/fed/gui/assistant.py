@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -693,6 +694,22 @@ class FolderPage(QWidget):
         c.add(label(self.tr("Bezieht sich auf die Eingangszeit auf dem Server. Mit Filter gilt die Sicherung als "
                             "Teilsicherung."), "Hint", wrap=True))
         right.addWidget(c)
+        cf = Card(self.tr("Inhalt (optional)"))
+        self.flt = {}
+        fg = QFormLayout()
+        for key, text, ph in (("from", self.tr("Absender enthält"), self.tr("z. B. mueller@firma.de, @lieferant.example")),
+                              ("to", self.tr("Empfänger enthält"), self.tr("To, CC oder BCC")),
+                              ("subject", self.tr("Betreff enthält"), self.tr("z. B. Rechnung, Angebot")),
+                              ("text", self.tr("Text enthält"), self.tr("Kopf und Inhalt, z. B. Kontonummer"))):
+            e = QLineEdit()
+            e.setPlaceholderText(ph)
+            self.flt[key] = e
+            fg.addRow(text, e)
+        cf.add(fg)
+        cf.add(label(self.tr("Mehrere Werte mit Komma = oder; ausgefüllte Felder untereinander = und. Die Suche führt "
+                             "der Server aus. Mit Inhaltsfilter gilt die Sicherung als Teilsicherung; die Kriterien "
+                             "stehen im Bericht."), "Hint", wrap=True))
+        right.addWidget(cf)
         s = Card(self.tr("Zusammenfassung"))
         self.summary = KeyValues()
         s.add(self.summary)
@@ -766,6 +783,10 @@ class FolderPage(QWidget):
             datetime.now(UTC).strftime("%H:%M:%S"), tf.local_str(datetime.now(UTC), with_date=False), len(items), f"{total_m:,}".replace(",", "."), _fmt_bytes(total_b)))
         restyle(self.sub, "Muted")
         self.gmail_box.setVisible(acq.is_gmail_account(self.st.case, self.st.account_id))
+        row = self.st.case.conn.execute("SELECT filters FROM account WHERE id = ?", (self.st.account_id,)).fetchone()
+        existing = json.loads(row[0]) if row and row[0] else {}
+        for k, e in self.flt.items():
+            e.setText(", ".join(existing.get(k, [])))
         self._update_summary()
         self.go.setEnabled(True)
 
@@ -814,6 +835,7 @@ class FolderPage(QWidget):
         df = datetime(*self.d_from.date().getDate(), tzinfo=UTC) if self.use_from.isChecked() else None
         dt = datetime(*self.d_to.date().getDate(), tzinfo=UTC) if self.use_to.isChecked() else None
         acq.set_date_filter(self.st.case, self.st.account_id, df, dt)
+        acq.set_content_filter(self.st.case, self.st.account_id, {k: e.text() for k, e in self.flt.items()})
         self.next.emit()
 
 
