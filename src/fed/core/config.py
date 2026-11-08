@@ -40,6 +40,7 @@ class Programm:
     verbindungen: int = 3  # gleichzeitige IMAP-Verbindungen beim Download (1–10)
     wach_halten: bool = True
     dkim_pruefen: bool = True  # DKIM-Signaturen bei der Sicherung prüfen (braucht DNS)
+    verschluesselung: str = "fragen"  # verschlüsselte Weitergabe-Kopie beim Abschluss: fragen | aus
     zip_aufteilung: str = "fragen"  # bei mehreren Konten: fragen | gesamt | je_konto
     arbeitsordner_loeschen: str = "fragen"  # nach verifiziertem ZIP: fragen | ja | nein  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 
@@ -112,6 +113,8 @@ def validate(cfg: Config) -> None:
         raise ConfigError(f"sprache muss eins von {ui_languages()} sein")
     if cfg.programm.bericht_sprache not in {"", *report_languages()}:
         raise ConfigError(f"bericht_sprache muss leer oder eins von {report_languages()} sein")
+    if cfg.programm.verschluesselung not in {"fragen", "aus"}:
+        raise ConfigError("verschluesselung muss 'fragen' oder 'aus' sein")
     if cfg.programm.zip_aufteilung not in {"fragen", "gesamt", "je_konto"}:
         raise ConfigError("zip_aufteilung muss 'fragen', 'gesamt' oder 'je_konto' sein")
     if cfg.programm.arbeitsordner_loeschen not in {"fragen", "ja", "nein"}:

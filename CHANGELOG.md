@@ -85,6 +85,12 @@
   einzeln gesucht, Treffer in FED verknüpft); protokolliert, im Bericht als Teilsicherung mit Kriterien;
   Karte „Inhalt (optional)“ auf der Ordnerseite, CLI `--from-contains/--to-contains/--subject-contains/
   --text-contains`; Validierung V15
+- Verschlüsselte Kopie für die Weitergabe: `<Casenumber>_encrypted.zip` (AES-256, WinZip-AES – öffnet
+  mit 7-Zip, WinRAR, Keka) mit Original-ZIP(s), Hash-/Zeitstempeldateien, log.csv und Berichten;
+  Original bleibt unverändert; Kopie wird nach dem Schreiben entschlüsselt und Datei für Datei geprüft;
+  Passwort selbst wählen oder erzeugen lassen (≈140 Bit), wird nie gespeichert oder protokolliert;
+  `.sha256` daneben, Hash im Log; Einstellung `verschluesselung` (fragen | aus), CLI
+  `fed finish --encrypt | --encrypt-generate`
 - ZIP-Aufteilung bei mehreren Konten wählbar: ein ZIP für alle Konten oder eines je Konto
   (`<Case>_<Evidence>_<Zeit>.zip` mit eigener `log.csv`, `.sha256` und Zeitstempel); Frage beim
   2. Konto (änderbar bis zum Abschluss), Voreinstellung `zip_aufteilung` (fragen | gesamt | je_konto),

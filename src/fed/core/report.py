@@ -335,7 +335,7 @@ def _folder_lines(d: dict, L: dict, email: str) -> list[str]:
 
 
 def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-               account_id: int | None = None) -> str:
+               account_id: int | None = None, encrypted_planned: bool = False) -> str:
     L = labels(language)
     d = collect(case, account_id)
     out = []
@@ -388,6 +388,9 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
             out.append(f"  MD5      {o['md5']}")
         if o["sha512"]:
             out.append(f"  SHA-512  {o['sha512']}")
+    if encrypted_planned:
+        name = _encrypted_name(d)
+        out += ["", f"{L['enc_title']}: {L['enc_text'].format(file=name)}"]
     out += ["", f"{L['mails']} ({len(d['messages'])})", "-" * 20]
     if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
         out.append(L["list_omitted"].format(n=len(d["messages"])))
@@ -405,13 +408,20 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
 
 
 def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-              account_id: int | None = None) -> None:
-    path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id), encoding="utf-8")
+              account_id: int | None = None, encrypted_planned: bool = False) -> None:
+    path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id, encrypted_planned),
+                    encoding="utf-8")
+
+
+def _encrypted_name(d: dict) -> str:
+    from fed.core.naming import sanitize_component
+
+    return f"{sanitize_component(d['info']['case_number'])}_encrypted.zip"
 
 
 # ---------------------------------------------------------------- PDF
 def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-              account_id: int | None = None) -> None:
+              account_id: int | None = None, encrypted_planned: bool = False) -> None:
     from fpdf import FPDF
     from fpdf.fonts import FontFace
 
@@ -593,6 +603,12 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     if logo:
         pdf.set_font("DejaVu", "", 7.5)
         pdf.cell(0, 5, f"Logo SHA-256: {logo[2]}", new_x="LMARGIN", new_y="NEXT")
+    if encrypted_planned:
+        pdf.ln(1)
+        pdf.set_font("DejaVu", "B", 8.5)
+        pdf.cell(0, 5, L["enc_title"], new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DejaVu", "", 8.5)
+        pdf.multi_cell(0, 4.6, L["enc_text"].format(file=_encrypted_name(d)), new_x="LMARGIN", new_y="NEXT")
 
     h2(f"{L['mails']} ({len(d['messages'])})")
     if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
@@ -628,19 +644,19 @@ def account_report_name(evidence: str, email: str, suffix: str) -> str:
 
 
 def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
-                  mail_list_max: int = 500) -> tuple[Path, Path]:
+                  mail_list_max: int = 500, encrypted_planned: bool = False) -> tuple[Path, Path]:
     """Gesamtbericht ``report.txt``/``report.pdf`` und – bei mehreren Konten – je Konto
     ``report_<Evidence>.txt``/``.pdf``. Rückgabe: der Gesamtbericht."""
     txt, pdfp = case.root / "report.txt", case.root / "report.pdf"
-    write_txt(case, txt, language, mail_list, mail_list_max)
-    write_pdf(case, pdfp, language, mail_list, mail_list_max)
+    write_txt(case, txt, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned)
+    write_pdf(case, pdfp, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned)
     accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
     if len(accounts) > 1:
         for acc_id, evidence, email in accounts:
             write_txt(case, case.root / account_report_name(evidence, email, ".txt"), language, mail_list,
-                      mail_list_max, acc_id)
+                      mail_list_max, acc_id, encrypted_planned)
             write_pdf(case, case.root / account_report_name(evidence, email, ".pdf"), language, mail_list,
-                      mail_list_max, acc_id)
+                      mail_list_max, acc_id, encrypted_planned)
     return txt, pdfp
 
 

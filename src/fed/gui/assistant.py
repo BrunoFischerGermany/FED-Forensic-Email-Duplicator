@@ -1147,6 +1147,16 @@ class FinishPage(QWidget):
                         "Die Löschung wird protokolliert und im Bericht vermerkt."),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
             delete = r == QMessageBox.StandardButton.Yes
+        password = None
+        if st.cfg.programm.verschluesselung == "fragen":
+            from fed.gui.encrypt_dialog import EncryptDialog
+
+            dlg = EncryptDialog(self)
+            if not dlg.exec():
+                return  # Abbrechen = nicht abschließen
+            password = dlg.password
+            dlg.deleteLater()
+        self._password = password
         self.title.setText(self.tr("Case wird abgeschlossen …"))
         self.sub.setText(self.tr("ZIP packen, prüfen, Hashes und Berichte erzeugen"))
         self.sub.setVisible(True)
@@ -1154,7 +1164,8 @@ class FinishPage(QWidget):
         self.check_kv.clear()
 
         def work(cancel, report):
-            return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete)
+            return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete,
+                               encrypt_password=password)
 
         def progress(p):
             self.check_kv.set(self.tr("Fortschritt"), f"{p.phase}: {p.mails_done} / {p.mails_total}")
@@ -1193,6 +1204,11 @@ class FinishPage(QWidget):
         if res.account_reports:
             reports += self.tr(" · {0} Einzelberichte je Konto").format(len(res.account_reports) // 2)
         k.set(self.tr("Berichte erzeugt"), reports, "ok")
+        if res.encrypted:
+            k.set(self.tr("Verschlüsselte Kopie"), f"{res.encrypted['file']} · {_fmt_bytes(res.encrypted['size'])} · "
+                  + self.tr("geprüft"), "ok")
+            k.set(self.tr("Passwort (nur jetzt sichtbar)"), getattr(self, "_password", "") or "", mono=True)
+        self._password = None
         for z in res.zips:
             for p in z.problems:
                 k.set(self.tr("Hinweis"), p, "warn")

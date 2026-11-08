@@ -249,6 +249,7 @@ class FinishResult:
     timestamps: list = field(default_factory=list)  # je ZIP: (TimestampInfo | None, Fehlertext)
     account_reports: list = field(default_factory=list)  # report_<Evidence>.txt/.pdf bei mehreren Konten
     zip_mode: str = "gesamt"
+    encrypted: dict | None = None  # verschlüsselte Weitergabe-Kopie (ohne Passwort)
 
     @property
     def zip(self) -> ZipResult:
@@ -314,16 +315,23 @@ def delete_work_dir(case: Case, zip_result: ZipResult | list[ZipResult]) -> dict
 
 def finish_case(case: Case, cfg: Config | None = None, language: str | None = None,
                 cancel: CancelToken | None = None, progress: ProgressCallback | None = None,
-                delete_work: bool | None = None) -> FinishResult:
+                delete_work: bool | None = None, encrypt_password: str | None = None) -> FinishResult:
     """ZIP packen und prüfen, Case abschließen, ggf. Arbeitsordner löschen, Berichte erzeugen und hashen.
 
     ``delete_work``: ``None`` = nach Config (``arbeitsordner_loeschen == "ja"``).
+    ``encrypt_password``: zusätzlich verschlüsselte Kopie für die Weitergabe (Passwort wird nie gespeichert).
     """
     from fed.core.report import write_reports
 
     cfg = cfg or Config()
     if case.closed:
         raise ValueError("Case ist bereits abgeschlossen")
+    if encrypt_password is not None:
+        from fed.core.encrypt import check_password
+
+        problem = check_password(encrypt_password)
+        if problem:
+            raise ValueError(f"Passwort für die verschlüsselte Kopie ungeeignet: {problem}")
     running = case.conn.execute("SELECT COUNT(*) FROM attempt WHERE status = 'running'").fetchone()[0]
     if running:
         raise ValueError("Es läuft noch ein Versuch")
@@ -351,13 +359,32 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     from fed.core.languages import report_language_for
 
     report_language = report_language_for(language or cfg.programm.bericht_sprache or cfg.programm.sprache)
-    txt, pdf = write_reports(case, report_language,
-                             cfg.programm.bericht_mailliste, cfg.programm.bericht_mailliste_max)
+    txt, pdf = write_reports(case, report_language, cfg.programm.bericht_mailliste,
+                             cfg.programm.bericht_mailliste_max, encrypted_planned=encrypt_password is not None)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
     from fed.core.report import account_reports
 
-    return FinishResult(zips, txt, pdf, timestamps, account_reports(case), mode)
+    encrypted = None
+    if encrypt_password is not None:
+        encrypted = encrypted_copy(case, [z.path for z in zips], encrypt_password, cfg)
+    return FinishResult(zips, txt, pdf, timestamps, account_reports(case), mode, encrypted)
+
+
+def encrypted_copy(case: Case, zip_paths: list[Path], password: str, cfg: Config | None = None) -> dict:
+    """Verschlüsselte Weitergabe-Kopie erstellen, prüfen, hashen und protokollieren (ohne Passwort)."""
+    from fed.core.encrypt import create_copy, files_for_copy
+
+    target = case.root / f"{sanitize_component(case.info()['case_number'])}_encrypted.zip"
+    info = create_copy(target, files_for_copy(case.root, zip_paths), password)
+    if not info["verified"]:
+        case.log("ERROR", "encrypted_copy_failed", {k: v for k, v in info.items() if k != "files"})
+        raise RuntimeError("Prüfung der verschlüsselten Kopie fehlgeschlagen")
+    side = target.with_name(target.name + ".sha256")
+    side.write_text(f"{info['sha256']}  {target.name}\n", encoding="utf-8")
+    record_output(case, target, cfg)
+    case.log("INFO", "encrypted_copy_created", info)
+    return info
 
 
 def zip_mode_for(case: Case, cfg: Config | None = None) -> str:

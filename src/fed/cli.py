@@ -60,6 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
     wd = fin.add_mutually_exclusive_group()
     wd.add_argument("--delete-work", action="store_true", help="work/ nach verifiziertem ZIP löschen")
     wd.add_argument("--keep-work", action="store_true", help="work/ behalten")
+    enc = fin.add_mutually_exclusive_group()
+    enc.add_argument("--encrypt", action="store_true",
+                     help="verschlüsselte Kopie (AES-256); Passwort aus FED_ZIP_PASSWORD oder Abfrage")
+    enc.add_argument("--encrypt-generate", action="store_true",
+                     help="verschlüsselte Kopie mit erzeugtem Passwort (wird einmal angezeigt)")
     fin.add_argument("--zip", choices=["gesamt", "je-konto"], default=None,
                      help="mehrere Konten: ein ZIP für alle oder eines je Konto (Standard: Wahl im Case, sonst config)")
 
@@ -104,8 +109,23 @@ def main(argv: list[str] | None = None) -> int:
                     "Arbeitsordner nach erfolgreicher ZIP-Verifikation löschen? [j/N] ").strip().lower() in ("j", "ja", "y")
             if args.zip:
                 case.set_zip_mode(args.zip.replace("-", "_"), source="cli")
+            password = None
+            if args.encrypt_generate:
+                from fed.core.encrypt import generate_password
+
+                password = generate_password()
+            elif args.encrypt:
+                import getpass
+                import os
+
+                password = os.environ.get("FED_ZIP_PASSWORD")
+                if not password:
+                    password = getpass.getpass("Passwort für die verschlüsselte Kopie: ")
+                    if getpass.getpass("Wiederholen: ") != password:
+                        print("Passwörter stimmen nicht überein", file=sys.stderr)
+                        return 2
             with KeepAwake() if cfg.programm.wach_halten else _nullctx():
-                res = finish_case(case, cfg, delete_work=delete)
+                res = finish_case(case, cfg, delete_work=delete, encrypt_password=password)
         finally:
             case.close()
         for z, (ts, err) in zip(res.zips, res.timestamps, strict=True):
@@ -118,6 +138,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  WARNUNG Zeitstempel: {err}")
             for p in z.problems:
                 print(f"  HINWEIS: {p}")
+        if res.encrypted:
+            print(f"Verschlüsselte Kopie: {res.encrypted['file']}  SHA-256 {res.encrypted['sha256']}  (geprüft)")
+            if args.encrypt_generate:
+                print(f"  Passwort (wird nicht gespeichert, getrennt übermitteln): {password}")
         print(f"Berichte: {res.report_txt.name}, {res.report_pdf.name}"
               + (f" + {len(res.account_reports)} Einzelberichte" if res.account_reports else ""))
         return 0

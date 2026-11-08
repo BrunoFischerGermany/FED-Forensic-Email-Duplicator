@@ -296,3 +296,34 @@ def test_zip_mode_defaults(tmp_path, imap_server):
         case.set_zip_mode("irgendwas")
     assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'zip_mode_set'").fetchone()[0] == 1
     case.close()
+
+
+def test_encrypted_copy(acquired, tmp_path):
+    import pyzipper
+
+    from fed.core.encrypt import check_password, generate_password
+
+    pw = generate_password()
+    assert not check_password(pw) and len(pw) == 29 and check_password("kurz")
+    case = acquired
+    with pytest.raises(ValueError, match="ungeeignet"):
+        finish_case(case, Config(), encrypt_password="zu-kurz")
+    assert not case.closed
+    res = finish_case(case, Config(), language="de", encrypt_password=pw)
+    enc = res.encrypted
+    assert enc["verified"] and enc["method"].startswith("AES-256")
+    path = case.root / enc["file"]
+    assert path.name.endswith("_encrypted.zip") and path.with_name(path.name + ".sha256").exists()
+    with pyzipper.AESZipFile(path) as zf:
+        assert all(i.flag_bits & 0x1 for i in zf.infolist())  # verschlüsselt
+        with pytest.raises(RuntimeError):
+            zf.read(res.zip.path.name)  # ohne Passwort nicht lesbar
+        zf.setpassword(pw.encode())
+        assert hashlib.sha256(zf.read(res.zip.path.name)).hexdigest() == res.zip.hashes["sha256"]
+        assert {"report.pdf", "report.txt", "log.csv"} <= set(zf.namelist())
+    logged = case.conn.execute("SELECT details FROM log WHERE event = 'encrypted_copy_created'").fetchone()[0]
+    assert enc["sha256"] in logged and pw not in logged
+    all_log = " ".join(r[0] for r in case.conn.execute("SELECT details FROM log"))
+    assert pw not in all_log  # Passwort nirgends im Log
+    assert "Verschlüsselte Weitergabe-Kopie" in res.report_txt.read_text(encoding="utf-8")
+    assert path.name in {r[0] for r in case.conn.execute("SELECT file_name FROM output")}

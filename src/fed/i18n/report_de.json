@@ -130,5 +130,7 @@
   "flt_to": "Empfänger (To/CC/BCC) enthält",
   "flt_subject": "Betreff enthält",
   "flt_text": "Text (Kopf und Inhalt) enthält",
-  "flt_note": "Mehrere Werte eines Feldes = oder, Felder untereinander = und. Die Treffer bestimmt die Suche des Servers (IMAP SEARCH); Genauigkeit und Umgang mit Kodierungen unterscheiden sich je Anbieter."
+  "flt_note": "Mehrere Werte eines Feldes = oder, Felder untereinander = und. Die Treffer bestimmt die Suche des Servers (IMAP SEARCH); Genauigkeit und Umgang mit Kodierungen unterscheiden sich je Anbieter.",
+  "enc_title": "Verschlüsselte Weitergabe-Kopie",
+  "enc_text": "Nach diesem Bericht wird {file} erstellt (AES-256, WinZip-AES). Sie enthält die Original-ZIP(s) mit Hash- und Zeitstempeldateien, log.csv und die Berichte. Der SHA-256 der Kopie steht in {file}.sha256 und im Log der Case-Datei. Das Passwort ist nicht gespeichert und wird getrennt übermittelt."
 }

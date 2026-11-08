@@ -682,6 +682,57 @@ After closing, the case cannot be extended. Close anyway?</translation>
     </message>
 </context>
 <context>
+    <name>EncryptDialog</name>
+    <message>
+        <source>Verschlüsselte Kopie für die Weitergabe</source>
+        <translation>Encrypted copy for transfer</translation>
+    </message>
+    <message>
+        <source>Zusätzlich zum geprüften Original kann FED eine mit AES-256 verschlüsselte Kopie erstellen (Original-ZIP, Hash- und Zeitstempeldateien, log.csv, Berichte) – z. B. für USB-Stick oder Versand. Das Original bleibt unverändert. Das Passwort wird nirgends gespeichert; bitte getrennt übermitteln.</source>
+        <translation>In addition to the verified original, FED can create an AES-256 encrypted copy (original ZIP, hash and timestamp files, log.csv, reports) – e.g. for a USB stick or shipping. The original stays unchanged. The password is not stored anywhere; please transmit it separately.</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Kopie erstellen</source>
+        <translation>Create encrypted copy</translation>
+    </message>
+    <message>
+        <source>Sicheres Passwort erzeugen</source>
+        <translation>Generate secure password</translation>
+    </message>
+    <message>
+        <source>Eigenes Passwort</source>
+        <translation>Own password</translation>
+    </message>
+    <message>
+        <source>Kopieren</source>
+        <translation>Copy</translation>
+    </message>
+    <message>
+        <source>Neu</source>
+        <translation>New</translation>
+    </message>
+    <message>
+        <source>Passwort</source>
+        <translation>Password</translation>
+    </message>
+    <message>
+        <source>Wiederholen</source>
+        <translation>Repeat</translation>
+    </message>
+    <message>
+        <source>Passwort: mindestens {0} Zeichen, nicht zu einfach.</source>
+        <translation>Password: at least {0} characters, not too simple.</translation>
+    </message>
+    <message>
+        <source>Die Passwörter stimmen nicht überein.</source>
+        <translation>The passwords do not match.</translation>
+    </message>
+    <message>
+        <source>Passwort jetzt notieren oder kopieren – es wird nach dem Abschluss noch einmal angezeigt, danach nicht mehr.</source>
+        <translation>Note or copy the password now – it is shown once more after closing, then never again.</translation>
+    </message>
+</context>
+<context>
     <name>FinishPage</name>
     <message>
         <source>Case abschließen</source>
@@ -790,6 +841,18 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Berichte erzeugt</source>
         <translation>Reports created</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Kopie</source>
+        <translation>Encrypted copy</translation>
+    </message>
+    <message>
+        <source>geprüft</source>
+        <translation>verified</translation>
+    </message>
+    <message>
+        <source>Passwort (nur jetzt sichtbar)</source>
+        <translation>Password (visible only now)</translation>
     </message>
     <message>
         <source>Hinweis</source>
@@ -1377,6 +1440,14 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>ZIP bei mehreren Konten</source>
         <translation>ZIP with several accounts</translation>
+    </message>
+    <message>
+        <source>aus</source>
+        <translation>off</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Weitergabe-Kopie</source>
+        <translation>Encrypted copy for transfer</translation>
     </message>
     <message>
         <source>Arbeitsordner nach Abschluss</source>

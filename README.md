@@ -106,6 +106,7 @@ The programs are not signed: macOS reports an "unidentified developer"
 ├─ work/<address>/<folder>/*.eml    messages during acquisition
 ├─ discarded/attempt_<n>/           previous state after a restart
 ├─ case.sqlite                      case file with log and hash chain
+├─ <case>_encrypted.zip (+ .sha256)  optional AES-256 copy for transfer (password never stored)
 ├─ <case>_<time>.zip + .zip.sha256  final archive (one for all accounts – or, selectable,
 │                                   <case>_<evidence>_<time>.zip per account)
 ├─ <case>_<time>.zip.tsr / .tsq     RFC 3161 timestamp (if configured)

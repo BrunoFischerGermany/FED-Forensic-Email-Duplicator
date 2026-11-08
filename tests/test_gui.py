@@ -36,6 +36,13 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     monkeypatch.setattr(ga, "make_connector", lambda *a, **k: orig(*a, cafile=str(imap_server.cafile), **k))
     monkeypatch.setattr(QtWidgets.QMessageBox, "warning", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
     monkeypatch.setattr(QtWidgets.QMessageBox, "question", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    from fed.gui import encrypt_dialog
+
+    def enc_exec(dlg):  # Abschluss: verschlüsselte Kopie mit erzeugtem Passwort
+        dlg._accept()
+        return 1
+
+    monkeypatch.setattr(encrypt_dialog.EncryptDialog, "exec", enc_exec)
     cfg = cfgmod.Config()
     cfg.examiner_name = "Max Mustermann"
     cfg.programm.zielpfad = str(tmp_path)
@@ -66,6 +73,9 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     res = a.st.finish
     assert res.zip.verified and res.zip.files == len(test_mails)
     assert not a.st.case.work_dir.exists()  # Frage „Arbeitsordner löschen?“ mit Ja beantwortet
+    assert res.encrypted and res.encrypted["verified"]  # verschlüsselte Kopie mit erzeugtem Passwort
+    shown = a.p_fin.check_kv.values["Passwort (nur jetzt sichtbar)"].text()
+    assert len(shown) == 29 and a.p_fin._password is None
     w.nav.button(1).click()
     w.history.refresh()
     assert w.history.mails.model.rowCount() == len(test_mails)
