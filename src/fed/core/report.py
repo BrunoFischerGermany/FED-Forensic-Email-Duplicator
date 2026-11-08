@@ -64,6 +64,16 @@ def collect(case: Case, account_id: int | None = None) -> dict:
                       "LEFT JOIN attempt t ON t.id = l.attempt_id WHERE l.level IN ('WARNING','ERROR') ORDER BY l.id")
     messages = message_rows(case)
     outputs = _q(case, "SELECT * FROM output ORDER BY id")
+    dkim_counts = {}
+    for acc, res, n in case.conn.execute(
+            "SELECT f.account_id, m.dkim_result, COUNT(*) FROM message m JOIN folder f ON f.id = m.folder_id "
+            "WHERE m.status = 'valid' GROUP BY f.account_id, m.dkim_result"):
+        dkim_counts.setdefault(acc, {})[res or "unchecked"] = n
+    dkim_issues = _q(case, "SELECT f.account_id, a.evidence_number, f.display_name, m.uid, m.subject, m.dkim_result, "
+                           "m.dkim_domain, m.dkim_detail FROM message m JOIN folder f ON f.id = m.folder_id "
+                           "JOIN account a ON a.id = f.account_id WHERE m.status = 'valid' "
+                           "AND m.dkim_result IN ('fail', 'permerror', 'temperror') ORDER BY a.id, m.zip_path")
+    dns_rows = _q(case, "SELECT * FROM dns_record ORDER BY name, id")
     timestamps = _timestamp_state(case)
     all_accounts = len(accounts)
     if account_id is not None:
@@ -76,6 +86,11 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         messages = [m for m in messages if m["Konto"] == email]
         outputs = [o for o in outputs if o.get("account_id") in (None, account_id)]
         timestamps = [x for x in timestamps if x.get("account_id") in (None, account_id)]
+        dkim_issues = [x for x in dkim_issues if x["account_id"] == account_id]
+        used = {r[0] for r in case.conn.execute(
+            "SELECT DISTINCT LOWER(m.dkim_selector || '._domainkey.' || m.dkim_domain) FROM message m "
+            "JOIN folder f ON f.id = m.folder_id WHERE f.account_id = ? AND m.dkim_domain IS NOT NULL", (account_id,))}
+        dns_rows = [r for r in dns_rows if r["name"] in used]
     return {
         "info": info,
         "agency": agency,
@@ -89,6 +104,9 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "folders": folders,
         "issues": issues,
         "outputs": outputs,
+        "dkim_counts": dkim_counts,
+        "dkim_issues": dkim_issues,
+        "dns": dns_rows,
         "zip_mode": case.zip_mode(),
         "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
         "messages": messages,
@@ -210,7 +228,7 @@ def _overview_rows(d: dict, L: dict) -> list[list[str]]:
              str(o["attempts"])] for o in d["overview"]]
 
 
-def _account_items(a: dict, L: dict) -> list[tuple[str, str]]:
+def _account_items(a: dict, L: dict, dkim_counts: dict | None = None) -> list[tuple[str, str]]:
     rng = "–"
     if a["date_from"] or a["date_to"]:
         rng = f"{a['date_from'] or '…'} – {a['date_to'] or '…'} ({L['partial']})"
@@ -219,7 +237,15 @@ def _account_items(a: dict, L: dict) -> list[tuple[str, str]]:
         (L["username"], a["username"]),
         (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], a["autoconfig_source"] or "–"),
         (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
+        (L["dkim"], _dkim_summary((dkim_counts or {}).get(a["id"], {}), L)),
     ]
+
+
+def _dkim_summary(counts: dict, L: dict) -> str:
+    if not counts:
+        return "–"
+    order = ("pass", "fail", "permerror", "temperror", "none", "unchecked")
+    return " · ".join(f"{counts[k]} {L['dkim_' + k]}" for k in order if counts.get(k))
 
 
 def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
@@ -244,6 +270,18 @@ def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
         (L["entries"], str(lg["count"])), (L["head"], lg["head"] or "–"),
     ]))
     return secs
+
+
+def _dkim_issue_rows(d: dict, L: dict) -> list[list[str]]:
+    return [[x["evidence_number"], f"{x['display_name']} · UID {x['uid']}", x["subject"] or "–",
+             L["dkim_" + x["dkim_result"]], f"{x['dkim_domain'] or ''} {x['dkim_detail'] or ''}".strip()]
+            for x in d["dkim_issues"]]
+
+
+def _dns_rows(d: dict, L: dict) -> list[list[str]]:
+    return [[r["name"], {"ok": L["dns_ok"], "nxdomain": L["dns_missing"], "error": L["dns_error"]}.get(r["status"],
+                                                                                                    r["status"]),
+             tf.both_short(r["fetched_utc"]), r["sha256"] or "–"] for r in d["dns"]]
 
 
 def _title(d: dict, L: dict) -> str:
@@ -298,7 +336,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                                              size=_fmt_bytes(sum(o["bytes"] for o in tot))), ""]
     for a in d["accounts"]:
         head = f"{L['account']} {a['evidence_number']} · {a['email']}"
-        out += [head, "=" * len(head), *_kv_txt(_account_items(a, L))]
+        out += [head, "=" * len(head), *_kv_txt(_account_items(a, L, d["dkim_counts"]))]
         if a.get("notes"):
             out += ["", f"{L['account_notes']}:", *("  " + x for x in a["notes"].splitlines())]
         out += ["", f"{L['attempts']}:"]
@@ -307,6 +345,12 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                        f"{tf.both(x['ended_utc']) if x['ended_utc'] else '…'}  {x['reason'] or ''}"
                        f"{'  -> ' + x['moved_to'] if x['moved_to'] else ''}")
         out += ["", f"{L['folders']}:", *_folder_lines(d, L, a["email"]), ""]
+    out += [L["dkim_section"], "-" * len(L["dkim_section"]), L["dkim_intro"], ""]
+    out += [f"  {r[0]}  {r[1]}  {r[2]}  [{r[3]}]  {r[4]}" for r in _dkim_issue_rows(d, L)] or [f"  {L['dkim_none_issues']}"]
+    if d["dns"]:
+        out += ["", f"{L['dns_section']}:", f"  {L['dns_intro']}"]
+        out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
+    out.append("")
     for title, items in _tail_sections(d, L):
         out += [title, "-" * len(title), *_kv_txt(items), ""]
     out += [L["issues"], "-" * len(L["issues"])]
@@ -327,6 +371,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         acc = f"{m['Evidence']}  " if d["all_accounts"] > 1 and account_id is None else ""
         out.append(f"{n:>5}  {acc}{tf.both(m['Eingangszeit_UTC'])}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
                    f"{L['to']}: {m['An'] or m['CC'] or m['Empfaenger_Hinweis']}  {L['att']} {m['Anlagen']}  "
+                   f"DKIM {L.get('dkim_' + m['DKIM'], '–') if m['DKIM'] else '–'}  "
                    f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
     out.append("")
     return "\n".join(out)
@@ -453,7 +498,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         if account_id is None:
             pdf.add_page()
         h2(f"{L['account']} {a['evidence_number']} · {a['email']}")
-        kv(_account_items(a, L))
+        kv(_account_items(a, L, d["dkim_counts"]))
         if a.get("notes"):
             h3(L["account_notes"])
             note(a["notes"])
@@ -473,6 +518,28 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                 diff = str((f["count_saved"] or 0) - (f["count_server"] or 0)) if f["selected"] else ""
                 t.row([f["label"], "✓" if f["selected"] else "–", str(f["count_server"] or 0),
                        str(f["count_saved"] or 0), diff, _fmt_bytes(f["size_server"]), _status_pair(f, L)])
+
+    h2(L["dkim_section"])
+    pdf.set_font("DejaVu", "", 8)
+    pdf.multi_cell(0, 4.2, L["dkim_intro"], new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(1)
+    issues = _dkim_issue_rows(d, L)
+    if issues:
+        with pdf.table(col_widths=(18, 40, 46, 28, 48), headings_style=head, line_height=4.2) as t:
+            t.row([L["evidence"], L["mail"], L["subject"], L["result"], L["detail"]])
+            for r in issues:
+                t.row([r[0], r[1], r[2], r[3], r[4][:300]])
+    else:
+        pdf.cell(0, 5, L["dkim_none_issues"], new_x="LMARGIN", new_y="NEXT")
+    if d["dns"]:
+        h2(L["dns_section"])
+        pdf.set_font("DejaVu", "", 8)
+        pdf.multi_cell(0, 4.2, L["dns_intro"], new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+        with pdf.table(col_widths=(55, 25, 40, 60), headings_style=head, line_height=4.2) as t:
+            t.row([L["dns_name"], L["status"], L["fetched"], "SHA-256"])
+            for r in _dns_rows(d, L):
+                t.row(r)
 
     for title, items in _tail_sections(d, L):
         h2(title)
@@ -519,7 +586,9 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
             to = m["An"] or (f"CC: {m['CC']}" if m["CC"] else m["Empfaenger_Hinweis"] or "–")
             t.row([str(n), f"{tf.both_short(m['Eingangszeit_UTC'])}\nUID {m['UID']}",
                    (f"{m['Evidence']} · " if multi else "") + f"{m['Ordner']}\n{m['Absender']}",
-                   f"{m['Betreff']} · {to} · {L['att']} {m['Anlagen']}\n{m['Datei']}\n{m['SHA256']}"])
+                   f"{m['Betreff']} · {to} · {L['att']} {m['Anlagen']}"
+                   + (f" · DKIM {L.get('dkim_' + m['DKIM'], m['DKIM'])}" if m["DKIM"] else "")
+                   + f"\n{m['Datei']}\n{m['SHA256']}"])
     pdf.output(str(path))
 
 

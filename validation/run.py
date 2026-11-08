@@ -7,7 +7,7 @@ Voraussetzungen: ``dovecot`` und ``openssl`` im PATH (Linux/macOS; unter Windows
 z. B. in WSL). Der Zeitstempel-Test (V11) braucht ``openssl ts``.
 
 Ablauf: ein lokaler Dovecot stellt das Testpostfach aus ``testmailbox.py`` bereit
-(12 Mails in 10 Ordnern, erwartete Hashes in ``expected_hashes.csv``). FED sichert es
+(14 Mails in 11 Ordnern, erwartete Hashes in ``expected_hashes.csv``). FED sichert es
 wie im echten Einsatz; jede Prüfung vergleicht das Ergebnis mit dem erwarteten Wert.
 Ergebnis je Prüfung: BESTANDEN / NICHT BESTANDEN / NICHT GEPRÜFT. Rückgabewert 1, wenn
 eine Prüfung nicht bestanden ist.
@@ -123,6 +123,14 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
             "en": ("Umlauts in address, domain and password",
                    "Account bärbel.böhmer@ärzte.de (IDN domain, umlauts in name and password) signs in and is "
                    "acquired bit-exactly; the ZIP folder carries the address in Unicode (UTF-8 flag).")},
+    "V14": {"de": ("Echtheitsprüfung (DKIM)",
+                   "Gültig signierte Mail = gültig, nach dem Signieren veränderte Mail = ungültig, übrige = nicht "
+                   "signiert; der öffentliche Schlüssel ist mit SHA-256 in der Case-Datei aufbewahrt; "
+                   "Authentication-Results des Anbieters ausgewertet."),
+            "en": ("Authenticity check (DKIM)",
+                   "Validly signed message = valid, message modified after signing = invalid, others = not signed; "
+                   "the public key is preserved with SHA-256 in the case file; the provider's Authentication-Results "
+                   "are evaluated.")},
 }
 
 T = {
@@ -564,8 +572,33 @@ def v13_umlauts(ctx: Ctx) -> CheckResult:
     return r
 
 
+def v14_dkim(ctx: Ctx) -> CheckResult:
+    r = CheckResult("V14", PASS)
+    rows = ctx.case.conn.execute("SELECT subject, dkim_result, dkim_detail, auth_results FROM message "
+                                 "WHERE status = 'valid'").fetchall()
+    res = Counter(x[1] for x in rows)
+    by_subject = {x[0]: x for x in rows}
+    ok, bad = by_subject.get("Signierte Mitteilung"), by_subject.get("Nachtraeglich veraendert")
+    key = ctx.case.conn.execute("SELECT name, record, sha256 FROM dns_record WHERE status = 'ok'").fetchall()
+    want_key = testmailbox.dkim_dns()
+    key_ok = len(key) == 1 and want_key.get(key[0][0]) == key[0][1] and \
+        hashlib.sha256(key[0][1].encode()).hexdigest() == key[0][2]
+    ar_ok = bool(ok and ok[3] and json.loads(ok[3]).get("dmarc") == "pass")
+    r.details += [_d(f"Ergebnisse: {dict(res)}", f"results: {dict(res)}"),
+                  _d(f"gültig signiert: {ok[1] if ok else '–'}; verändert: {bad[1] if bad else '–'} ({bad[2] if bad else ''})",
+                     f"validly signed: {ok[1] if ok else '–'}; modified: {bad[1] if bad else '–'} ({bad[2] if bad else ''})"),
+                  _d(f"Schlüssel aufbewahrt: {_yn(key_ok, 'de')} ({key[0][0] if key else '–'})",
+                     f"key preserved: {_yn(key_ok, 'en')} ({key[0][0] if key else '–'})"),
+                  _d(f"Authentication-Results ausgewertet: {_yn(ar_ok, 'de')}",
+                     f"Authentication-Results evaluated: {_yn(ar_ok, 'en')}")]
+    if not (ok and ok[1] == "pass" and bad and bad[1] == "fail" and res.get("none") == len(rows) - 2
+            and key_ok and ar_ok):
+        r.status = FAIL
+    return r
+
+
 STEPS = [v01_read_only, v02_guard, v03_completeness, v04_bit_exact, v05_times, v06_cancel_resume,
-         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts]
+         v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts, v14_dkim]
 
 
 # ---------------------------------------------------------------- Ablauf
@@ -577,6 +610,9 @@ def run(work: Path) -> Report:
         "server": _version(["dovecot", "--version"]), "openssl": _version(["openssl", "version"]),
         "mailbox": _expected(),
     }
+    from fed.core import authcheck
+
+    authcheck.DNS_OVERRIDE = testmailbox.dkim_dns()  # Test-Schlüssel lokal, keine echte DNS-Abfrage
     srv = dovecot_server.start()
     tsa = fake_tsa.FakeTsa() if fake_tsa.available() else None
     try:

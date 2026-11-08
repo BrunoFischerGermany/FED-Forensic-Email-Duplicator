@@ -70,6 +70,11 @@
 - Evidence-Nummer wird vorgeschlagen: letzte Zahl der zuletzt vergebenen Nummer +1
   (`A-01` -> `A-02`, `VG-2026-009` -> `VG-2026-010`), vergebene Nummern werden übersprungen,
   doppelte Vergabe für ein anderes Konto abgelehnt
+- Echtheitsprüfung (DKIM) bei der Sicherung: Ergebnis je Mail (gültig, ungültig, nicht prüfbar,
+  nicht signiert), Begründung, Authentication-Results des Anbieters (SPF/DKIM/DMARC); abgefragte
+  DNS-Schlüssel werden mit Abrufzeit und SHA-256 in der Case-Datei aufbewahrt; Spalten in `log.csv`,
+  Abschnitte im Bericht; offene DNS-Fehler werden beim Fortsetzen erneut geprüft; abschaltbar
+  (`dkim_pruefen`); Testpostfach um zwei signierte Mails erweitert, Validierung V14
 - ZIP-Aufteilung bei mehreren Konten wählbar: ein ZIP für alle Konten oder eines je Konto
   (`<Case>_<Evidence>_<Zeit>.zip` mit eigener `log.csv`, `.sha256` und Zeitstempel); Frage beim
   2. Konto (änderbar bis zum Abschluss), Voreinstellung `zip_aufteilung` (fragen | gesamt | je_konto),

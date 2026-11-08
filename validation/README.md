@@ -5,7 +5,7 @@ für das Validierungsprotokoll (ISO 17025).
 
 | Datei | Inhalt |
 | --- | --- |
-| `testmailbox.py` | erzeugt das Postfach als Maildir: 12 Mails in 10 Ordnern (Umlaute in Ordnern, Anlagen, eingebettetes Bild, nur BCC, per BCC erhalten, ohne Date-Header, 8-bit Latin-1, 4 MB) |
+| `testmailbox.py` | erzeugt das Postfach als Maildir: 14 Mails in 11 Ordnern (Umlaute in Ordnern, Anlagen, DKIM gültig/verändert, eingebettetes Bild, nur BCC, per BCC erhalten, ohne Date-Header, 8-bit Latin-1, 4 MB) |
 | `expected_hashes.csv` | erwartete SHA-256/MD5 je Mail (`python validation/testmailbox.py --expected`) |
 | `dovecot_server.py` | startet einen lokalen Dovecot mit diesem Postfach (`python validation/dovecot_server.py`) |
 
@@ -21,7 +21,7 @@ python -m validation.run --out validation-report --lang de,en
 ```
 
 Startet einen lokalen Dovecot mit dem Testpostfach (und einen Test-Zeitstempeldienst mit
-eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 13 Punkte:
+eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 14 Punkte:
 
 | Nr. | Prüfung |
 | --- | --- |
@@ -38,6 +38,7 @@ eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 
 | V11 | Zeitstempel nach RFC 3161, Signatur mit `openssl ts -verify` |
 | V12 | Berichte und Ausgabe-Hashes |
 | V13 | Umlaute in Adresse, Domain und Passwort (`bärbel.böhmer@ärzte.de`) |
+| V14 | DKIM-Prüfung: gültig / verändert / nicht signiert, Schlüssel aufbewahrt, Authentication-Results |
 
 Ergebnis: `validation-report-de.pdf/.txt`, `validation-report-en.pdf/.txt`, `validation-report.json`
 mit Datum, Programmversion, SHA-256 des Programms, Git-Stand, Python-, Betriebssystem-,

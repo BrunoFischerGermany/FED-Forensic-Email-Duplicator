@@ -239,3 +239,44 @@ def test_unexpected_error_marks_attempt_failed(tmp_path, connect, imap_server, c
     assert status == "failed"
     assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'attempt_failed'").fetchone()[0] == 1
     case.close()
+
+
+def test_dkim_checked_and_keys_stored(tmp_path, connect, imap_server, test_mails, cfg):
+    from fed.core.finalize import message_rows
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+    run_attempt(case, acc, connect, cfg=cfg)
+    res = dict(case.conn.execute("SELECT dkim_result, COUNT(*) FROM message GROUP BY dkim_result").fetchall())
+    assert res == {"pass": 1, "fail": 1, "none": len(test_mails) - 2}
+    rows = {r["Betreff"]: r for r in message_rows(case)}
+    ok, bad = rows["Signierte Mitteilung"], rows["Nachtraeglich veraendert"]
+    assert (ok["DKIM"], ok["DKIM_Domain"], ok["Anbieter_SPF"], ok["Anbieter_DMARC"]) == ("pass", "dkim.example", "pass",
+                                                                                     "pass")
+    assert bad["DKIM"] == "fail" and "Body-Hash" in bad["DKIM_Detail"]
+    keys = case.conn.execute("SELECT name, status, sha256 FROM dns_record").fetchall()
+    assert keys == [("fed2026._domainkey.dkim.example", "ok", keys[0][2])] and len(keys[0][2]) == 64
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'auth_check_done'").fetchone()[0] == 1
+    case.close()
+
+
+def test_dkim_temperror_rechecked_on_resume(tmp_path, connect, imap_server, cfg, monkeypatch):
+    from fed.core import authcheck
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+    monkeypatch.setattr(authcheck.DnsCache, "_query",
+                        lambda self, name: authcheck.DnsRecord(name, None, "error", "x", "timeout"))
+    run_attempt(case, acc, connect, cfg=cfg)
+    assert case.conn.execute("SELECT COUNT(*) FROM message WHERE dkim_result = 'temperror'").fetchone()[0] == 2
+    monkeypatch.undo()
+    authcheck.DNS_OVERRIDE = __import__("validation.testmailbox", fromlist=["x"]).dkim_dns()
+    run_attempt(case, acc, connect, cfg=cfg)  # Fortsetzen prüft offene DKIM-Ergebnisse erneut
+    assert case.conn.execute("SELECT COUNT(*) FROM message WHERE dkim_result = 'temperror'").fetchone()[0] == 0
+    case.close()
+
+
+def test_dkim_can_be_disabled(tmp_path, connect, imap_server, cfg):
+    case, acc = _setup(tmp_path, connect, imap_server)
+    cfg.programm.dkim_pruefen = False
+    run_attempt(case, acc, connect, cfg=cfg)
+    assert case.conn.execute("SELECT COUNT(*) FROM message WHERE dkim_result IS NOT NULL").fetchone()[0] == 0
+    case.close()

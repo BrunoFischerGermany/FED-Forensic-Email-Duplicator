@@ -204,6 +204,8 @@ def run_attempt(
         prog.phase = p
         with conn:
             conn.execute("UPDATE attempt SET phase = ? WHERE id = ?", (p, attempt_id))
+        if progress:
+            progress(prog)
 
     imap: ReadOnlyImap | None = None
     try:
@@ -248,6 +250,9 @@ def run_attempt(
         imap.logout()  # Download läuft über eigene Verbindungen je Worker
         imap = None
         _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, progress, prog, result)
+        if cfg.programm.dkim_pruefen:
+            set_phase("auth_check")
+            auth_check(case, account_id, attempt_id, cancel, cfg.programm.socket_timeout_s)
         imap = connect()
 
         set_phase("status_after")
@@ -565,6 +570,58 @@ def summary(case: Case, account_id: int) -> dict:
         (account_id,)).fetchall()
     return {"folders": [{"name": r[0], "selected": bool(r[1]), "server": r[2], "saved": r[3]} for r in rows],
             "saved_total": sum(r[3] or 0 for r in rows if r[1])}
+
+
+def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cancel: CancelToken | None = None,
+               timeout: float = 5.0) -> dict[str, int]:
+    """DKIM/Authentication-Results für alle noch nicht (oder nur vorläufig) geprüften Mails eines Kontos.
+
+    Liest die gesicherten Dateien (unverändert), prüft parallel, schreibt das Ergebnis je Mail und
+    speichert die abgefragten DNS-Schlüssel. Abbruch jederzeit möglich (Rest wird beim Fortsetzen geprüft).
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from fed.core import authcheck
+
+    cancel = cancel or CancelToken()
+    rows = case.conn.execute(
+        "SELECT m.id, m.zip_path FROM message m JOIN folder f ON f.id = m.folder_id WHERE f.account_id = ? "
+        "AND m.status = 'valid' AND (m.dkim_result IS NULL OR m.dkim_result = 'temperror') ORDER BY m.id",
+        (account_id,)).fetchall()
+    if not rows:
+        return {}
+    dns = authcheck.DnsCache(timeout=min(timeout, 10))
+
+    def one(row):
+        if cancel.is_cancelled:
+            return row[0], None
+        p = case.work_dir / row[1]
+        return row[0], authcheck.check(p.read_bytes(), dns) if p.exists() else None
+
+    counts: dict[str, int] = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(one, rows))
+    conn = case.conn
+    with conn:
+        for mid, r in results:
+            if r is None:
+                continue
+            counts[r.dkim] = counts.get(r.dkim, 0) + 1
+            conn.execute("UPDATE message SET dkim_result = ?, dkim_domain = ?, dkim_selector = ?, dkim_detail = ?, "
+                         "auth_results = ? WHERE id = ?",
+                         (r.dkim, r.dkim_domain or None, r.dkim_selector or None, r.dkim_detail or None,
+                          json.dumps(r.provider, ensure_ascii=False) if r.provider else None, mid))
+        for rec in dns.records.values():
+            known = conn.execute("SELECT 1 FROM dns_record WHERE name = ? AND COALESCE(sha256, '') = ? AND status = ?",
+                                 (rec.name, rec.sha256 or "", rec.status)).fetchone()
+            if not known:
+                conn.execute("INSERT INTO dns_record (name, record, sha256, status, error, fetched_utc, attempt_id) "
+                             "VALUES (?,?,?,?,?,?,?)", (rec.name, rec.record, rec.sha256, rec.status,
+                                                        rec.error or None, rec.fetched_utc, attempt_id))
+    case.log("INFO", "auth_check_done", {"account_id": account_id, "checked": sum(counts.values()), **counts,
+                                          "dns_records": len(dns.records)}, attempt_id)
+    cancel.raise_if_cancelled()
+    return counts
 
 
 def accounts_overview(case: Case) -> list[dict]:

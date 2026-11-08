@@ -232,7 +232,13 @@ class Case:
 
 def _migrate(case: Case) -> None:
     """Ältere Case-Dateien ergänzen (nur neue Spalten, nie Daten ändern); wird protokolliert."""
-    for table, col, ddl in (("account", "notes", "TEXT"), ("output", "account_id", "INTEGER")):
+    case.conn.execute(
+        "CREATE TABLE IF NOT EXISTS dns_record (id INTEGER PRIMARY KEY, name TEXT NOT NULL, record TEXT, sha256 TEXT, "
+        "status TEXT NOT NULL, error TEXT, fetched_utc TEXT NOT NULL, attempt_id INTEGER REFERENCES attempt(id))")
+    for table, col, ddl in (("account", "notes", "TEXT"), ("output", "account_id", "INTEGER"),
+                            ("message", "dkim_result", "TEXT"), ("message", "dkim_domain", "TEXT"),
+                            ("message", "dkim_selector", "TEXT"), ("message", "dkim_detail", "TEXT"),
+                            ("message", "auth_results", "TEXT")):
         cols = {r[1] for r in case.conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
             with case.conn:

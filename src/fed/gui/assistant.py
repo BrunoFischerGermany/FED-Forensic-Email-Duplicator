@@ -939,7 +939,10 @@ class AcquirePage(QWidget):
         self.stat["speed"][1].setText(self.tr("ca. {0} Mails/min · Mittel 30 s").format(int(mpm)))
         self.stat["time"][0].setText(fmt_secs(time.monotonic() - p.started))
         self.stat["time"][1].setText(self.tr("Restzeit ca. ") + fmt_secs(eta))
-        self.folder_lbl.setText(self.tr("Aktueller Ordner: ") + f"{p.folder}  ·  {p.folder_done} / {p.folder_total}")
+        if p.phase == "auth_check":
+            self.folder_lbl.setText(self.tr("Echtheitsprüfung (DKIM) der gesicherten Mails …"))
+        else:
+            self.folder_lbl.setText(self.tr("Aktueller Ordner: ") + f"{p.folder}  ·  {p.folder_done} / {p.folder_total}")
         self.folder_bar.setValue(int(100 * p.folder_done / p.folder_total) if p.folder_total else 100)
         self.uid_lbl.setText(f"UID {p.current_uid}")
         self.issues.setText(self.tr("{0} Warnungen · {1} Fehler").format(p.warnings, p.errors))

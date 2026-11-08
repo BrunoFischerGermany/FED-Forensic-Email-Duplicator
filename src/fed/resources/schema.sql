@@ -128,9 +128,26 @@ CREATE TABLE IF NOT EXISTS message (
     subject         TEXT,
     subject_raw     TEXT,
     saved_utc       TEXT NOT NULL,
-    status          TEXT NOT NULL DEFAULT 'valid' -- valid | discarded
+    status          TEXT NOT NULL DEFAULT 'valid', -- valid | discarded
+    dkim_result     TEXT,                    -- pass | fail | permerror | temperror | none (NULL = nicht geprüft)
+    dkim_domain     TEXT,
+    dkim_selector   TEXT,
+    dkim_detail     TEXT,
+    auth_results    TEXT                     -- JSON: Authentication-Results des Anbieters (spf, dkim, dmarc)
 );
 CREATE INDEX IF NOT EXISTS idx_message_folder_uid ON message (folder_id, uid);
+
+-- Bei der DKIM-Prüfung abgefragte DNS-Einträge (öffentliche Schlüssel), für spätere Nachprüfung
+CREATE TABLE IF NOT EXISTS dns_record (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,                -- <selector>._domainkey.<domain>
+    record      TEXT,                         -- TXT-Inhalt (NULL = nicht vorhanden)
+    sha256      TEXT,
+    status      TEXT NOT NULL,                -- ok | nxdomain | error
+    error       TEXT,
+    fetched_utc TEXT NOT NULL,
+    attempt_id  INTEGER REFERENCES attempt(id)
+);
 
 -- Nur anhängend; entry_hash = SHA-256 über Inhalt + prev_hash
 CREATE TABLE IF NOT EXISTS log (

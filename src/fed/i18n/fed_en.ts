@@ -365,6 +365,10 @@
         <translation>approx. {0} messages/min · 30 s average</translation>
     </message>
     <message>
+        <source>Echtheitsprüfung (DKIM) der gesicherten Mails …</source>
+        <translation>Authenticity check (DKIM) of the saved messages …</translation>
+    </message>
+    <message>
         <source>Aktueller Ordner: </source>
         <translation>Current folder: </translation>
     </message>
@@ -1329,6 +1333,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Rechner während Sicherung und Abschluss nicht sperren / nicht schlafen lassen</source>
         <translation>Keep the computer from locking / sleeping during acquisition and finishing</translation>
+    </message>
+    <message>
+        <source>DKIM-Signaturen bei der Sicherung prüfen und DNS-Schlüssel aufbewahren</source>
+        <translation>Check DKIM signatures during acquisition and preserve the DNS keys</translation>
     </message>
     <message>
         <source>Netzwerk und Zeit</source>

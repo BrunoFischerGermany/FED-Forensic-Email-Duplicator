@@ -103,7 +103,23 @@ def mails() -> list[TestMail]:
         "MIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=\"g\"\n\n--g\nContent-Type: text/plain\n\nGross\n"
         f"--g\nContent-Type: application/octet-stream; name=\"daten.bin\"\nContent-Disposition: attachment; filename=\"daten.bin\"\n"
         f"Content-Transfer-Encoding: base64\n\n{_b64(BIG)}\n--g--\n"), note="ca. 4 MB, stueckweises Laden"))
+    # DKIM: fest signierte Mails (Test-Schlüssel in validation/dkim, Domain dkim.example)
+    m.append(TestMail("Verband", _dt(2026, 11, 5, 9, 0, 5), (DKIM_DIR / "signed-pass.eml").read_bytes(),
+                      note="DKIM gueltig signiert, Authentication-Results"))
+    m.append(TestMail("Verband", _dt(2026, 11, 6, 9, 0, 5), (DKIM_DIR / "signed-tampered.eml").read_bytes(),
+                      note="DKIM-Signatur, Text nachtraeglich veraendert"))
     return m
+
+
+DKIM_DIR = HERE / "dkim"
+DKIM_SELECTOR = "fed2026"
+DKIM_DOMAIN = "dkim.example"
+
+
+def dkim_dns() -> dict[str, str]:
+    """Lokale Antwort auf die DNS-Abfrage des Test-Schlüssels (für Tests und Validierung)."""
+    txt = (DKIM_DIR / f"{DKIM_SELECTOR}._domainkey.{DKIM_DOMAIN}.txt").read_text().strip()
+    return {f"{DKIM_SELECTOR}._domainkey.{DKIM_DOMAIN}": txt}
 
 
 EMPTY_FOLDERS = ["Leer"]

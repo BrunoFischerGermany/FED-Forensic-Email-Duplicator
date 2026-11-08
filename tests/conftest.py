@@ -44,3 +44,15 @@ def imap(imap_server):
 @pytest.fixture
 def test_mails():
     return testmailbox.mails()
+
+
+@pytest.fixture(autouse=True)
+def _dkim_test_dns():
+    """DKIM-Schlüssel des Testpostfachs lokal beantworten – Tests fragen nie echte DNS-Server."""
+    from fed.core import authcheck
+    from validation import testmailbox
+
+    old = authcheck.DNS_OVERRIDE
+    authcheck.DNS_OVERRIDE = testmailbox.dkim_dns()
+    yield
+    authcheck.DNS_OVERRIDE = old

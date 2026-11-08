@@ -150,6 +150,8 @@ class SettingsTab(QWidget):
         s.add(wl)
         self.awake = QCheckBox(self.tr("Rechner während Sicherung und Abschluss nicht sperren / nicht schlafen lassen"))
         s.add(self.awake)
+        self.dkim = QCheckBox(self.tr("DKIM-Signaturen bei der Sicherung prüfen und DNS-Schlüssel aufbewahren"))
+        s.add(self.dkim)
         grid.addWidget(s, 1, 1)
 
         n = Card(self.tr("Netzwerk und Zeit"))
@@ -218,6 +220,7 @@ class SettingsTab(QWidget):
         (self.zt_int if p.zip_zeit_quelle == "internaldate" else self.zt_date).setChecked(True)
         self.timeout.setValue(p.socket_timeout_s)
         self.awake.setChecked(p.wach_halten)
+        self.dkim.setChecked(p.dkim_pruefen)
         self.workdel.setCurrentIndex(max(self.workdel.findData(p.arbeitsordner_loeschen), 0))
         self.zipmode.setCurrentIndex(max(self.zipmode.findData(p.zip_aufteilung), 0))
         self.conns.setValue(p.verbindungen)
@@ -281,6 +284,7 @@ class SettingsTab(QWidget):
         p.zip_zeit_quelle = "internaldate" if self.zt_int.isChecked() else "date_header"
         p.socket_timeout_s, p.chunk_mb = self.timeout.value(), self.chunk.value()
         p.wach_halten = self.awake.isChecked()
+        p.dkim_pruefen = self.dkim.isChecked()
         p.arbeitsordner_loeschen = self.workdel.currentData()
         p.zip_aufteilung = self.zipmode.currentData()
         p.verbindungen = self.conns.value()

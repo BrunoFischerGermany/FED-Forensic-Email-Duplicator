@@ -35,6 +35,7 @@ CSV_COLUMNS = [
     "Konto", "Evidence", "Ordner", "UID", "Eingangszeit_UTC", "Eingangszeit_lokal", "Date_Header", "Absender", "An", "CC", "BCC",
     "Empfaenger_Hinweis", "Delivered_To", "Anlagen", "Inline", "Anlagen_Namen", "Betreff", "Message_ID",
     "Groesse", "Datei", "SHA256", "MD5", "SHA512", "Versuch",
+    "DKIM", "DKIM_Domain", "DKIM_Detail", "Anbieter_SPF", "Anbieter_DKIM", "Anbieter_DMARC", "Anbieter_Pruefer",
 ]
 _CHUNK = 1024 * 1024
 
@@ -61,16 +62,19 @@ def message_rows(case: Case) -> list[dict]:
     cur = case.conn.execute(
         "SELECT a.email, a.evidence_number, f.display_name, m.uid, m.internaldate, m.date_header, m.msg_from, "
         "m.msg_to, m.msg_cc, m.msg_bcc, m.recipient_note, m.delivered_to, m.attachment_count, m.inline_count, "
-        "m.attachments, m.subject, m.message_id, m.size, m.zip_path, m.sha256, m.md5, m.sha512, t.nr "
+        "m.attachments, m.subject, m.message_id, m.size, m.zip_path, m.sha256, m.md5, m.sha512, t.nr, "
+        "m.dkim_result, m.dkim_domain, m.dkim_detail, m.auth_results "
         "FROM message m JOIN folder f ON f.id = m.folder_id JOIN account a ON a.id = f.account_id "
         "JOIN attempt t ON t.id = m.attempt_id WHERE m.status = 'valid' ORDER BY m.zip_path")
     rows = []
     for r in cur:
         names = ", ".join(a.get("name", "") for a in json.loads(r[14] or "[]"))
+        ar = json.loads(r[26] or "{}")
         rows.append(dict(zip(CSV_COLUMNS, [
             r[0], r[1], r[2], r[3], r[4], local_str(r[4]), r[5] or "", _j(r[6]), _j(r[7]), _j(r[8]), _j(r[9]), r[10] or "",
             _j(r[11]), r[12], r[13], names, r[15] or "", r[16] or "", r[17], r[18], r[19], r[20] or "",
-            r[21] or "", r[22]], strict=True)))
+            r[21] or "", r[22], r[23] or "", r[24] or "", r[25] or "", ar.get("spf", ""), ar.get("dkim", ""),
+            ar.get("dmarc", ""), ar.get("authserv", "")], strict=True)))
     return rows
 
 

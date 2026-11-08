@@ -24,6 +24,8 @@ dependencies = [
     "idna>=3.7",
     "fpdf2>=2.8",
     "tomli-w>=1.2",
+    "dkimpy>=1.1.8",       # DKIM-Prüfung (BSD-artige Lizenz)
+    "pyzipper>=0.3.6",     # AES-verschlüsselte ZIP-Kopie (MIT)
 ]
 
 [project.optional-dependencies]

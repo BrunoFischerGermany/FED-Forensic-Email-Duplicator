@@ -39,6 +39,7 @@ class Programm:
     chunk_mb: int = 10
     verbindungen: int = 3  # gleichzeitige IMAP-Verbindungen beim Download (1–10)
     wach_halten: bool = True
+    dkim_pruefen: bool = True  # DKIM-Signaturen bei der Sicherung prüfen (braucht DNS)
     zip_aufteilung: str = "fragen"  # bei mehreren Konten: fragen | gesamt | je_konto
     arbeitsordner_loeschen: str = "fragen"  # nach verifiziertem ZIP: fragen | ja | nein  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 

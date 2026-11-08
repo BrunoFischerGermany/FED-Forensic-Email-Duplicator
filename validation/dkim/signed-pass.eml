@@ -1,0 +1,18 @@
+Authentication-Results: mx.example.de; dkim=pass header.d=dkim.example header.s=fed2026; spf=pass smtp.mailfrom=info@dkim.example; dmarc=pass header.from=dkim.example
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=dkim.example;
+ i=@dkim.example; q=dns/txt; s=fed2026; t=1794160999; h=from : to :
+ subject : date : message-id;
+ bh=untBBZpAnol+/5Qxjk+bH6w+DMLqJ0K0biNLx3UeB84=;
+ b=yy3mbo9FwMenmBKEYyJJ248TYFeTv5RK4bkfOyiyHgL1rCCfrSRQgIvWSerPCvfqlJ44P
+ Fc6losZtPCgWz48ybe8i+oB82AnOzqTgxEcmmr811uvKjUMzlvzJrmfauB/w5kZnnU84EOm
+ 0+K+EEN46Ub2Rv1hKUHoetKV123C9BnmD82r2oqNUAR+VFnvhS/oUJ/KVdP/hKLRIeX5JBC
+ Ynaavw32nScXVCDYKuCQPCgcceHSZmqAJczHn7pF3rCWZvx/og8etMYz2d0OpeA9Komra28
+ 6V143QVcCvkbyx+T2QJUP+TXTiY45CzCZ55XYml0Td38rx5qUZ2KL8AKPzEQ==
+From: Verband <info@dkim.example>
+To: test@example.de
+Subject: Signierte Mitteilung
+Date: Thu, 05 Nov 2026 10:00:00 +0100
+Message-ID: <dkim1@dkim.example>
+Content-Type: text/plain; charset=utf-8
+
+Diese Mail ist mit DKIM signiert.

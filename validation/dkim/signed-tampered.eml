@@ -1,0 +1,17 @@
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=dkim.example;
+ i=@dkim.example; q=dns/txt; s=fed2026; t=1794160999; h=from : to :
+ subject : date : message-id;
+ bh=QipxHO4oclUZp4vppsKYUjrC12t0P0CyR/K/gMQcFNo=;
+ b=LEdww5J+/ZtyJ4LiliNScu7+10cctG4Jmch01ML/HMX1asV7XDZ981Hv4OUjYNkM4cNqB
+ a6JN0EaVt6idZsVtv+SQ9F+M0DJfD4lE3XsgX0+vrC2BGExE/P4enKdVQ4voQg3njgyqBKL
+ RRn34ygHRbhWQsL396GcpScCBEaEvYad5esJY/a4r1uJMsbvp0Yzpr0mk6ItQNGyiXoCxVq
+ OrJcr4UF8U5CKi3bRQ0lP2zPDYfX8v5MnA5l4BkP5Z0kIzdMMOhfAZrCPFEsfAq2FuoM5O3
+ wmS+XDe4DG0ELRgyl6Zt4P+reVNbjg32mJ4liq/bfagWfU4ZbnhIugFYD2WQ==
+From: Verband <info@dkim.example>
+To: test@example.de
+Subject: Nachtraeglich veraendert
+Date: Fri, 06 Nov 2026 10:00:00 +0100
+Message-ID: <dkim2@dkim.example>
+Content-Type: text/plain; charset=utf-8
+
+Betrag: 900 EUR
