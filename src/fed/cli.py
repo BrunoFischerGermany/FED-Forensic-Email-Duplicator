@@ -54,6 +54,8 @@ def build_parser() -> argparse.ArgumentParser:
     wd = fin.add_mutually_exclusive_group()
     wd.add_argument("--delete-work", action="store_true", help="work/ nach verifiziertem ZIP löschen")
     wd.add_argument("--keep-work", action="store_true", help="work/ behalten")
+    fin.add_argument("--zip", choices=["gesamt", "je-konto"], default=None,
+                     help="mehrere Konten: ein ZIP für alle oder eines je Konto (Standard: Wahl im Case, sonst config)")
 
     ver = sub.add_parser("verify", help="Hash-Kette und Dateien prüfen")
     ver.add_argument("--case-dir", type=Path, required=True)
@@ -94,20 +96,24 @@ def main(argv: list[str] | None = None) -> int:
             if delete is None and cfg.programm.arbeitsordner_loeschen == "fragen":
                 delete = sys.stdin.isatty() and input(
                     "Arbeitsordner nach erfolgreicher ZIP-Verifikation löschen? [j/N] ").strip().lower() in ("j", "ja", "y")
+            if args.zip:
+                case.set_zip_mode(args.zip.replace("-", "_"), source="cli")
             with KeepAwake() if cfg.programm.wach_halten else _nullctx():
                 res = finish_case(case, cfg, delete_work=delete)
         finally:
             case.close()
-        print(f"ZIP: {res.zip.path}  ({res.zip.files} Mails, verifiziert: {res.zip.verified})")
-        for k, v in res.zip.hashes.items():
-            print(f"  {k.upper():<7} {v}")
-        if res.timestamp is not None:
-            print(f"Zeitstempel (RFC 3161): {res.timestamp.gen_time}  Seriennr. {res.timestamp.serial}")
-        elif res.timestamp_error:
-            print(f"  WARNUNG Zeitstempel: {res.timestamp_error}")
-        print(f"Berichte: {res.report_txt.name}, {res.report_pdf.name}")
-        for p in res.zip.problems:
-            print(f"  HINWEIS: {p}")
+        for z, (ts, err) in zip(res.zips, res.timestamps, strict=True):
+            print(f"ZIP: {z.path}  ({z.files} Mails, verifiziert: {z.verified})")
+            for k, v in z.hashes.items():
+                print(f"  {k.upper():<7} {v}")
+            if ts is not None:
+                print(f"  Zeitstempel (RFC 3161): {ts.gen_time}  Seriennr. {ts.serial}")
+            elif err:
+                print(f"  WARNUNG Zeitstempel: {err}")
+            for p in z.problems:
+                print(f"  HINWEIS: {p}")
+        print(f"Berichte: {res.report_txt.name}, {res.report_pdf.name}"
+              + (f" + {len(res.account_reports)} Einzelberichte" if res.account_reports else ""))
         return 0
     if args.command == "verify":
         from fed.core.case import Case

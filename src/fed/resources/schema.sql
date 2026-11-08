@@ -156,5 +156,6 @@ CREATE TABLE IF NOT EXISTS output (
     md5         TEXT,
     sha512      TEXT,
     size        INTEGER NOT NULL,
-    created_utc TEXT NOT NULL
+    created_utc TEXT NOT NULL,
+    account_id  INTEGER                      -- gesetzt bei Dateien eines einzelnen Kontos (ZIP je Konto)
 );

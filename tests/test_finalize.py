@@ -215,3 +215,83 @@ def test_report_overview_per_account_and_notes(tmp_path, imap_server, test_mails
         if p.suffix == ".pdf":
             assert p.read_bytes().startswith(b"%PDF")
     case.close()
+
+
+def _two_accounts(tmp_path, imap_server):
+    from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan
+    from fed.core.case import CaseInfo
+    from fed.core.imap_reader import ReadOnlyImap
+    from validation import testmailbox
+
+    case = Case.create(tmp_path, CaseInfo("2026-0100", "Tester"))
+    for user, pw, ev in [(imap_server.user, imap_server.password, "A-01"),
+                         (testmailbox.UMLAUT_USER, testmailbox.UMLAUT_PASSWORD, "A-02")]:
+        def c(user=user, pw=pw):
+            i = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+            i.connect()
+            i.login_password(user, pw)
+            return i
+        imap = c()
+        acc = register_account(case, AccountSpec(user, ev, imap_server.host, imap_server.port), imap)
+        scan(case, acc, imap)
+        imap.logout()
+        run_attempt(case, acc, c, cfg=Config())
+    return case
+
+
+def test_one_zip_per_account(tmp_path, imap_server, test_mails):
+    from validation import testmailbox
+    from validation.fake_tsa import FakeTsa, available
+
+    case = _two_accounts(tmp_path, imap_server)
+    assert case.zip_mode() is None
+    case.set_zip_mode("je_konto", source="test")
+    assert case.zip_mode() == "je_konto"
+    cfg = Config()
+    if available():
+        tsa = FakeTsa().__enter__()
+        cfg.tsa_url = tsa.url
+    try:
+        res = finish_case(case, cfg, language="de", delete_work=True)
+    finally:
+        if available():
+            tsa.__exit__(None, None, None)
+    assert res.zip_mode == "je_konto" and len(res.zips) == 2
+    names = [z.path.name for z in res.zips]
+    assert names[0].startswith("2026-0100_A-01_") and names[1].startswith("2026-0100_A-02_")
+    want = {hashlib.sha256(m.raw).hexdigest() for m in test_mails}
+    for z, user in zip(res.zips, [imap_server.user, testmailbox.UMLAUT_USER], strict=True):
+        assert z.verified and z.files == len(test_mails)
+        with zipfile.ZipFile(z.path) as zf:
+            emls = [n for n in zf.namelist() if n.endswith(".eml")]
+            assert {n.split("/")[0] for n in emls} == {user}
+            assert {hashlib.sha256(zf.read(n)).hexdigest() for n in emls} == want
+            assert zf.namelist()[0] == "log.csv" and user in zf.read("log.csv").decode("utf-8-sig")
+        assert z.path.with_name(z.path.name + ".sha256").exists()
+        if available():
+            assert z.path.with_name(z.path.name + ".tsr").exists()
+    assert (case.root / "log.csv").exists() and (case.root / "log_A-01.csv").exists()
+    assert not case.work_dir.exists()  # erst nach Verifikation beider ZIPs gelöscht
+    txt = res.report_txt.read_text(encoding="utf-8")
+    assert "ein ZIP je Konto" in txt and names[0] in txt and names[1] in txt
+    one = (case.root / "report_A-02.txt").read_text(encoding="utf-8")
+    assert names[1] in one and names[0] not in one  # Einzelbericht nennt nur das eigene ZIP
+    if available():
+        assert txt.count("Zeitstempel (RFC 3161) –") == 2 and one.count("Zeitstempel (RFC 3161)") == 1
+    case.close()
+
+
+def test_zip_mode_defaults(tmp_path, imap_server):
+    from fed.core.finalize import zip_mode_for
+
+    case = _two_accounts(tmp_path, imap_server)
+    cfg = Config()
+    assert zip_mode_for(case, cfg) == "gesamt"  # „fragen“ ohne Antwort -> ein ZIP
+    cfg.programm.zip_aufteilung = "je_konto"
+    assert zip_mode_for(case, cfg) == "je_konto"
+    case.set_zip_mode("gesamt")
+    assert zip_mode_for(case, cfg) == "gesamt"  # Entscheidung im Case hat Vorrang
+    with pytest.raises(ValueError):
+        case.set_zip_mode("irgendwas")
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'zip_mode_set'").fetchone()[0] == 1
+    case.close()

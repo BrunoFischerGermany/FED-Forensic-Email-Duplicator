@@ -63,6 +63,8 @@ def collect(case: Case, account_id: int | None = None) -> dict:
     issues = _q(case, "SELECT l.ts_utc, l.level, l.event, l.details, t.account_id FROM log l "
                       "LEFT JOIN attempt t ON t.id = l.attempt_id WHERE l.level IN ('WARNING','ERROR') ORDER BY l.id")
     messages = message_rows(case)
+    outputs = _q(case, "SELECT * FROM output ORDER BY id")
+    timestamps = _timestamp_state(case)
     all_accounts = len(accounts)
     if account_id is not None:
         email = next(a["email"] for a in accounts if a["id"] == account_id)
@@ -72,6 +74,8 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         folders = [f for f in folders if f["account_id"] == account_id]
         issues = [x for x in issues if x["account_id"] == account_id or _details_account(x["details"]) == account_id]
         messages = [m for m in messages if m["Konto"] == email]
+        outputs = [o for o in outputs if o.get("account_id") in (None, account_id)]
+        timestamps = [x for x in timestamps if x.get("account_id") in (None, account_id)]
     return {
         "info": info,
         "agency": agency,
@@ -84,11 +88,12 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "attempts": attempts,
         "folders": folders,
         "issues": issues,
-        "outputs": _q(case, "SELECT * FROM output ORDER BY id"),
+        "outputs": outputs,
+        "zip_mode": case.zip_mode(),
         "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
         "messages": messages,
         "work_dir": _work_dir_state(case),
-        "timestamp": _timestamp_state(case),
+        "timestamps": timestamps,
     }
 
 
@@ -100,12 +105,15 @@ def _details_account(details: str) -> int | None:
     return d.get("account_id") if isinstance(d, dict) else None
 
 
-def _timestamp_state(case: Case) -> dict:
-    row = case.conn.execute("SELECT event, details FROM log WHERE event IN ('timestamp_done', 'timestamp_failed') "
-                            "ORDER BY id DESC LIMIT 1").fetchone()
-    if not row:
-        return {}
-    return {"ok": row[0] == "timestamp_done", **json.loads(row[1])}
+def _timestamp_state(case: Case) -> list[dict]:
+    """Zeitstempel je ZIP (Ergebnis der letzten Anfrage je ZIP-Datei)."""
+    out: dict[str, dict] = {}
+    for event, details in case.conn.execute("SELECT event, details FROM log WHERE event IN "
+                                            "('timestamp_done', 'timestamp_failed') ORDER BY id"):
+        d = {"ok": event == "timestamp_done", **json.loads(details)}
+        key = d.get("file", "").removesuffix(".tsr") or d.get("zip", "") or str(len(out))
+        out[key] = d
+    return list(out.values())
 
 
 def _work_dir_state(case: Case) -> dict:
@@ -174,6 +182,9 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
         (L["tool"], f"{APP_NAME} {i['tool_version']}"), (L["tool_sha"], i["tool_sha256"] or "–"),
         (L["accounts_count"], str(d["all_accounts"])),
     ]
+    if d["all_accounts"] > 1:
+        mode = d.get("zip_mode") or "gesamt"
+        case_items.append((L["zip_mode"], L[f"zip_mode_{mode}"]))
     if d.get("work_dir"):
         case_items.append((L["work_dir"], _work_dir_text(d["work_dir"], L)))
     secs = [(L["case"], case_items)]
@@ -214,17 +225,19 @@ def _account_items(a: dict, L: dict) -> list[tuple[str, str]]:
 def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
     """Zeitstempel und Log-Kette (Ende des Berichts)."""
     secs = []
-    ts = d.get("timestamp")
-    if ts and ts["ok"]:
+    many = len(d.get("timestamps", [])) > 1
+    for ts in d.get("timestamps", []):
+        title = L["ts"] + (f" – {ts.get('file', '').removesuffix('.tsr') or ts.get('zip', '')}" if many else "")
+        if not ts["ok"]:
+            secs.append((title, [(L["status"], L["ts_failed"]), (L["ts_tsa"], ts["tsa"]), ("", ts["error"])]))
+            continue
         zip_name = ts["file"].removesuffix(".tsr")
-        secs.append((L["ts"], [
+        secs.append((title, [
             (L["ts_file"], ts["file"]), (L["ts_tsa"], ts["tsa"]), (L["ts_time"], tf.both(ts["gen_time"])),
             (L["ts_serial"], ts["serial"]), (L["ts_policy"], ts["policy"]), (L["ts_acc"], ts["accuracy"] or "–"),
             (L["ts_hash"], ts["sha256"]), (L["ts_offset"], f"{ts['local_minus_tsa_s']:+.3f} s"),
             (L["ts_verify"], L["ts_verify_cmd"].format(tsr=ts["file"], zip=zip_name)),
         ]))
-    elif ts:
-        secs.append((L["ts"], [(L["status"], L["ts_failed"]), (L["ts_tsa"], ts["tsa"]), ("", ts["error"])]))
     lg = d["log"]
     secs.append((L["logchain"], [
         (L["status"], L["ok"] if lg["ok"] else f"{L['broken']} (#{lg['bad']})"),

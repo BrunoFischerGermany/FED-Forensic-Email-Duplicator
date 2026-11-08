@@ -287,3 +287,33 @@ def test_accounts_overview_and_evidence_suggestion(app, imap_server, tmp_path, m
     w.deleteLater()
     app.processEvents()
     case.close()
+
+
+def test_ask_zip_mode(app, tmp_path, monkeypatch):
+    from fed.core import config as cfgmod
+    from fed.core.case import Case, CaseInfo
+    from fed.gui import assistant
+
+    case = Case.create(tmp_path, CaseInfo("Z-1", "Tester"))
+    cfg = cfgmod.Config()
+
+    def click(index):
+        def exec_(box):
+            box.buttons()[index].click()
+            return 0
+        return exec_
+
+    # Frage: zweiter Knopf = „Ein ZIP je Konto“
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", click(1))
+    assert assistant.ask_zip_mode(None, case, cfg) == "je_konto" and case.zip_mode() == "je_konto"
+    # „Später entscheiden“ lässt die Wahl unverändert
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", click(2))
+    assert assistant.ask_zip_mode(None, case, cfg, force=True) == "je_konto"
+    # feste Einstellung: keine Frage
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", lambda box: pytest.fail("darf nicht fragen"))
+    cfg.programm.zip_aufteilung = "gesamt"
+    assert assistant.ask_zip_mode(None, case, cfg) == "gesamt"
+    src = case.conn.execute("SELECT details FROM log WHERE event = 'zip_mode_set' ORDER BY id DESC").fetchone()[0]
+    assert "einstellung" in src
+    assert "je Konto" in assistant.zip_mode_text("je_konto") and "offen" in assistant.zip_mode_text(None)
+    case.close()

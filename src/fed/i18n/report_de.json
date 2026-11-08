@@ -98,5 +98,8 @@
   "st_done": "vollständig gesichert",
   "st_partial": "weniger als auf dem Server",
   "st_cancelled": "abgebrochen",
-  "st_failed": "fehlgeschlagen"
+  "st_failed": "fehlgeschlagen",
+  "zip_mode": "ZIP-Archive",
+  "zip_mode_gesamt": "ein ZIP für alle Konten",
+  "zip_mode_je_konto": "ein ZIP je Konto"
 }

@@ -98,5 +98,8 @@
   "st_done": "completely acquired",
   "st_partial": "fewer than on the server",
   "st_cancelled": "cancelled",
-  "st_failed": "failed"
+  "st_failed": "failed",
+  "zip_mode": "ZIP archives",
+  "zip_mode_gesamt": "one ZIP for all accounts",
+  "zip_mode_je_konto": "one ZIP per account"
 }

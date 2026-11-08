@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-from PySide6.QtCore import QT_TRANSLATE_NOOP, QDate, Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QDate, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QFontDatabase
 from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout, QGridLayout,
                                QHBoxLayout, QHeaderView, QInputDialog, QLineEdit, QMessageBox, QPlainTextEdit,
@@ -617,6 +617,9 @@ class AccountPage(QWidget):
                 QMessageBox.warning(self, self.tr("Anderes Konto"), warn)
         row = case.conn.execute("SELECT id FROM account WHERE email = ?", (self.st.email,)).fetchone()
         self.st.account_id = row[0] if row else None
+        others = case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0]
+        if self.st.account_id is None and others >= 1 and case.zip_mode() is None:
+            ask_zip_mode(self, case, self.st.cfg)  # beim 2. Konto: ZIP-Aufteilung für den Abschluss
         self.st.spec = acq.AccountSpec(
             self.st.email, self.evidence.text().strip(), self.server.text().strip(), self.port.value(),
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
@@ -865,6 +868,14 @@ class AcquirePage(QWidget):
         self.accounts_card = Card(self.tr("Konten in diesem Case"))
         self.accounts = AccountsTable()
         self.accounts_card.add(self.accounts)
+        zr = QHBoxLayout()
+        self.zip_lbl = label("", "Muted")
+        self.zip_btn = QPushButton(self.tr("ändern …"))
+        self.zip_btn.clicked.connect(self._change_zip_mode)
+        zr.addWidget(self.zip_lbl)
+        zr.addWidget(self.zip_btn)
+        zr.addStretch(1)
+        self.accounts_card.lay.addLayout(zr)
         self.accounts_card.setVisible(False)
         lay.addWidget(self.accounts_card)
         lay.addLayout(cols, 1)
@@ -971,9 +982,17 @@ class AcquirePage(QWidget):
         self._show_accounts()
         self.finished.emit(res)
 
+    def _change_zip_mode(self) -> None:
+        ask_zip_mode(self, self.st.case, self.st.cfg, force=True)
+        self._show_accounts()
+
     def _show_accounts(self) -> None:
         rows = self.accounts.refresh(self.st.case, self.st.email)
         self.accounts_card.setVisible(len(rows) > 1 or self.cancel_btn.isHidden())
+        self.zip_lbl.setText(self.tr("ZIP-Archive am Ende: {0}").format(zip_mode_text(self.st.case.zip_mode())))
+        for x in (self.zip_lbl, self.zip_btn):
+            x.setVisible(len(rows) > 1)
+        self.zip_btn.setEnabled(self.cancel_btn.isHidden())
         cur = next((o for o in rows if o["email"] == self.st.email), None)
         if cur:
             nr = rows.index(cur) + 1
@@ -1104,27 +1123,34 @@ class FinishPage(QWidget):
         ).fetchone()[0]
         k.set(self.tr("Vorher/Nachher-Vergleich"), self.tr("unverändert ✓") if not changed
               else self.tr("{0} Ordner geändert").format(changed), "ok" if not changed else "warn")
-        k.set(self.tr("ZIP gepackt"), f"{z.path.name} · {_fmt_bytes(z.size)}", "ok")
-        k.set(self.tr("ZIP verifiziert"), self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
-              if z.verified else "; ".join(z.problems), "ok" if z.verified else "error")
+        for z in res.zips:
+            k.set(self.tr("ZIP gepackt"), f"{z.path.name} · {_fmt_bytes(z.size)}", "ok")
+            k.set(self.tr("ZIP verifiziert"), self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
+                  if z.verified else "; ".join(z.problems), "ok" if z.verified else "error")
         deleted = not self.st.case.work_dir.exists()
         k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
               else self.tr("behalten"), "ok" if deleted else None)
-        if res.timestamp is not None:
-            k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("{0} UTC · Seriennr. {1}").format(
-                res.timestamp.gen_time.replace("T", " ").rstrip("Z"), res.timestamp.serial), "ok")
-        elif res.timestamp_error:
-            k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("fehlgeschlagen: {0}").format(res.timestamp_error), "warn")
-        k.set(self.tr("Berichte erzeugt"), "report.pdf · report.txt · log.csv", "ok")
-        for p in z.problems:
-            k.set(self.tr("Hinweis"), p, "warn")
+        for ts, err in res.timestamps:
+            if ts is not None:
+                k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("{0} UTC · Seriennr. {1}").format(
+                    ts.gen_time.replace("T", " ").rstrip("Z"), ts.serial), "ok")
+            elif err:
+                k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("fehlgeschlagen: {0}").format(err), "warn")
+        reports = "report.pdf · report.txt · log.csv"
+        if res.account_reports:
+            reports += self.tr(" · {0} Einzelberichte je Konto").format(len(res.account_reports) // 2)
+        k.set(self.tr("Berichte erzeugt"), reports, "ok")
+        for z in res.zips:
+            for p in z.problems:
+                k.set(self.tr("Hinweis"), p, "warn")
         h = self.hash_kv
         h.clear()
-        for name in ("sha256", "md5", "sha512"):
-            if name in z.hashes:
-                v = z.hashes[name]
-                h.set(name.upper().replace("SHA", "SHA-"), "\n".join(v[i:i + 64] for i in range(0, len(v), 64)),
-                      mono=True)
+        for z in res.zips:
+            for name in ("sha256", "md5", "sha512"):
+                if name in z.hashes:
+                    v = z.hashes[name]
+                    key = name.upper().replace("SHA", "SHA-") + (f" · {z.path.name}" if len(res.zips) > 1 else "")
+                    h.set(key, "\n".join(v[i:i + 64] for i in range(0, len(v), 64)), mono=True)
         self.report_lbl.setText(str(res.report_pdf))
         self.open_pdf.setEnabled(True)
 
@@ -1133,6 +1159,47 @@ class FinishPage(QWidget):
         self.title.setText(self.tr("Abschluss fehlgeschlagen"))
         self.sub.setText(err)
         restyle(self.sub, "Error")
+
+
+def ask_zip_mode(parent, case, cfg, force: bool = False) -> str | None:
+    """Fragt bei mehreren Konten, ob am Ende ein ZIP für alle oder eines je Konto entsteht.
+
+    Ist in den Einstellungen eine feste Wahl hinterlegt, wird diese ohne Frage übernommen
+    (außer ``force``). Die Antwort wird im Case gespeichert und protokolliert. ``None`` = offen gelassen.
+    """
+    preset = cfg.programm.zip_aufteilung
+    if not force and preset in case.ZIP_MODES:
+        case.set_zip_mode(preset, source="einstellung")
+        return preset
+    box = QMessageBox(parent)
+    box.setWindowTitle(QCoreApplication.translate("Assistant", "ZIP-Archive bei mehreren Konten"))
+    box.setIcon(QMessageBox.Icon.Question)
+    box.setText(QCoreApplication.translate("Assistant", "Dieser Case enthält mehrere Konten. Wie sollen die ZIP-Archive "
+                                                        "am Ende erstellt werden?"))
+    box.setInformativeText(QCoreApplication.translate(
+        "Assistant", "Ein ZIP für alle Konten: ein Archiv, ein Hash, je Konto ein Ordner darin.\n\n"
+                     "Ein ZIP je Konto: je Evidence-Nummer ein eigenes Archiv mit eigenem Hash (und Zeitstempel) – "
+                     "lässt sich einzeln weitergeben.\n\nDie Wahl kann bis zum Abschluss geändert werden."))
+    one = box.addButton(QCoreApplication.translate("Assistant", "Ein ZIP für alle Konten"),
+                        QMessageBox.ButtonRole.AcceptRole)
+    each = box.addButton(QCoreApplication.translate("Assistant", "Ein ZIP je Konto"), QMessageBox.ButtonRole.AcceptRole)
+    later = box.addButton(QCoreApplication.translate("Assistant", "Später entscheiden"), QMessageBox.ButtonRole.RejectRole)
+    current = case.zip_mode()
+    box.setDefaultButton(each if current == "je_konto" else one)
+    box.setEscapeButton(later)
+    box.exec()
+    clicked = box.clickedButton()
+    if clicked is one:
+        case.set_zip_mode("gesamt")
+    elif clicked is each:
+        case.set_zip_mode("je_konto")
+    return case.zip_mode()
+
+
+def zip_mode_text(mode: str | None) -> str:
+    return {"gesamt": QCoreApplication.translate("Assistant", "ein ZIP für alle Konten"),
+            "je_konto": QCoreApplication.translate("Assistant", "ein ZIP je Konto")}.get(
+        mode or "", QCoreApplication.translate("Assistant", "noch offen – wird beim Abschluss gefragt"))
 
 
 # ====================================================================== Assistent
@@ -1231,6 +1298,11 @@ class Assistant(QWidget):
                 "ergänzt werden. Trotzdem abschließen?").format(lines))
             if r != QMessageBox.StandardButton.Yes:
                 return
+        case = self.st.case
+        n = case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0] if case else 0
+        if n > 1 and case.zip_mode() is None:
+            if ask_zip_mode(self, case, self.st.cfg) is None:
+                return  # „Später entscheiden“ beim Abschluss = nicht abschließen
         self._show(4, 6)
         self.p_fin.run()
 

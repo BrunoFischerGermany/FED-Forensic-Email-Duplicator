@@ -29,7 +29,7 @@
 ├─ case.sqlite
 ├─ work/<adresse>/<ordner>/*.eml
 ├─ discarded/attempt_<n>/
-├─ <Casenumber>_<zeit>.zip  (+ .sha256, .tsr)
+├─ <Casenumber>_<zeit>.zip  (+ .sha256, .tsr) – oder je Konto <Casenumber>_<Evidence>_<zeit>.zip
 ├─ log.csv
 ├─ report.txt / report.pdf     Gesamtbericht: Kontenübersicht + Abschnitt je Konto
 └─ report_<Evidence>.txt/.pdf  Einzelbericht je Konto (bei mehreren Konten)

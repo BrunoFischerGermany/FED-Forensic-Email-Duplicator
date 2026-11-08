@@ -76,7 +76,10 @@ def message_rows(case: Case) -> list[dict]:
 
 def write_log_csv(case: Case, path: Path) -> int:
     """Liste aller gesicherten Mails; Semikolon und UTF-8 mit BOM (öffnet direkt in Excel)."""
-    rows = message_rows(case)
+    return _write_csv(message_rows(case), path)
+
+
+def _write_csv(rows: list[dict], path: Path) -> int:
     with path.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.DictWriter(f, fieldnames=CSV_COLUMNS, delimiter=";")
         w.writeheader()
@@ -97,22 +100,36 @@ def _ext_timestamp(mtime: float) -> bytes:
 
 
 def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None = None,
-              progress: ProgressCallback | None = None) -> ZipResult:
+              progress: ProgressCallback | None = None, account_id: int | None = None) -> ZipResult:
+    """Packt alle Konten in ein ZIP – oder mit ``account_id`` nur dieses Konto
+    (``<Case>_<Evidence>_<Zeit>.zip``, darin ``log.csv`` nur mit dessen Mails)."""
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
     info = case.info()
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    zip_path = case.root / f"{sanitize_component(info['case_number'])}_{stamp}.zip"
-    tmp = zip_path.with_suffix(".zip.part")
     rows = message_rows(case)
+    account_sql, account_args = "", ()
+    if account_id is None:
+        zip_path = case.root / f"{sanitize_component(info['case_number'])}_{stamp}.zip"
+        csv_path = case.root / "log.csv"
+        scope = case.work_dir
+    else:
+        email, evidence = case.conn.execute("SELECT email, evidence_number FROM account WHERE id = ?",
+                                            (account_id,)).fetchone()
+        rows = [r for r in rows if r["Konto"] == email]
+        ev = sanitize_component(evidence or email)
+        zip_path = case.root / f"{sanitize_component(info['case_number'])}_{ev}_{stamp}.zip"
+        csv_path = case.root / f"log_{ev}.csv"
+        scope = case.work_dir / sanitize_component(email)
+        account_sql, account_args = " AND a.id = ?", (account_id,)
+    tmp = zip_path.with_suffix(".zip.part")
     prog = Progress(phase="zip", mails_total=len(rows), bytes_total=sum(r["Groesse"] for r in rows))
-    case.log("INFO", "zip_started", {"file": zip_path.name, "messages": len(rows)})
+    case.log("INFO", "zip_started", {"file": zip_path.name, "messages": len(rows), "account_id": account_id})
 
-    csv_path = case.root / "log.csv"
-    write_log_csv(case, csv_path)
+    _write_csv(rows, csv_path)
     known = {r["Datei"] for r in rows}
-    stray = [str(p.relative_to(case.work_dir)).replace("\\", "/") for p in case.work_dir.rglob("*.eml")
-             if str(p.relative_to(case.work_dir)).replace("\\", "/") not in known]
+    stray = [str(p.relative_to(case.work_dir)).replace("\\", "/") for p in scope.rglob("*.eml")
+             if str(p.relative_to(case.work_dir)).replace("\\", "/") not in known] if scope.exists() else []
     for s in stray:
         case.log("WARNING", "zip_file_not_in_case", {"path": s})
 
@@ -122,7 +139,7 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
             # Ordnerstruktur inkl. leerer, gewählter Ordner
             for email, name, delim in case.conn.execute(
                     "SELECT a.email, f.display_name, f.delimiter FROM folder f JOIN account a ON a.id = f.account_id "
-                    "WHERE f.selected = 1 ORDER BY a.id, f.id"):
+                    "WHERE f.selected = 1" + account_sql + " ORDER BY a.id, f.id", account_args):
                 zi = zipfile.ZipInfo(f"{sanitize_component(email)}/{folder_to_zip_path(name, delim)}/",
                                      date_time=_zip_time(datetime.now(UTC).timestamp()))
                 zi.external_attr = 0o40755 << 16 | 0x10
@@ -154,10 +171,11 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     result.hashes = hash_file(zip_path, cfg.programm.hash_extra)
     (zip_path.parent / (zip_path.name + ".sha256")).write_text(f"{result.hashes['sha256']}  {zip_path.name}\n",
                                                                encoding="utf-8")
-    _record_output(case, zip_path, result.hashes)
-    _record_output(case, csv_path, hash_file(csv_path, cfg.programm.hash_extra))
+    _record_output(case, zip_path, result.hashes, account_id)
+    _record_output(case, csv_path, hash_file(csv_path, cfg.programm.hash_extra), account_id)
     case.log("INFO" if result.verified else "ERROR", "zip_done",
-             {"file": zip_path.name, "files": result.files, "verified": result.verified, **result.hashes})
+             {"file": zip_path.name, "files": result.files, "verified": result.verified, "account_id": account_id,
+              **result.hashes})
     return result
 
 
@@ -194,17 +212,18 @@ def verify_zip(case: Case, zip_path: Path, rows: list[dict] | None = None, cance
     return ZipResult(zip_path, {}, len(names), zip_path.stat().st_size, ok, problems)
 
 
-def _record_output(case: Case, path: Path, hashes: dict[str, str]) -> None:
+def _record_output(case: Case, path: Path, hashes: dict[str, str], account_id: int | None = None) -> None:
     with case.conn:
-        case.conn.execute("INSERT INTO output (file_name, sha256, md5, sha512, size, created_utc) VALUES (?,?,?,?,?,?)",
+        case.conn.execute("INSERT INTO output (file_name, sha256, md5, sha512, size, created_utc, account_id) "
+                          "VALUES (?,?,?,?,?,?,?)",
                           (path.name, hashes["sha256"], hashes.get("md5"), hashes.get("sha512"),
-                           path.stat().st_size, utc_now()))
+                           path.stat().st_size, utc_now(), account_id))
 
 
-def record_output(case: Case, path: Path, cfg: Config | None = None) -> dict[str, str]:
+def record_output(case: Case, path: Path, cfg: Config | None = None, account_id: int | None = None) -> dict[str, str]:
     cfg = cfg or Config()
     h = hash_file(path, cfg.programm.hash_extra)
-    _record_output(case, path, h)
+    _record_output(case, path, h, account_id)
     return h
 
 
@@ -216,15 +235,28 @@ def close_case(case: Case) -> None:
 
 @dataclass
 class FinishResult:
-    zip: ZipResult
+    zips: list[ZipResult]  # ein ZIP für alle Konten oder eines je Konto
     report_txt: Path
     report_pdf: Path
-    timestamp: object | None = None  # timestamp.TimestampInfo
-    timestamp_error: str = ""
+    timestamps: list = field(default_factory=list)  # je ZIP: (TimestampInfo | None, Fehlertext)
     account_reports: list = field(default_factory=list)  # report_<Evidence>.txt/.pdf bei mehreren Konten
+    zip_mode: str = "gesamt"
+
+    @property
+    def zip(self) -> ZipResult:
+        """Erstes (bei „gesamt“ einziges) ZIP."""
+        return self.zips[0]
+
+    @property
+    def timestamp(self):
+        return self.timestamps[0][0] if self.timestamps else None
+
+    @property
+    def timestamp_error(self) -> str:
+        return "; ".join(e for _, e in self.timestamps if e)
 
 
-def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult):
+def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult, account_id: int | None = None):
     """RFC-3161-Zeitstempel für den ZIP-Hash holen (falls ``tsa_url`` gesetzt).
 
     Ein Fehler bricht den Abschluss nicht ab: er wird als Warnung protokolliert und
@@ -240,28 +272,32 @@ def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult):
         info = tsmod.request_timestamp(zip_result.hashes["sha256"], cfg.tsa_url, tsr, cfg.proxy_url,
                                        cfg.programm.socket_timeout_s)
     except tsmod.TimestampError as e:
-        case.log("WARNING", "timestamp_failed", {"tsa": cfg.tsa_url, "error": str(e)})
+        case.log("WARNING", "timestamp_failed", {"tsa": cfg.tsa_url, "error": str(e), "zip": zip_result.path.name,
+                                                  "account_id": account_id})
         return None, str(e)
     gen = datetime.fromisoformat(info.gen_time.replace("Z", "+00:00"))
     offset = round((datetime.now(UTC) - gen).total_seconds(), 3)
     case.log("INFO", "timestamp_done", {
         "file": tsr.name, "tsa": cfg.tsa_url, "gen_time": info.gen_time, "serial": info.serial,
         "policy": info.policy, "accuracy": info.accuracy, "nonce": str(info.nonce),
-        "sha256": info.hashed_message, "local_minus_tsa_s": offset})
-    record_output(case, tsr, cfg)
-    record_output(case, tsr.with_suffix(".tsq"), cfg)
+        "sha256": info.hashed_message, "local_minus_tsa_s": offset, "account_id": account_id})
+    record_output(case, tsr, cfg, account_id)
+    record_output(case, tsr.with_suffix(".tsq"), cfg, account_id)
     return info, ""
 
 
-def delete_work_dir(case: Case, zip_result: ZipResult) -> dict:
-    """Löscht ``work/`` – nur nach erfolgreicher ZIP-Verifikation. ``discarded/`` bleibt erhalten."""
+def delete_work_dir(case: Case, zip_result: ZipResult | list[ZipResult]) -> dict:
+    """Löscht ``work/`` – nur nach erfolgreicher Verifikation aller ZIPs. ``discarded/`` bleibt erhalten."""
     import shutil
 
-    if not zip_result.verified:
+    zips = zip_result if isinstance(zip_result, list) else [zip_result]
+    if not zips or not all(z.verified for z in zips):
         raise RuntimeError("Arbeitsordner wird nur nach erfolgreicher ZIP-Verifikation gelöscht")
     files = [p for p in case.work_dir.rglob("*") if p.is_file()] if case.work_dir.exists() else []
-    info = {"files": len(files), "bytes": sum(p.stat().st_size for p in files), "zip": zip_result.path.name,
-            "zip_sha256": zip_result.hashes.get("sha256"), "verified_files": zip_result.files}
+    info = {"files": len(files), "bytes": sum(p.stat().st_size for p in files),
+            "zip": ", ".join(z.path.name for z in zips),
+            "zip_sha256": ", ".join(z.hashes.get("sha256", "") for z in zips),
+            "verified_files": sum(z.files for z in zips)}
     if case.work_dir.exists():
         shutil.rmtree(case.work_dir)
     case.log("INFO", "work_dir_deleted", info)
@@ -283,15 +319,25 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     running = case.conn.execute("SELECT COUNT(*) FROM attempt WHERE status = 'running'").fetchone()[0]
     if running:
         raise ValueError("Es läuft noch ein Versuch")
-    z = build_zip(case, cfg, cancel, progress)
-    if not z.verified:
-        raise RuntimeError("ZIP-Verifikation fehlgeschlagen: " + "; ".join(z.problems))
-    ts_info, ts_error = add_timestamp(case, cfg, z)
+    mode = zip_mode_for(case, cfg)
+    case.log("INFO", "zip_mode_used", {"mode": mode})
+    if mode == "je_konto":
+        ids = [r[0] for r in case.conn.execute("SELECT id FROM account ORDER BY id")]
+        zips = [build_zip(case, cfg, cancel, progress, acc) for acc in ids]
+        write_log_csv(case, case.root / "log.csv")  # Gesamtliste aller Konten neben den ZIPs
+        record_output(case, case.root / "log.csv", cfg)
+    else:
+        ids = [None]
+        zips = [build_zip(case, cfg, cancel, progress)]
+    bad = [z for z in zips if not z.verified]
+    if bad:
+        raise RuntimeError("ZIP-Verifikation fehlgeschlagen: " + "; ".join(p for z in bad for p in z.problems))
+    timestamps = [add_timestamp(case, cfg, z, acc) for z, acc in zip(zips, ids, strict=True)]
     close_case(case)
     if delete_work is None:
         delete_work = cfg.programm.arbeitsordner_loeschen == "ja"
     if delete_work:
-        delete_work_dir(case, z)
+        delete_work_dir(case, zips)
     else:
         case.log("INFO", "work_dir_kept", {"path": str(case.work_dir)})
     from fed.core.languages import report_language_for
@@ -303,4 +349,14 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     record_output(case, pdf, cfg)
     from fed.core.report import account_reports
 
-    return FinishResult(z, txt, pdf, ts_info, ts_error, account_reports(case))
+    return FinishResult(zips, txt, pdf, timestamps, account_reports(case), mode)
+
+
+def zip_mode_for(case: Case, cfg: Config | None = None) -> str:
+    """ZIP-Aufteilung beim Abschluss: ein Konto -> ``gesamt``; sonst Entscheidung im Case,
+    sonst Einstellung (``fragen`` ohne Antwort -> ``gesamt``)."""
+    n = case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0]
+    if n <= 1:
+        return "gesamt"
+    mode = case.zip_mode() or (cfg or Config()).programm.zip_aufteilung
+    return mode if mode in case.ZIP_MODES else "gesamt"

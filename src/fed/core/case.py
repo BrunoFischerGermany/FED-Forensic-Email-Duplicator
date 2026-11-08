@@ -122,6 +122,28 @@ class Case:
             self._all.clear()
         self._local = threading.local()
 
+    # ------------------------------------------------------------ Einstellungen des Case
+    ZIP_MODES = ("gesamt", "je_konto")
+
+    def zip_mode(self) -> str | None:
+        """Gewählte ZIP-Aufteilung (``gesamt``/``je_konto``) oder ``None``, wenn noch nicht entschieden."""
+        row = self.conn.execute("SELECT value FROM meta WHERE key = 'zip_mode'").fetchone()
+        return row[0] if row else None
+
+    def set_zip_mode(self, mode: str, source: str = "examiner") -> None:
+        """ZIP-Aufteilung festlegen (protokolliert); nach Abschluss nicht mehr änderbar."""
+        if mode not in self.ZIP_MODES:
+            raise ValueError(f"ZIP-Aufteilung unbekannt: {mode}")
+        if self.closed:
+            raise RuntimeError("Case ist abgeschlossen")
+        old = self.zip_mode()
+        if old == mode:
+            return
+        with self.conn:
+            self.conn.execute("INSERT INTO meta (key, value) VALUES ('zip_mode', ?) "
+                              "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (mode,))
+        self.log("INFO", "zip_mode_set", {"mode": mode, "previous": old, "source": source})
+
     # ------------------------------------------------------------ Log
     def log(self, level: str, event: str, details: dict | str = "", attempt_id: int | None = None) -> None:
         """Hängt einen Eintrag an das Log an (Hash-Kette, Commit sofort)."""
@@ -210,11 +232,12 @@ class Case:
 
 def _migrate(case: Case) -> None:
     """Ältere Case-Dateien ergänzen (nur neue Spalten, nie Daten ändern); wird protokolliert."""
-    cols = {r[1] for r in case.conn.execute("PRAGMA table_info(account)")}
-    if "notes" not in cols:
-        with case.conn:
-            case.conn.execute("ALTER TABLE account ADD COLUMN notes TEXT")
-        case.log("INFO", "schema_migrated", {"added": "account.notes"})
+    for table, col, ddl in (("account", "notes", "TEXT"), ("output", "account_id", "INTEGER")):
+        cols = {r[1] for r in case.conn.execute(f"PRAGMA table_info({table})")}
+        if col not in cols:
+            with case.conn:
+                case.conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+            case.log("INFO", "schema_migrated", {"added": f"{table}.{col}"})
 
 
 def _connect(db: Path) -> sqlite3.Connection:
