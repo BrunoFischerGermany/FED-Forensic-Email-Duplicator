@@ -187,6 +187,26 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     return result
 
 
+def verify_case_zips(case: Case, cancel: CancelToken | None = None) -> list[ZipResult]:
+    """Alle ZIPs des Case (ein ZIP gesamt oder eines je Konto) gegen die Case-Datei prüfen –
+    die verschlüsselte Weitergabe-Kopie ausgenommen."""
+    rows = message_rows(case)
+    out = []
+    for name, acc in case.conn.execute(
+            "SELECT file_name, account_id FROM output WHERE file_name LIKE '%.zip' "
+            "AND file_name NOT LIKE '%\\_encrypted.zip' ESCAPE '\\' ORDER BY id"):
+        path = case.root / name
+        if not path.exists():
+            continue
+        if acc is None:
+            subset = rows
+        else:
+            email = case.conn.execute("SELECT email FROM account WHERE id = ?", (acc,)).fetchone()[0]
+            subset = [r for r in rows if r["Konto"] == email]
+        out.append(verify_zip(case, path, subset, cancel))
+    return out
+
+
 def verify_zip(case: Case, zip_path: Path, rows: list[dict] | None = None, cancel: CancelToken | None = None,
                progress: ProgressCallback | None = None) -> ZipResult:
     """Öffnet das ZIP neu und hasht jede .eml gegen die Case-Datei."""

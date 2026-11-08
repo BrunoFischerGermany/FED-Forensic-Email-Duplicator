@@ -1165,6 +1165,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Read-only from case.sqlite · every check is itself logged</translation>
     </message>
     <message>
+        <source>Doppelklick: Mail ansehen (nur lesend)</source>
+        <translation>Double-click: view mail (read-only)</translation>
+    </message>
+    <message>
         <source>Konten</source>
         <translation>Accounts</translation>
     </message>
@@ -1183,6 +1187,12 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Kein Case geöffnet – unter „Sicherung“ einen Case anlegen oder öffnen.</source>
         <translation>No case open – create or open a case under “Acquisition”.</translation>
+    </message>
+    <message>
+        <source>Mail kann nicht geöffnet werden:
+{0}</source>
+        <translation>Cannot open mail:
+{0}</translation>
     </message>
     <message>
         <source>unverändert</source>
@@ -1227,6 +1237,209 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Ansicht als CSV speichern</source>
         <translation>Save view as CSV</translation>
+    </message>
+</context>
+<context>
+    <name>MailViewer</name>
+    <message>
+        <source>Mail ansehen – {0}</source>
+        <translation>View mail – {0}</translation>
+    </message>
+    <message>
+        <source>(ohne Betreff)</source>
+        <translation>(no subject)</translation>
+    </message>
+    <message>
+        <source>Betreff</source>
+        <translation>Subject</translation>
+    </message>
+    <message>
+        <source>Von</source>
+        <translation>From</translation>
+    </message>
+    <message>
+        <source>An</source>
+        <translation>To</translation>
+    </message>
+    <message>
+        <source>Datum (Kopfzeile)</source>
+        <translation>Date (header)</translation>
+    </message>
+    <message>
+        <source>Eingang (Server)</source>
+        <translation>Received (server)</translation>
+    </message>
+    <message>
+        <source>Konto · Ordner · UID</source>
+        <translation>Account · folder · UID</translation>
+    </message>
+    <message>
+        <source>Arbeitsordner</source>
+        <translation>Working folder</translation>
+    </message>
+    <message>
+        <source>✓ SHA-256 stimmt mit der Case-Datei überein</source>
+        <translation>✓ SHA-256 matches the case file</translation>
+    </message>
+    <message>
+        <source>✗ SHA-256 weicht von der Case-Datei ab – Datei verändert!</source>
+        <translation>✗ SHA-256 differs from the case file – file modified!</translation>
+    </message>
+    <message>
+        <source>Nur lesend – die Datei wird nicht verändert. Ansehen und Speichern werden protokolliert.</source>
+        <translation>Read-only – the file is not modified. Viewing and saving are logged.</translation>
+    </message>
+    <message>
+        <source>Inhalt</source>
+        <translation>Content</translation>
+    </message>
+    <message>
+        <source>Anlagen ({0})</source>
+        <translation>Attachments ({0})</translation>
+    </message>
+    <message>
+        <source>Kopfzeilen</source>
+        <translation>Headers</translation>
+    </message>
+    <message>
+        <source>Weg (Received)</source>
+        <translation>Route (Received)</translation>
+    </message>
+    <message>
+        <source>Echtheit</source>
+        <translation>Authenticity</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>HTML-Darstellung (ohne externe Inhalte)</source>
+        <translation>HTML view (no external content)</translation>
+    </message>
+    <message>
+        <source>(nur HTML-Inhalt – Häkchen oben setzen)</source>
+        <translation>(HTML content only – tick the box above)</translation>
+    </message>
+    <message>
+        <source>(kein Text)</source>
+        <translation>(no text)</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Name</translation>
+    </message>
+    <message>
+        <source>Typ</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <source>Größe</source>
+        <translation>Size</translation>
+    </message>
+    <message>
+        <source>eingebettet</source>
+        <translation>inline</translation>
+    </message>
+    <message>
+        <source>ja</source>
+        <translation>yes</translation>
+    </message>
+    <message>
+        <source>Anlage speichern unter …</source>
+        <translation>Save attachment as …</translation>
+    </message>
+    <message>
+        <source>Anlage speichern</source>
+        <translation>Save attachment</translation>
+    </message>
+    <message>
+        <source>Gespeichert, SHA-256 geprüft:
+{0}</source>
+        <translation>Saved, SHA-256 verified:
+{0}</translation>
+    </message>
+    <message>
+        <source>Gespeichert, aber SHA-256 weicht ab:
+{0}</source>
+        <translation>Saved, but SHA-256 differs:
+{0}</translation>
+    </message>
+    <message>
+        <source>Nr.</source>
+        <translation>No.</translation>
+    </message>
+    <message>
+        <source>von</source>
+        <translation>from</translation>
+    </message>
+    <message>
+        <source>an Server</source>
+        <translation>by server</translation>
+    </message>
+    <message>
+        <source>Protokoll</source>
+        <translation>Protocol</translation>
+    </message>
+    <message>
+        <source>Zeit (UTC / lokal)</source>
+        <translation>Time (UTC / local)</translation>
+    </message>
+    <message>
+        <source>Dauer</source>
+        <translation>Delay</translation>
+    </message>
+    <message>
+        <source>Älteste Station oben (Absender-Seite). Nur die Einträge der eigenen Server des Anbieters sind verlässlich; frühere Stationen kann der Absender fälschen. Negative Dauer = Uhren der Server weichen ab.</source>
+        <translation>Oldest hop at the top (sender side). Only the entries of the provider's own servers are reliable; earlier hops can be forged by the sender. Negative delay = server clocks differ.</translation>
+    </message>
+    <message>
+        <source>gültig</source>
+        <translation>valid</translation>
+    </message>
+    <message>
+        <source>ungültig</source>
+        <translation>invalid</translation>
+    </message>
+    <message>
+        <source>nicht prüfbar</source>
+        <translation>not verifiable</translation>
+    </message>
+    <message>
+        <source>vorläufig nicht prüfbar (DNS)</source>
+        <translation>temporarily not verifiable (DNS)</translation>
+    </message>
+    <message>
+        <source>nicht signiert</source>
+        <translation>not signed</translation>
+    </message>
+    <message>
+        <source>nicht geprüft</source>
+        <translation>not checked</translation>
+    </message>
+    <message>
+        <source>DKIM (geprüft bei der Sicherung)</source>
+        <translation>DKIM (checked during acquisition)</translation>
+    </message>
+    <message>
+        <source>Signiert von</source>
+        <translation>Signed by</translation>
+    </message>
+    <message>
+        <source>Begründung</source>
+        <translation>Reason</translation>
+    </message>
+    <message>
+        <source>Prüfung durch den Anbieter</source>
+        <translation>Check by the provider</translation>
+    </message>
+    <message>
+        <source>keine Authentication-Results-Kopfzeile</source>
+        <translation>no Authentication-Results header</translation>
+    </message>
+    <message>
+        <source>Gmail-Labels</source>
+        <translation>Gmail labels</translation>
     </message>
 </context>
 <context>

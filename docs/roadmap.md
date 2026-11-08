@@ -8,11 +8,11 @@ und schon vor Ort sehen, was gesichert wurde.
 
 | Nr. | Funktion | Status |
 | --- | --- | --- |
-| 1 | DKIM-Prüfung bei der Sicherung, Authentifizierungsergebnisse des Anbieters | in Arbeit |
-| 2 | Gmail: Labels statt Ordner-Kopien | in Arbeit |
-| 4 | Gezielte Teilsicherung (Absender, Empfänger, Betreff, Text) | in Arbeit |
-| 5 | Verschlüsselte Kopie für die Weitergabe (AES-256) | in Arbeit |
-| 6 | Mail-Betrachter (nur lesend) | in Arbeit |
+| 1 | DKIM-Prüfung bei der Sicherung, Authentifizierungsergebnisse des Anbieters | erledigt (1.0) |
+| 2 | Gmail: Labels statt Ordner-Kopien | erledigt (1.0) |
+| 4 | Gezielte Teilsicherung (Absender, Empfänger, Betreff, Text) | erledigt (1.0) |
+| 5 | Verschlüsselte Kopie für die Weitergabe (AES-256) | erledigt (1.0) |
+| 6 | Mail-Betrachter (nur lesend) | erledigt (1.0) |
 | – | Konten aus Thunderbird, Apple Mail, Outlook übernehmen (aus Ordner/Image) | geplant |
 | – | Microsoft Graph (Exchange Online ohne IMAP) | geplant |
 | – | Mehrere Konten aus einer Liste (CSV) | geplant |

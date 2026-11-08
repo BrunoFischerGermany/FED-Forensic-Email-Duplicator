@@ -110,6 +110,12 @@
   statt ihn auf „läuft“ stehen zu lassen; Befehlssperre blockiert zusätzlich FETCH ohne PEEK
   (würde das Gelesen-Flag setzen, Validierung V02); Kontenübersicht vergleicht mit dem
   Serverstand nach der Sicherung
+- Mail-Betrachter (nur lesend): Doppelklick in der Historie „Gesicherte Mails“ öffnet Kopfdaten,
+  Text (HTML ohne Nachladen externer Inhalte), Anlagen mit Größe/SHA-256 und „Speichern unter …“,
+  vollständige Kopfzeilen, Received-Kette mit Zeiten und Dauer, DKIM/Authentication-Results und
+  Gmail-Labels; liest aus `work/` oder aus dem ZIP, prüft dabei den SHA-256 gegen die Case-Datei
+  und protokolliert Ansehen (`message_viewed`) und Speichern (`attachment_exported`)
+- Historie „Dateien nachhashen“ prüft alle ZIPs des Case (auch je Konto), nicht nur das letzte
 
 ## 0.4-beta
 
