@@ -70,7 +70,7 @@ Schlüssel aufbewahrt, kann die Echtheit einer Mail auch später noch belegen.
 
 **Umsetzung**
 - Das geprüfte Original-ZIP bleibt unverändert (sein Hash ist der Beweiswert).
-- Zusätzlich auf Wunsch: `<Name>_verschluesselt.zip` mit AES-256 (WinZip-AES, öffnet mit 7-Zip,
+- Zusätzlich auf Wunsch: `<Casenumber>_encrypted.zip` mit AES-256 (WinZip-AES, öffnet mit 7-Zip,
   WinRAR, Keka, The Unarchiver), darin Original-ZIP, `.sha256` und ggf. Zeitstempel. Der Empfänger
   entpackt und prüft den Hash des Originals.
 - Passwort: selbst eingeben (zweimal) oder sicheres Passwort erzeugen lassen. **Es wird nirgends
