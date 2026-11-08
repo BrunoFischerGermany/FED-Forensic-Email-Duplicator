@@ -111,7 +111,8 @@ def test_report_mail_list_modes(acquired):
     full = render_txt(case, "de", "liste")
     short = render_txt(case, "de", "auto", 5)
     assert "SHA-256 " in full and full.count("UID ") > 5
-    assert "steht in log.csv" in short and short.count("UID ") == 0
+    assert "steht in log.csv" in short and short.count("\n       SHA-256 ") == 0  # keine Mail-Liste
+    assert full.count("\n       SHA-256 ") > 5
     assert "Unterschrift" not in full and "Unterschrift" not in short
     # Ordnerstruktur als Baum mit Anzahl, auch ohne Liste
     assert "  └ Rechnungen" in short and "  └ 2025" in short and "Leer" in short
