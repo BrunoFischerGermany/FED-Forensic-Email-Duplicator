@@ -75,6 +75,14 @@
         <translation>sign in as (shared mailbox only)</translation>
     </message>
     <message>
+        <source>Notiz zum Konto</source>
+        <translation>Account note</translation>
+    </message>
+    <message>
+        <source>z. B. Herkunft der Zugangsdaten, Kontoinhaber, Einwilligung/Beschluss, Besonderheiten – erscheint im Bericht</source>
+        <translation>e.g. origin of the credentials, account holder, consent/court order, particularities – appears in the report</translation>
+    </message>
+    <message>
         <source>Verbindungstest</source>
         <translation>Connection test</translation>
     </message>
@@ -179,6 +187,14 @@
         <translation>{0} found</translation>
     </message>
     <message>
+        <source>Google nimmt kein normales Kontopasswort an: App-Passwort (16 Buchstaben, {0}, 2-Schritt-Bestätigung nötig) oder OAuth verwenden. In Google Workspace muss der Administrator App-Passwörter erlauben.</source>
+        <translation>Google does not accept the normal account password: use an app password (16 letters, {0}, 2-Step Verification required) or OAuth. In Google Workspace the administrator must allow app passwords.</translation>
+    </message>
+    <message>
+        <source>Bitte prüfen: Benutzername und Passwort korrekt? Bei vielen Anbietern muss der Zugriff per IMAP erst im Webmail freigeschaltet werden (z. B. GMX/WEB.DE: Einstellungen → POP3/IMAP Abruf), oder es ist ein App-Passwort nötig (z. B. bei aktivierter Zwei-Faktor-Anmeldung, iCloud, Yahoo).</source>
+        <translation>Please check: are user name and password correct? Many providers require IMAP access to be enabled in the webmail first (e.g. GMX/WEB.DE: Settings → POP3/IMAP), or an app password is needed (e.g. with two-factor sign-in enabled, iCloud, Yahoo).</translation>
+    </message>
+    <message>
         <source>✗ fehlgeschlagen: </source>
         <translation>✗ failed: </translation>
     </message>
@@ -260,6 +276,10 @@
     <message>
         <source>{0} von {1} Mails · {2} Versuche</source>
         <translation>{0} of {1} messages · {2} attempts</translation>
+    </message>
+    <message>
+        <source>Klicken: Konto übernehmen</source>
+        <translation>Click: take over account</translation>
     </message>
 </context>
 <context>
@@ -365,6 +385,10 @@
         <translation>Attempt {0}: {1} saved · {2} already present · {3} expected</translation>
     </message>
     <message>
+        <source>Konto {0} von {1}: {2} · {3}</source>
+        <translation>Account {0} of {1}: {2} · {3}</translation>
+    </message>
+    <message>
         <source>Grund für den Neubeginn (Pflicht, wird protokolliert):</source>
         <translation>Reason for restarting (required, will be logged):</translation>
     </message>
@@ -424,6 +448,10 @@ No = delete permanently.</translation>
         <translation>WORKFLOW</translation>
     </message>
     <message>
+        <source>Während einer laufenden Sicherung kann kein anderes Konto gewählt werden.</source>
+        <translation>Another account cannot be selected while an acquisition is running.</translation>
+    </message>
+    <message>
         <source>Case abschließen</source>
         <translation>Close case</translation>
     </message>
@@ -475,7 +503,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Examiner *</translation>
     </message>
     <message>
-        <source>Notes</source>
+        <source>Anmerkungen</source>
         <translation>Notes</translation>
     </message>
     <message>
@@ -614,6 +642,10 @@ After closing, the case cannot be extended. Close anyway?</translation>
     <message>
         <source>Neuen Case anlegen</source>
         <translation>Create new case</translation>
+    </message>
+    <message>
+        <source>FED beenden</source>
+        <translation>Quit FED</translation>
     </message>
     <message>
         <source>Arbeitsordner</source>

@@ -166,3 +166,52 @@ def test_finish_continues_when_timestamp_fails(acquired):
     assert res.zip.verified and res.timestamp is None and "nicht erreichbar" in res.timestamp_error
     assert case.closed
     assert "fehlgeschlagen" in res.report_txt.read_text(encoding="utf-8")
+
+
+def test_report_overview_per_account_and_notes(tmp_path, imap_server, test_mails):
+    """Mehrere Konten: Gesamtbericht mit Übersicht und Abschnitt je Konto, Einzelbericht je Konto,
+    Case-Anmerkungen und Konto-Notizen im Bericht."""
+    from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan, set_account_notes
+    from fed.core.case import CaseInfo
+    from fed.core.imap_reader import ReadOnlyImap
+    from validation import testmailbox
+
+    def connector(user, pw):
+        def c():
+            i = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+            i.connect()
+            i.login_password(user, pw)
+            return i
+        return c
+
+    case = Case.create(tmp_path, CaseInfo("2026-0099", "Tester", "Beschluss AG Musterstadt 12 Gs 34/26\nEilt"))
+    ids = []
+    for user, pw, ev, note in [(imap_server.user, imap_server.password, "A-01", "Zugangsdaten vom Beschuldigten"),
+                               (testmailbox.UMLAUT_USER, testmailbox.UMLAUT_PASSWORD, "A-02", "")]:
+        c = connector(user, pw)
+        imap = c()
+        acc = register_account(case, AccountSpec(user, ev, imap_server.host, imap_server.port, notes=note), imap)
+        scan(case, acc, imap)
+        imap.logout()
+        run_attempt(case, acc, c, cfg=Config())
+        ids.append(acc)
+    assert set_account_notes(case, ids[1], "Postfach der Praxis")
+    assert not set_account_notes(case, ids[1], "Postfach der Praxis  ")
+    changed = case.conn.execute("SELECT details FROM log WHERE event = 'account_notes_changed'").fetchall()
+    assert len(changed) == 1 and "Postfach der Praxis" in changed[0][0]
+
+    res = finish_case(case, Config(), language="de")
+    txt = res.report_txt.read_text(encoding="utf-8")
+    assert "Anmerkungen zum Case" in txt and "12 Gs 34/26" in txt
+    assert "Kontenübersicht" in txt and "2 Konten · 2 vollständig gesichert" in txt
+    assert "Zugangsdaten vom Beschuldigten" in txt and "Postfach der Praxis" in txt
+    names = sorted(p.name for p in res.account_reports)
+    assert names == ["report_A-01.pdf", "report_A-01.txt", "report_A-02.pdf", "report_A-02.txt"]
+    one = (case.root / "report_A-02.txt").read_text(encoding="utf-8")
+    assert testmailbox.UMLAUT_USER in one and "Postfach der Praxis" in one and "Teil des Case 2026-0099" in one
+    assert "Zugangsdaten vom Beschuldigten" not in one and f"({len(test_mails)})" in one
+    assert imap_server.user + "/" not in one  # nur Mails dieses Kontos
+    for p in res.account_reports:
+        if p.suffix == ".pdf":
+            assert p.read_bytes().startswith(b"%PDF")
+    case.close()

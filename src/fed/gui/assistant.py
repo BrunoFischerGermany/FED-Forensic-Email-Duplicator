@@ -17,8 +17,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFo
 from fed.core import acquisition as acq
 from fed.core import autoconfig, keepawake, oauth, syscheck
 from fed.core import timefmt as tf
-from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, explain_login_error, log_oauth_login, make_connector,
-                           normalize_app_password)
+from fed.core.auth import APP_PASSWORD_URL, OAuthSession, is_gmail, log_oauth_login, make_connector, normalize_app_password
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
 from fed.core.finalize import finish_case
@@ -122,7 +121,7 @@ class CasePage(QWidget):
         f.addWidget(label(self.tr("Examiner *"), "H2"), 0, 1)
         f.addWidget(self.case_no, 1, 0)
         f.addWidget(self.examiner, 1, 1)
-        f.addWidget(label(self.tr("Notes"), "H2"), 2, 0, 1, 2)
+        f.addWidget(label(self.tr("Anmerkungen"), "H2"), 2, 0, 1, 2)
         f.addWidget(self.notes, 3, 0, 1, 2)
         f.addWidget(label(self.tr("Zielordner *"), "H2"), 4, 0, 1, 2)
         tr_ = QHBoxLayout()
@@ -339,6 +338,13 @@ class AccountPage(QWidget):
         for x in (self.pw_label, self.password, self.pw_hint, self.oauth_hint, self.device, self.login_as):
             c2.add(x)
         left.addWidget(c2)
+        cn = Card(self.tr("Notiz zum Konto"))
+        self.acc_notes = QPlainTextEdit()
+        self.acc_notes.setPlaceholderText(self.tr("z. B. Herkunft der Zugangsdaten, Kontoinhaber, Einwilligung/Beschluss, "
+                                                  "Besonderheiten – erscheint im Bericht"))
+        self.acc_notes.setFixedHeight(80)
+        cn.add(self.acc_notes)
+        left.addWidget(cn)
         cols.addLayout(left, 3)
 
         c3 = Card(self.tr("Verbindungstest"))
@@ -373,6 +379,24 @@ class AccountPage(QWidget):
         for x in (self.server, self.user, self.password):
             x.textChanged.connect(lambda *_: self.go.setEnabled(False))
 
+    def reset(self) -> None:
+        """Formular für ein neues Konto leeren; Anmeldeart zurück auf „Passwort“."""
+        for x in (self.email, self.evidence, self.server, self.user, self.password, self.login_as):
+            x.clear()
+        self.acc_notes.clear()
+        self.port.setValue(993)
+        self.security.setCurrentText("ssl")
+        self.device.setChecked(False)
+        self.method.set_value("password")
+        self._method_changed("password")
+        self.found = None
+        self.go.setEnabled(False)
+        self.test.clear()
+        self.test_state.setText(self.tr("noch nicht getestet"))
+        restyle(self.test_state, "Muted")
+        self.discover_info.setText(self.tr("Einstellungen werden nach Eingabe der Adresse gesucht."))
+        self.error.setText("")
+
     def prepare(self) -> None:
         """Vor dem Einrichten eines (weiteren) Kontos: Übersicht zeigen, Evidence-Nummer vorschlagen."""
         rows = self.accounts.refresh(self.st.case)
@@ -401,6 +425,7 @@ class AccountPage(QWidget):
         self.method.set_value(m)
         self._method_changed(m)
         self.found = None
+        self.acc_notes.setPlainText(o.get("notes", ""))
         self._check_known()
         self.password.setFocus()
 
@@ -555,9 +580,28 @@ class AccountPage(QWidget):
         t.set(self.tr("Ordner"), self.tr("{0} gefunden").format(nfolders))
         self.go.setEnabled(True)
 
+    def _login_hint(self, err: str) -> str:
+        """Hinweis bei abgelehnter Anmeldung mit Passwort/App-Passwort (übersetzbar)."""
+        low = err.lower()
+        if not any(k in low for k in ("authenticationfailed", "authentication failed", "invalid credentials",
+                                      "login failed", "logon failure", "auth", "credentials")):
+            return ""
+        m = self.method.value()
+        if m not in ("password", "google_app"):
+            return ""
+        if is_gmail(self.server.text()):
+            return self.tr("Google nimmt kein normales Kontopasswort an: App-Passwort (16 Buchstaben, {0}, "
+                           "2-Schritt-Bestätigung nötig) oder OAuth verwenden. In Google Workspace muss der "
+                           "Administrator App-Passwörter erlauben.").format(APP_PASSWORD_URL)
+        return self.tr("Bitte prüfen: Benutzername und Passwort korrekt? Bei vielen Anbietern muss der Zugriff per "
+                       "IMAP erst im Webmail freigeschaltet werden (z. B. GMX/WEB.DE: Einstellungen → POP3/IMAP "
+                       "Abruf), oder es ist ein App-Passwort nötig (z. B. bei aktivierter Zwei-Faktor-Anmeldung, "
+                       "iCloud, Yahoo).")
+
     def _test_failed(self, err: str, tb: str) -> None:
         self.test_btn.setEnabled(True)
-        self.test_state.setText(self.tr("✗ fehlgeschlagen: ") + explain_login_error(self.server.text(), err))
+        hint = self._login_hint(err)
+        self.test_state.setText(self.tr("✗ fehlgeschlagen: ") + err + (f"\n\n{hint}" if hint else ""))
         self.test_state.setWordWrap(True)
         restyle(self.test_state, "Error")
         self.go.setEnabled(False)
@@ -578,7 +622,9 @@ class AccountPage(QWidget):
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
             {"password": "password", "google_app": "app_password_google", "google": "oauth_google",
              "microsoft": "oauth_microsoft"}[self.method.value()],
-            self.found.source if self.found else "manuell")
+            self.found.source if self.found else "manuell", notes=self.acc_notes.toPlainText())
+        if self.st.account_id is not None:
+            acq.set_account_notes(case, self.st.account_id, self.acc_notes.toPlainText())
         self.next.emit()
 
 
@@ -753,6 +799,8 @@ class AcquirePage(QWidget):
         w, lay = page(self.tr("Sicherung läuft"))
         self.sub = w.subtitle
         self.title = lay.itemAt(0).widget()
+        self.account_lbl = ElidedLabel("", "H2")
+        lay.insertWidget(1, self.account_lbl)
         head = QHBoxLayout()
         head.addStretch(1)
         self.cancel_btn = QPushButton(self.tr("Abbrechen"))
@@ -814,12 +862,12 @@ class AcquirePage(QWidget):
         self.log.setMinimumHeight(160)
         lc.add(self.log)
         cols.addWidget(lc, 2)
-        lay.addLayout(cols, 1)
         self.accounts_card = Card(self.tr("Konten in diesem Case"))
         self.accounts = AccountsTable()
         self.accounts_card.add(self.accounts)
         self.accounts_card.setVisible(False)
         lay.addWidget(self.accounts_card)
+        lay.addLayout(cols, 1)
         b = QHBoxLayout()
         b.addStretch(1)
         self.resume_btn = QPushButton(self.tr("Fortsetzen"))
@@ -845,8 +893,8 @@ class AcquirePage(QWidget):
         st = self.st
         for x in (self.resume_btn, self.restart_btn, self.another_btn, self.finish_btn):
             x.setVisible(False)
-        self.accounts_card.setVisible(False)
         self.cancel_btn.setVisible(True)
+        self._show_accounts()
         self.title.setText(self.tr("Sicherung läuft"))
         now = datetime.now(UTC)
         self.sub.setText(self.tr("Modus {0} · gestartet {1} UTC ({2}) · {3} Verbindungen · nur lesend "
@@ -891,6 +939,9 @@ class AcquirePage(QWidget):
         for id_, ts, level, event, details in rows:
             self._last_log = id_
             self.log.appendPlainText(f"{ts[11:19]} {level[:4]:<4} {event} {details[:90]}")
+        self._tick = getattr(self, "_tick", 0) + 1
+        if self._tick % 3 == 0:
+            self._show_accounts()
 
     def _cancel(self) -> None:
         if self.worker:
@@ -921,8 +972,13 @@ class AcquirePage(QWidget):
         self.finished.emit(res)
 
     def _show_accounts(self) -> None:
-        self.accounts.refresh(self.st.case, self.st.email)
-        self.accounts_card.setVisible(True)
+        rows = self.accounts.refresh(self.st.case, self.st.email)
+        self.accounts_card.setVisible(len(rows) > 1 or self.cancel_btn.isHidden())
+        cur = next((o for o in rows if o["email"] == self.st.email), None)
+        if cur:
+            nr = rows.index(cur) + 1
+            self.account_lbl.setText(self.tr("Konto {0} von {1}: {2} · {3}").format(
+                nr, len(rows), cur["evidence"], cur["email"]))
 
     def _failed(self, err: str, tb: str) -> None:
         allow_sleep(self.st)
@@ -990,9 +1046,13 @@ class FinishPage(QWidget):
         lay.addStretch(1)
         nb = QPushButton(self.tr("Neuen Case anlegen"))
         nb.clicked.connect(self.new_case.emit)
+        self.quit_btn = QPushButton(self.tr("FED beenden"))
+        self.quit_btn.setObjectName("Primary")
+        self.quit_btn.clicked.connect(lambda: self.window().close())
         nr = QHBoxLayout()
         nr.addStretch(1)
         nr.addWidget(nb)
+        nr.addWidget(self.quit_btn)
         lay.addLayout(nr)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -1108,6 +1168,7 @@ class Assistant(QWidget):
             self.step_btns.append(b)
         rl.addSpacing(20)
         self.rail_accounts = AccountsRail()
+        self.rail_accounts.picked.connect(self._rail_pick)
         self.rail_accounts.setVisible(False)
         rl.addWidget(self.rail_accounts)
         rl.addStretch(1)
@@ -1145,6 +1206,21 @@ class Assistant(QWidget):
         except Exception:  # Anzeige darf eine laufende Sicherung nie stören
             pass
 
+    def _rail_pick(self, o: dict) -> None:
+        """Klick auf ein Konto in der linken Leiste: zum Fortsetzen auf die Kontoseite übernehmen."""
+        if self.p_acq.worker is not None and not self.p_acq.cancel_btn.isHidden():
+            QMessageBox.information(self, "FED", self.tr("Während einer laufenden Sicherung kann kein anderes Konto "
+                                                         "gewählt werden."))
+            return
+        if self.st.case is None or self.st.case.closed:
+            return
+        self.st.account_id = None
+        self.st.oauth_session = None
+        self.p_acc.reset()
+        self.p_acc.prepare()
+        self.p_acc._pick(o)
+        self._show(1, 2)
+
     def _finish(self) -> None:
         open_ = incomplete(self.st.case) if self.st.case else []
         if open_:
@@ -1171,11 +1247,7 @@ class Assistant(QWidget):
         self.st.account_id = None
         self.st.oauth_session = None
         p = self.p_acc
-        for x in (p.email, p.evidence, p.server, p.user, p.password):
-            x.clear()
-        p.found = None
-        p.go.setEnabled(False)
-        p.test.clear()
+        p.reset()
         p.prepare()
         self.refresh_accounts()
         self._show(1, 2)

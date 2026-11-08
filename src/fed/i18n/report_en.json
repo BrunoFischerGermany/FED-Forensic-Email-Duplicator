@@ -84,5 +84,19 @@
   "auth_password": "Password",
   "auth_app_password_google": "Google app password",
   "auth_oauth_google": "OAuth (Google)",
-  "auth_oauth_microsoft": "OAuth (Microsoft 365)"
+  "auth_oauth_microsoft": "OAuth (Microsoft 365)",
+  "title_account": "Report for account",
+  "part_of": "Individual report – part of case {case} with {n} accounts; the overall summary is in report.pdf.",
+  "case_notes": "Case notes",
+  "accounts_count": "Accounts in case",
+  "overview": "Account overview",
+  "overview_sum": "{n} accounts · {done} completely acquired · {mails} messages · {size}",
+  "account_notes": "Account note",
+  "username": "User name",
+  "st_new": "added, not acquired",
+  "st_running": "not finished",
+  "st_done": "completely acquired",
+  "st_partial": "fewer than on the server",
+  "st_cancelled": "cancelled",
+  "st_failed": "failed"
 }

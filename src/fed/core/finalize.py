@@ -221,6 +221,7 @@ class FinishResult:
     report_pdf: Path
     timestamp: object | None = None  # timestamp.TimestampInfo
     timestamp_error: str = ""
+    account_reports: list = field(default_factory=list)  # report_<Evidence>.txt/.pdf bei mehreren Konten
 
 
 def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult):
@@ -300,4 +301,6 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
                              cfg.programm.bericht_mailliste, cfg.programm.bericht_mailliste_max)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
-    return FinishResult(z, txt, pdf, ts_info, ts_error)
+    from fed.core.report import account_reports
+
+    return FinishResult(z, txt, pdf, ts_info, ts_error, account_reports(case))

@@ -29,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     acq.add_argument("--case-dir", type=Path, required=True)
     acq.add_argument("--account", required=True, help="E-Mail-Adresse")
     acq.add_argument("--evidence", required=True, help="Evidence-/Asservatennummer")
+    acq.add_argument("--account-notes", default=None, help="Notiz zum Konto (erscheint im Bericht)")
     acq.add_argument("--from", dest="date_from", help="Zeitraum ab (JJJJ-MM-TT)")
     acq.add_argument("--to", dest="date_to", help="Zeitraum bis einschließlich (JJJJ-MM-TT)")
     mode = acq.add_mutually_exclusive_group()
@@ -213,6 +214,7 @@ def _acquire(args) -> int:
                 autoconfig_source=source,
                 date_from=datetime.fromisoformat(args.date_from).replace(tzinfo=UTC) if args.date_from else None,
                 date_to=datetime.fromisoformat(args.date_to).replace(tzinfo=UTC) if args.date_to else None,
+                notes=args.account_notes or "",
             )
             imap = connect()
             acc_id = acqmod.register_account(case, spec, imap)
@@ -220,6 +222,8 @@ def _acquire(args) -> int:
             imap.logout()
             for f in folders:
                 print(f"  {f['name']:<40} {f['messages']:>7} Mails {f['size'] / 1e6:>9.1f} MB")
+        elif args.account_notes is not None:
+            acqmod.set_account_notes(case, acc_id, args.account_notes)
         if args.exclude:
             names = {r[0] for r in case.conn.execute(
                 "SELECT display_name FROM folder WHERE account_id = ? AND selected = 1", (acc_id,))}

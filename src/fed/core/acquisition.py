@@ -60,6 +60,7 @@ class AccountSpec:
     autoconfig_source: str = "manuell"
     date_from: datetime | None = None
     date_to: datetime | None = None  # einschließlich
+    notes: str = ""  # Notiz des Examiners zum Konto
 
     def __post_init__(self) -> None:
         from fed.core.naming import normalize_email
@@ -90,18 +91,34 @@ def register_account(case: Case, spec: AccountSpec, imap: ReadOnlyImap) -> int:
     with case.conn:
         cur = case.conn.execute(
             "INSERT INTO account (email, evidence_number, server, port, security, auth_method, username, "
-            "autoconfig_source, tls_cert_sha256, capabilities, server_id, namespaces, quota, date_from, date_to) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "autoconfig_source, tls_cert_sha256, capabilities, server_id, namespaces, quota, date_from, date_to, "
+            "notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (spec.email, spec.evidence_number, spec.server, spec.port, spec.security, spec.auth_method,
              spec.username or spec.email, spec.autoconfig_source, tls["sha256"], json.dumps(info["capabilities"]),
              info.get("id"), info.get("namespace"), json.dumps(info.get("quota")),
              spec.date_from.date().isoformat() if spec.date_from else None,
-             spec.date_to.date().isoformat() if spec.date_to else None),
+             spec.date_to.date().isoformat() if spec.date_to else None, spec.notes.strip() or None),
         )
     account_id = cur.lastrowid
     case.log("INFO", "account_registered", {"email": spec.email, "evidence": spec.evidence_number,
-                                             "server": f"{spec.server}:{spec.port}", "tls": tls})
+                                             "server": f"{spec.server}:{spec.port}", "tls": tls,
+                                             "notes": spec.notes.strip()})
     return account_id
+
+
+def set_account_notes(case: Case, account_id: int, notes: str) -> bool:
+    """Notiz eines Kontos ändern (alter und neuer Text werden protokolliert). True, wenn geändert."""
+    if case.closed:
+        raise RuntimeError("Case ist abgeschlossen")
+    new = notes.strip() or None
+    row = case.conn.execute("SELECT notes, email FROM account WHERE id = ?", (account_id,)).fetchone()
+    if row is None or row[0] == new:
+        return False
+    with case.conn:
+        case.conn.execute("UPDATE account SET notes = ? WHERE id = ?", (new, account_id))
+    case.log("INFO", "account_notes_changed", {"account_id": account_id, "email": row[1], "old": row[0] or "",
+                                                "new": new or ""})
+    return True
 
 
 def scan(case: Case, account_id: int, imap: ReadOnlyImap, cancel: CancelToken | None = None) -> list[dict]:
@@ -553,8 +570,8 @@ def accounts_overview(case: Case) -> list[dict]:
     (fertig, aber weniger gesichert als auf dem Server) | ``cancelled`` | ``failed``.
     """
     out = []
-    for acc_id, email, evidence, server, auth, dfrom, dto in case.conn.execute(
-            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to FROM account ORDER BY id"):
+    for acc_id, email, evidence, server, auth, dfrom, dto, notes in case.conn.execute(
+            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes FROM account ORDER BY id"):
         attempts = case.conn.execute("SELECT nr, status, started_utc, ended_utc FROM attempt WHERE account_id = ? "
                                      "ORDER BY nr", (acc_id,)).fetchall()
         sel, total, expected = case.conn.execute(
@@ -571,10 +588,11 @@ def accounts_overview(case: Case) -> list[dict]:
         out.append({"id": acc_id, "email": email, "evidence": evidence, "server": server, "auth": auth,
                     "attempts": len(attempts), "state": state, "saved": saved, "expected": expected,
                     "bytes": size, "folders_selected": sel, "folders_total": total,
-                    "date_filter": bool(dfrom or dto), "last_utc": (last[3] or last[2]) if last else None})
+                    "date_filter": bool(dfrom or dto), "last_utc": (last[3] or last[2]) if last else None,
+                    "notes": notes or ""})
     return out
 
 
 __all__ = ["AccountSpec", "AttemptResult", "Mode", "ResumeNotPossible", "accounts_overview", "register_account",
-           "run_attempt", "scan", "set_selection", "summary"]
+           "run_attempt", "scan", "set_account_notes", "set_selection", "summary"]
 

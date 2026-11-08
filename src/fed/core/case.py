@@ -108,6 +108,7 @@ class Case:
         if not db.exists():
             raise FileNotFoundError(db)
         case = cls(root, _connect(db))
+        _migrate(case)
         case.log("INFO", "case_opened", {"tool_version": __version__})
         return case
 
@@ -205,6 +206,15 @@ class Case:
     @property
     def discarded_dir(self) -> Path:
         return self.root / "discarded"
+
+
+def _migrate(case: Case) -> None:
+    """Ältere Case-Dateien ergänzen (nur neue Spalten, nie Daten ändern); wird protokolliert."""
+    cols = {r[1] for r in case.conn.execute("PRAGMA table_info(account)")}
+    if "notes" not in cols:
+        with case.conn:
+            case.conn.execute("ALTER TABLE account ADD COLUMN notes TEXT")
+        case.log("INFO", "schema_migrated", {"added": "account.notes"})
 
 
 def _connect(db: Path) -> sqlite3.Connection:
