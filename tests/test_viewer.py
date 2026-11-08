@@ -93,3 +93,104 @@ def test_gui_viewer_and_history_hook(acquired, monkeypatch):
     page.hide()
     page.deleteLater()
     app.processEvents()
+
+
+def test_inline_cid_and_attachment_check(acquired):
+    from fed.core.viewer import check_attachment, inline_resource
+
+    case = acquired
+    v = open_message(case, _id(case, "Signatur mit Bild"))
+    logo = next(a for a in v.attachments if a.content_id == "logo1")
+    assert logo.inline and inline_resource(v, "cid:logo1") == testmailbox.PNG
+    assert inline_resource(v, "cid:%3Clogo1%3E") == testmailbox.PNG and inline_resource(v, "cid:fehlt") is None
+    csv = next(a for a in v.attachments if a.name == "daten.csv")
+    data, fc = check_attachment(case, v, csv.index)
+    assert data.replace(b"\r\n", b"\n") == b"a;b\n1;2" and fc.fmt.key == "text" and fc.verdict == "ok"
+    row = case.conn.execute("SELECT level, details FROM log WHERE event = 'attachment_previewed'").fetchone()
+    assert row[0] == "INFO" and fc.sha256 in row[1] and '"sha256_ok": true' in row[1]
+
+
+def test_gui_attachment_preview(acquired):
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from PySide6.QtGui import QTextDocument
+    from PySide6.QtCore import QUrl
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core.filecheck import FORMATS
+    from fed.gui.viewer import FINDING_TEXT, FORMAT_NAMES, MailViewer
+
+    assert set(FORMAT_NAMES) == {f.name for f in FORMATS.values()}
+    import re
+    from pathlib import Path
+
+    src = Path("src/fed/core/filecheck.py").read_text(encoding="utf-8")
+    assert set(re.findall(r'Finding\("(?:warn|info)", "(\w+)"', src)) <= set(FINDING_TEXT)
+
+    case = acquired
+    dlg = MailViewer(case, _id(case, "Signatur mit Bild"))
+    names = [dlg.att.item(r, 1).text() for r in range(dlg.att.rowCount())]
+    dlg.att.selectRow(names.index("daten.csv"))
+    app.processEvents()
+    assert dlg.preview.currentWidget() is dlg.pv_text and "a;b" in dlg.pv_text.toPlainText()
+    assert dlg.hex.toPlainText().startswith("00000000  61 3b 62")
+    assert "✓" in dlg.check_kv.values["Ergebnis"].text() or "unauffällig" in dlg.check_kv.values["Ergebnis"].text()
+    # cid-Auflösung im HTML: Testbild ist nur ein PNG-Kopf -> kein darstellbares Bild, aber kein Nachladen
+    assert dlg.body.loadResource(QTextDocument.ResourceType.ImageResource, QUrl("http://example.org/x.png")) is None
+    assert dlg.body.resolver("cid:logo1") == testmailbox.PNG
+    dlg.deleteLater()
+
+    dlg2 = MailViewer(case, _id(case, "Rechnung 2026-1187"))
+    app.processEvents()
+    assert dlg2.check_kv.values["Erkannt am Inhalt"].text().startswith("PDF")
+    assert dlg2.preview.currentWidget() in (dlg2.pv_pdf, dlg2.pv_msg)
+    dlg2.deleteLater()
+    app.processEvents()
+    n = case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'attachment_previewed'").fetchone()[0]
+    assert n >= 3  # Logo (erste Zeile), CSV, PDF
+
+
+def test_gui_renders_real_image_pdf_and_cid(acquired):
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from PySide6.QtCore import QBuffer, QIODevice, QUrl
+    from PySide6.QtGui import QColor, QImage, QTextDocument
+    from fpdf import FPDF
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core.filecheck import check
+    from fed.gui.viewer import MailViewer, _SafeBrowser
+
+    img = QImage(40, 30, QImage.Format.Format_RGB32)
+    img.fill(QColor("red"))
+    buf = QBuffer()
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    img.save(buf, "PNG")
+    png = bytes(buf.data())
+    doc = FPDF()
+    doc.add_page()
+    doc.set_font("helvetica", size=12)
+    doc.cell(text="Testseite")
+    pdf = bytes(doc.output())
+
+    b = _SafeBrowser(lambda ref: png if ref == "cid:bild" else b"MZ-kein-bild")
+    res = b.loadResource(QTextDocument.ResourceType.ImageResource, QUrl("cid:bild"))
+    assert isinstance(res, QImage) and res.width() == 40
+    assert b.loadResource(QTextDocument.ResourceType.ImageResource, QUrl("cid:andere")) is None  # kein Bild
+    assert b.loadResource(QTextDocument.ResourceType.ImageResource, QUrl("file:///etc/passwd")) is None
+
+    dlg = MailViewer(acquired, _id(acquired, "Rechnung 2026-1187"))
+    dlg._render_preview(png, check("bild.png", png, "image/png"))
+    assert dlg.preview.currentWidget() is dlg._img_scroll and dlg.pv_img.pixmap().width() == 40
+    dlg._render_preview(pdf, check("seite.pdf", pdf, "application/pdf"))
+    if dlg.pv_pdf is not None:
+        assert dlg.preview.currentWidget() is dlg.pv_pdf and dlg._pdf[0].pageCount() == 1
+    exe = b"MZ" + b"\x00" * 200
+    dlg._render_preview(exe, check("x.pdf", exe))
+    assert dlg.preview.currentWidget() is dlg.pv_msg
+    dlg.deleteLater()
+    app.processEvents()

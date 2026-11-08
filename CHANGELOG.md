@@ -115,6 +115,17 @@
   vollständige Kopfzeilen, Received-Kette mit Zeiten und Dauer, DKIM/Authentication-Results und
   Gmail-Labels; liest aus `work/` oder aus dem ZIP, prüft dabei den SHA-256 gegen die Case-Datei
   und protokolliert Ansehen (`message_viewed`) und Speichern (`attachment_exported`)
+- Betrachter: Anlagen-Vorschau im Speicher (Bilder, PDF über QtPdf, Text) mit Reitern „Vorschau“,
+  „Prüfung“ und „Hex“; eingebettete Bilder (`cid:`) in HTML-Mails werden angezeigt – nur aus der
+  Mail selbst, externe Inhalte bleiben gesperrt
+- Dateiprüfung je Anlage (`fed.core.filecheck`, angelehnt an Crush Forensics): Format an den
+  Magic Bytes erkannt und mit Endung und angegebenem MIME-Typ verglichen; MD5/SHA-1/SHA-256,
+  Entropie; Warnungen bei ausführbaren Inhalten, getarnten Endungen (doppelt, Leerzeichen,
+  Schreibrichtungs-Zeichen), Makros, nachgeladenen Vorlagen, aktiven PDF-Inhalten (JavaScript,
+  OpenAction, Launch …), eingebetteten Dateien, verschlüsselten Archiven, Programmen in Archiven,
+  Datenträger-Abbildern und Skripten; keine Vorschau für ausführbare Inhalte, Rückfrage vor dem
+  Speichern auffälliger Anlagen; jede Vorschau wird mit Hash und Befunden protokolliert
+  (`attachment_previewed`)
 - Historie „Dateien nachhashen“ prüft alle ZIPs des Case (auch je Konto), nicht nur das letzte
 
 ## 0.4-beta

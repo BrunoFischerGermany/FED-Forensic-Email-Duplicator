@@ -89,6 +89,11 @@ benutzen (das Dateien verändern oder externe Inhalte nachladen könnte).
 - Liest aus `work/` oder – nach dem Löschen des Arbeitsordners – direkt aus dem ZIP; nichts wird
   verändert.
 - Anlage speichern: Kopie an einen gewählten Ort, mit Hash im Log.
+- Anlagen-Vorschau im Speicher (Bild, PDF, Text, Hex) und eingebettete Bilder im HTML (nur aus der
+  Mail selbst).
+- Dateiprüfung wie in Crush Forensics: Format an den Magic Bytes, Abgleich mit Endung und
+  MIME-Typ, Hashes, Entropie, Warnungen (ausführbar, getarnte Endung, Makros, aktive PDF-Inhalte,
+  verschlüsselte Archive, Programme in Archiven, Datenträger-Abbilder, Skripte).
 
 ## Spätere Ideen
 

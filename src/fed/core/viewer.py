@@ -30,6 +30,7 @@ class Attachment:
     size: int
     sha256: str
     inline: bool
+    content_id: str = ""  # ohne < >; für cid:-Verweise im HTML
 
 
 @dataclass
@@ -143,11 +144,12 @@ def parse(raw: bytes) -> dict:
             continue
         disp = part.get_content_disposition()
         name = part.get_filename()
-        if disp is None and not name:
+        cid = str(part.get("Content-ID", "")).strip().strip("<>").strip()
+        if disp is None and not name and not cid:
             continue
         data = part.get_payload(decode=True) or b""
         attachments.append(Attachment(i, name or f"teil-{i}", part.get_content_type(), len(data),
-                                      hashlib.sha256(data).hexdigest(), disp == "inline" or bool(part.get("Content-ID"))))
+                                      hashlib.sha256(data).hexdigest(), disp == "inline" or bool(cid), cid))
     return {
         "headers": headers, "subject": str(msg.get("Subject", "")), "from_": str(msg.get("From", "")),
         "to": str(msg.get("To", "")), "cc": str(msg.get("Cc", "")), "date": str(msg.get("Date", "")),
@@ -165,10 +167,48 @@ def open_message(case: Case, message_id: int, log: bool = True) -> MailView:
     return MailView(message_id, source, ok, raw, db=row, **parse(raw))
 
 
+def _part(view: MailView, index: int) -> EmailMessage:
+    msg = BytesParser(policy=policy.default).parsebytes(view.raw)
+    return next(p for i, p in enumerate(msg.walk()) if i == index)
+
+
+def attachment_data(view: MailView, index: int) -> bytes:
+    """Dekodierter Inhalt einer Anlage (nur im Speicher)."""
+    return _part(view, index).get_payload(decode=True) or b""
+
+
+def inline_resource(view: MailView, ref: str) -> bytes | None:
+    """Inhalt eines eingebetteten Teils zu einem ``cid:``-Verweis (nur aus der Mail selbst)."""
+    from urllib.parse import unquote
+
+    ref = unquote(ref.removeprefix("cid:")).strip().strip("<>")
+    if not ref:
+        return None
+    for a in view.attachments:
+        if a.content_id and a.content_id == ref:
+            return attachment_data(view, a.index)
+    return None
+
+
+def check_attachment(case: Case, view: MailView, index: int, log: bool = True):
+    """Anlage im Speicher prüfen (Format, Endung, MIME, Risiken, Hashes); Vorschau wird protokolliert.
+
+    Rückgabe: (Bytes, FileCheck). Der SHA-256 wird mit dem Wert beim Öffnen der Mail verglichen."""
+    from fed.core.filecheck import check
+
+    a = next(x for x in view.attachments if x.index == index)
+    data = attachment_data(view, index)
+    fc = check(a.name, data, a.mime)
+    if log:
+        case.log("WARNING" if fc.warnings else "INFO", "attachment_previewed",
+                 {"message_id": view.message_id, "file": view.db["zip_path"], **fc.summary(),
+                  "sha256_ok": fc.sha256 == a.sha256})
+    return data, fc
+
+
 def export_attachment(case: Case, view: MailView, index: int, target: Path) -> str:
     """Anlage unverändert speichern; SHA-256 wird geprüft und protokolliert. Rückgabe: SHA-256."""
-    msg = BytesParser(policy=policy.default).parsebytes(view.raw)
-    part = next(p for i, p in enumerate(msg.walk()) if i == index)
+    part = _part(view, index)
     data = part.get_payload(decode=True) or b""
     target.write_bytes(data)
     sha = hashlib.sha256(target.read_bytes()).hexdigest()
