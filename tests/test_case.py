@@ -44,3 +44,18 @@ def test_required_fields(tmp_path):
         Case.create(tmp_path, CaseInfo("", "E"))
     with pytest.raises(ValueError):
         Case.create(tmp_path, CaseInfo("C3", " "))
+
+
+def test_old_case_gets_notes_column(tmp_path):
+    """Case-Dateien älterer Versionen (ohne account.notes) werden beim Öffnen ergänzt."""
+    case = Case.create(tmp_path, CaseInfo("ALT-1", "Tester"))
+    root = case.root
+    case.conn.execute("ALTER TABLE account DROP COLUMN notes")
+    case.conn.commit()
+    case.close()
+    case = Case.open(root)
+    cols = {r[1] for r in case.conn.execute("PRAGMA table_info(account)")}
+    assert "notes" in cols
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'schema_migrated'").fetchone()[0] == 1
+    assert case.verify_log()[0]
+    case.close()

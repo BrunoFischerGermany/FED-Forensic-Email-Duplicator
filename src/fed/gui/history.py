@@ -153,6 +153,14 @@ class HistoryTab(QWidget):
         self.mails = Table(MAIL_COLS)
         self.log = Table(LOG_COLS)
         self.folders = Table(FOLDER_COLS, search=False)
+        from fed.gui.accounts import AccountsTable
+
+        self.accounts = AccountsTable()
+        acc_page = QWidget()
+        al = QVBoxLayout(acc_page)
+        al.addWidget(self.accounts)
+        al.addStretch(1)
+        self.tabs.addTab(acc_page, self.tr("Konten"))
         self.tabs.addTab(self.mails, self.tr("Gesicherte Mails"))
         self.tabs.addTab(self.log, self.tr("Log"))
         self.tabs.addTab(self.folders, self.tr("Ordner Soll/Ist + Vorher/Nachher"))
@@ -184,6 +192,8 @@ class HistoryTab(QWidget):
             "SELECT t.nr, a.email, t.mode, t.started_utc, t.ended_utc, t.status, "
             "(SELECT COUNT(*) FROM message m WHERE m.attempt_id = t.id), t.avg_bytes_s, t.reason, t.moved_to "
             "FROM attempt t JOIN account a ON a.id = t.account_id ORDER BY t.id")])
+        if self.tabs.currentIndex() == 0:
+            self.accounts.refresh(case)
         if self.tabs.currentWidget() is self.mails or not self.mails.model.rowCount():
             self.mails.fill([[r[0], tf.utc_str(r[1])[:19], tf.local_str(r[1]), ", ".join(json.loads(r[2] or "[]")),
                               _recipient(*r[3:8]), str(r[8]) + (f" +{r[9]} inline" if r[9] else ""), r[10], r[11].split("/")[-1],

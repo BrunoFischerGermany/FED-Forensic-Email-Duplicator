@@ -1208,7 +1208,8 @@ class Assistant(QWidget):
 
     def _rail_pick(self, o: dict) -> None:
         """Klick auf ein Konto in der linken Leiste: zum Fortsetzen auf die Kontoseite übernehmen."""
-        if self.p_acq.worker is not None and not self.p_acq.cancel_btn.isHidden():
+        w = self.p_acq.worker
+        if w is not None and w.thread.isRunning():
             QMessageBox.information(self, "FED", self.tr("Während einer laufenden Sicherung kann kein anderes Konto "
                                                          "gewählt werden."))
             return

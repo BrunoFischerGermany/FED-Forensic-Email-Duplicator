@@ -54,7 +54,8 @@ class AccountsTable(QWidget):
     COLS = (QT_TRANSLATE_NOOP("AccountsTable", "Evidence"), QT_TRANSLATE_NOOP("AccountsTable", "Konto"),
             QT_TRANSLATE_NOOP("AccountsTable", "Status"), QT_TRANSLATE_NOOP("AccountsTable", "Mails gesichert / Server"),
             QT_TRANSLATE_NOOP("AccountsTable", "Größe"), QT_TRANSLATE_NOOP("AccountsTable", "Ordner"),
-            QT_TRANSLATE_NOOP("AccountsTable", "Versuche"), QT_TRANSLATE_NOOP("AccountsTable", "Zuletzt"))
+            QT_TRANSLATE_NOOP("AccountsTable", "Versuche"), QT_TRANSLATE_NOOP("AccountsTable", "Zuletzt"),
+            QT_TRANSLATE_NOOP("AccountsTable", "Notiz"))
 
     picked = Signal(dict)  # Doppelklick auf ein Konto
 
@@ -94,7 +95,7 @@ class AccountsTable(QWidget):
             folders = f"{o['folders_selected']} / {o['folders_total']}"
             vals = [o["evidence"], o["email"] + ("  ←" if o["email"] == current_email else ""), f"{sym}  {text}",
                     mails, _fmt_bytes(o["bytes"]), folders, str(o["attempts"]),
-                    _short_time(o["last_utc"])]
+                    _short_time(o["last_utc"]), o["notes"].replace("\n", " · ")]
             for c, v in enumerate(vals):
                 it = QTableWidgetItem(v)
                 if c == 2:
@@ -105,6 +106,8 @@ class AccountsTable(QWidget):
                     it.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 if c == 7 and o["last_utc"]:
                     it.setToolTip(tf.both(o["last_utc"]))
+                if c == 8 and o["notes"]:
+                    it.setToolTip(o["notes"])
                 self.table.setItem(r, c, it)
         self.table.resizeRowsToContents()
         hdr = self.table.horizontalHeader().height()

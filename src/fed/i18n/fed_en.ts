@@ -266,6 +266,10 @@
         <translation>Last</translation>
     </message>
     <message>
+        <source>Notiz</source>
+        <translation>Note</translation>
+    </message>
+    <message>
         <source>{0} Konten · {1} vollständig gesichert · {2} offen · {3} Mails · {4}</source>
         <translation>{0} accounts · {1} completely acquired · {2} open · {3} messages · {4}</translation>
     </message>
@@ -984,6 +988,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Nur lesend aus case.sqlite · jede Prüfung wird selbst protokolliert</source>
         <translation>Read-only from case.sqlite · every check is itself logged</translation>
+    </message>
+    <message>
+        <source>Konten</source>
+        <translation>Accounts</translation>
     </message>
     <message>
         <source>Gesicherte Mails</source>

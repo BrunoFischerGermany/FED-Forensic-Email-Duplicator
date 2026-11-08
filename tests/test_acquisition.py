@@ -222,3 +222,20 @@ def test_next_evidence(existing, expected):
     from fed.core.naming import next_evidence
 
     assert next_evidence(existing) == expected
+
+
+def test_unexpected_error_marks_attempt_failed(tmp_path, connect, imap_server, cfg, monkeypatch):
+    from fed.core import acquisition
+
+    case, acc = _setup(tmp_path, connect, imap_server)
+
+    def boom(*a, **k):
+        raise RuntimeError("Datenträger voll")
+
+    monkeypatch.setattr(acquisition, "_store_message", boom)
+    with pytest.raises(RuntimeError, match="voll"):
+        run_attempt(case, acc, connect, cfg=cfg)
+    status = case.conn.execute("SELECT status FROM attempt WHERE account_id = ?", (acc,)).fetchone()[0]
+    assert status == "failed"
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'attempt_failed'").fetchone()[0] == 1
+    case.close()

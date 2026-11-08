@@ -75,3 +75,20 @@ def test_write_commands_blocked(imap):
         imap.imap.select('"INBOX"')
     with pytest.raises(ForbiddenCommand):
         imap.imap.expunge()
+
+
+@pytest.mark.parametrize("cmd", ["UID FETCH 5 (BODY[])", "UID FETCH 5 (RFC822)", "FETCH 1 RFC822",
+                                 "UID FETCH 5 (RFC822.TEXT)", "UID FETCH 5 (BODY[TEXT])", "uid fetch 5 (body[])"])
+def test_guard_blocks_fetch_without_peek(cmd):
+    from fed.core.imap_reader import ForbiddenCommand, guard
+
+    with pytest.raises(ForbiddenCommand):
+        guard(cmd)
+
+
+@pytest.mark.parametrize("cmd", ["UID FETCH 1:* (UID RFC822.SIZE)", "UID FETCH 5 (BODY.PEEK[]<0.1048576>)",
+                                 "UID FETCH 1,2 (UID BODY.PEEK[] FLAGS INTERNALDATE)", "FETCH 1 (RFC822.HEADER)"])
+def test_guard_allows_peek(cmd):
+    from fed.core.imap_reader import guard
+
+    guard(cmd)

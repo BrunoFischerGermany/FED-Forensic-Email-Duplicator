@@ -31,7 +31,8 @@
 ├─ discarded/attempt_<n>/
 ├─ <Casenumber>_<zeit>.zip  (+ .sha256, .tsr)
 ├─ log.csv
-└─ report.txt / report.pdf
+├─ report.txt / report.pdf     Gesamtbericht: Kontenübersicht + Abschnitt je Konto
+└─ report_<Evidence>.txt/.pdf  Einzelbericht je Konto (bei mehreren Konten)
 ```
 
 Im ZIP: `<adresse>/<IMAP-Ordner>/...` je Konto, dazu `log.csv`.

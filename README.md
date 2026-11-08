@@ -14,7 +14,8 @@ FED acquires email mailboxes via IMAP, forensically and strictly read-only:
 - SHA-256 (plus MD5 and SHA-512) per message and for the ZIP archive
 - ZIP with the mailbox folder structure, first level = email address
 - case file (SQLite) with a tamper-evident log, history, multiple attempts, resume/restart
-- TXT and PDF report with agency logo, optional RFC 3161 timestamp
+- several accounts per case with an overview of what is done; evidence numbers are suggested (`A-01` → `A-02`)
+- TXT and PDF report with agency logo, case notes and a note per account – overall and per account; optional RFC 3161 timestamp
 - Gmail/Google Workspace and Microsoft 365 via OAuth2
 - English and German, further languages can be added without programming ([docs/translating.md](docs/translating.md)); Windows/macOS/Linux, portable without installation
 
@@ -108,7 +109,8 @@ The programs are not signed: macOS reports an "unidentified developer"
 ├─ <case>_<time>.zip + .zip.sha256  final archive
 ├─ <case>_<time>.zip.tsr / .tsq     RFC 3161 timestamp (if configured)
 ├─ log.csv
-└─ report.txt / report.pdf
+├─ report.txt / report.pdf          overall report: account overview + section per account
+└─ report_<evidence>.txt / .pdf     one report per account (with several accounts)
 ```
 
 These names are fixed and do not depend on the language setting.

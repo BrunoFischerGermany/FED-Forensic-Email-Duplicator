@@ -70,6 +70,20 @@
 - Evidence-Nummer wird vorgeschlagen: letzte Zahl der zuletzt vergebenen Nummer +1
   (`A-01` -> `A-02`, `VG-2026-009` -> `VG-2026-010`), vergebene Nummern werden übersprungen,
   doppelte Vergabe für ein anderes Konto abgelehnt
+- Notiz je Konto (Kontoseite, CLI `--account-notes`), Änderungen mit altem/neuem Text im Log;
+  ältere Case-Dateien erhalten die Spalte beim Öffnen (protokolliert)
+- Bericht: Anmerkungen zum Case als eigener Abschnitt oben, Kontenübersicht, je Konto ein Abschnitt
+  mit Notiz, Versuchen und Ordnern; bei mehreren Konten zusätzlich `report_<Evidence>.txt/.pdf`
+  je Konto
+- Oberfläche: Konten in der linken Leiste anklickbar (übernimmt das Konto zum Fortsetzen); neues
+  Konto setzt die Anmeldeart auf „Passwort“ zurück; bei abgelehnter Anmeldung Hinweis auf
+  IMAP-Freischaltung/App-Passwort (Gmail: App-Passwort/OAuth); Sicherungsseite zeigt „Konto x von y“
+  und die Kontenübersicht; Reiter „Konten“ in der Historie; Knopf „FED beenden“ am Ende;
+  Feld „Notes“ heißt „Anmerkungen“
+- Prüfung: unerwartete Fehler (z. B. Datenträger voll) beenden einen Versuch als „fehlgeschlagen“
+  statt ihn auf „läuft“ stehen zu lassen; Befehlssperre blockiert zusätzlich FETCH ohne PEEK
+  (würde das Gelesen-Flag setzen, Validierung V02); Kontenübersicht vergleicht mit dem
+  Serverstand nach der Sicherung
 
 ## 0.4-beta
 

@@ -276,6 +276,10 @@ def run_attempt(
     except (ImapError, *NETWORK_ERRORS) as e:
         result.status = "failed"
         case.log("ERROR", "attempt_failed", {"phase": prog.phase, "error": str(e)}, attempt_id)
+    except Exception as e:  # unerwartet (z. B. Datenträger voll): Versuch sauber als fehlgeschlagen beenden
+        result.status = "failed"
+        case.log("ERROR", "attempt_failed", {"phase": prog.phase, "error": f"{type(e).__name__}: {e}"}, attempt_id)
+        raise
     finally:
         if imap is not None:
             imap.logout()
@@ -390,7 +394,7 @@ def _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, 
                     msgs = None
                     for attempt_conn in range(MAX_RECONNECTS + 1):
                         try:
-                            if current is not task.folder.raw_name:
+                            if current != task.folder.raw_name:
                                 imap.examine(task.folder)
                                 current = task.folder.raw_name
                             if len(batch) == 1 and task.sizes.get(batch[0], 0) > chunk:
@@ -574,9 +578,12 @@ def accounts_overview(case: Case) -> list[dict]:
             "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes FROM account ORDER BY id"):
         attempts = case.conn.execute("SELECT nr, status, started_utc, ended_utc FROM attempt WHERE account_id = ? "
                                      "ORDER BY nr", (acc_id,)).fetchall()
-        sel, total, expected = case.conn.execute(
-            "SELECT COALESCE(SUM(selected), 0), COUNT(*), COALESCE(SUM(CASE WHEN selected = 1 THEN count_server END), 0) "
-            "FROM folder WHERE account_id = ?", (acc_id,)).fetchone()
+        folders = case.conn.execute("SELECT selected, count_server, status_after FROM folder WHERE account_id = ?",
+                                    (acc_id,)).fetchall()
+        sel, total = sum(1 for f in folders if f[0]), len(folders)
+        # erwartet: Stand des Servers nach der letzten Sicherung (STATUS), sonst Stand beim Scan
+        expected = sum((json.loads(f[2]).get("MESSAGES", f[1] or 0) if f[2] else f[1] or 0)
+                       for f in folders if f[0])
         saved, size = case.conn.execute(
             "SELECT COUNT(*), COALESCE(SUM(m.size), 0) FROM message m JOIN folder f ON f.id = m.folder_id "
             "WHERE f.account_id = ? AND m.status = 'valid'",
