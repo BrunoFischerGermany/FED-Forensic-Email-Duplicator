@@ -39,8 +39,11 @@ def _q(case: Case, sql: str, args=()) -> list[dict]:
     return [dict(zip(cols, r, strict=True)) for r in cur]
 
 
-def collect(case: Case) -> dict:
-    """Alle Berichtsdaten aus der Case-Datei."""
+def collect(case: Case, account_id: int | None = None) -> dict:
+    """Alle Berichtsdaten aus der Case-Datei; mit ``account_id`` nur die eines Kontos."""
+    from fed.core.acquisition import accounts_overview
+    from fed.core.finalize import message_rows
+
     info = case.info()
     snap = _q(case, "SELECT toml_text, logo_file, logo_sha256 FROM config_snapshot WHERE id = 1")
     agency = {}
@@ -52,33 +55,65 @@ def collect(case: Case) -> dict:
     ok, bad = case.verify_log()
     log_count, head = case.conn.execute(
         "SELECT COUNT(*), (SELECT entry_hash FROM log ORDER BY id DESC LIMIT 1) FROM log").fetchone()
-    from fed.core.finalize import message_rows
-
+    accounts = _q(case, "SELECT * FROM account ORDER BY id")
+    overview = accounts_overview(case)
+    attempts = _q(case, "SELECT t.*, a.email FROM attempt t JOIN account a ON a.id = t.account_id ORDER BY t.id")
+    folders = _q(case, "SELECT f.*, a.email FROM folder f JOIN account a ON a.id = f.account_id "
+                       "ORDER BY f.account_id, f.id")
+    issues = _q(case, "SELECT l.ts_utc, l.level, l.event, l.details, t.account_id FROM log l "
+                      "LEFT JOIN attempt t ON t.id = l.attempt_id WHERE l.level IN ('WARNING','ERROR') ORDER BY l.id")
+    messages = message_rows(case)
+    outputs = _q(case, "SELECT * FROM output ORDER BY id")
+    timestamps = _timestamp_state(case)
+    all_accounts = len(accounts)
+    if account_id is not None:
+        email = next(a["email"] for a in accounts if a["id"] == account_id)
+        accounts = [a for a in accounts if a["id"] == account_id]
+        overview = [o for o in overview if o["id"] == account_id]
+        attempts = [a for a in attempts if a["account_id"] == account_id]
+        folders = [f for f in folders if f["account_id"] == account_id]
+        issues = [x for x in issues if x["account_id"] == account_id or _details_account(x["details"]) == account_id]
+        messages = [m for m in messages if m["Konto"] == email]
+        outputs = [o for o in outputs if o.get("account_id") in (None, account_id)]
+        timestamps = [x for x in timestamps if x.get("account_id") in (None, account_id)]
     return {
         "info": info,
         "agency": agency,
         "logo": snap[0] if snap else {},
         "system": _q(case, "SELECT * FROM system_check ORDER BY id DESC LIMIT 1"),
-        "accounts": _q(case, "SELECT * FROM account ORDER BY id"),
-        "attempts": _q(case, "SELECT t.*, a.email FROM attempt t JOIN account a ON a.id = t.account_id ORDER BY t.id"),
-        "folders": _q(case, "SELECT f.*, a.email FROM folder f JOIN account a ON a.id = f.account_id "
-                            "ORDER BY f.account_id, f.id"),
-        "issues": _q(case, "SELECT ts_utc, level, event, details FROM log WHERE level IN ('WARNING','ERROR') "
-                           "ORDER BY id"),
-        "outputs": _q(case, "SELECT * FROM output ORDER BY id"),
+        "accounts": accounts,
+        "overview": overview,
+        "account_id": account_id,
+        "all_accounts": all_accounts,
+        "attempts": attempts,
+        "folders": folders,
+        "issues": issues,
+        "outputs": outputs,
+        "zip_mode": case.zip_mode(),
         "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
-        "messages": message_rows(case),
+        "messages": messages,
         "work_dir": _work_dir_state(case),
-        "timestamp": _timestamp_state(case),
+        "timestamps": timestamps,
     }
 
 
-def _timestamp_state(case: Case) -> dict:
-    row = case.conn.execute("SELECT event, details FROM log WHERE event IN ('timestamp_done', 'timestamp_failed') "
-                            "ORDER BY id DESC LIMIT 1").fetchone()
-    if not row:
-        return {}
-    return {"ok": row[0] == "timestamp_done", **json.loads(row[1])}
+def _details_account(details: str) -> int | None:
+    try:
+        d = json.loads(details)
+    except (ValueError, TypeError):
+        return None
+    return d.get("account_id") if isinstance(d, dict) else None
+
+
+def _timestamp_state(case: Case) -> list[dict]:
+    """Zeitstempel je ZIP (Ergebnis der letzten Anfrage je ZIP-Datei)."""
+    out: dict[str, dict] = {}
+    for event, details in case.conn.execute("SELECT event, details FROM log WHERE event IN "
+                                            "('timestamp_done', 'timestamp_failed') ORDER BY id"):
+        d = {"ok": event == "timestamp_done", **json.loads(details)}
+        key = d.get("file", "").removesuffix(".tsr") or d.get("zip", "") or str(len(out))
+        out[key] = d
+    return list(out.values())
 
 
 def _work_dir_state(case: Case) -> dict:
@@ -137,17 +172,22 @@ def _status_pair(f: dict, L: dict) -> str:
     return L["unchanged"] if b == a else f"{L['changed']}: {b} -> {a}"
 
 
-def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
-    """Gemeinsame Schlüssel/Wert-Abschnitte für TXT und PDF."""
+def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Case und System (Anfang des Berichts)."""
     i = d["info"]
     yn = {1: L["yes"], 0: L["no"], None: L["unknown"]}
-    secs = [(L["case"], [
-        (L["case_number"], i["case_number"]), (L["examiner"], i["examiner"]), (L["notes"], i["notes"] or "–"),
+    case_items = [
+        (L["case_number"], i["case_number"]), (L["examiner"], i["examiner"]),
         (L["created"], tf.both(i["created_utc"])), (L["closed"], tf.both(i["closed_utc"]) if i["closed_utc"] else "–"),
         (L["tool"], f"{APP_NAME} {i['tool_version']}"), (L["tool_sha"], i["tool_sha256"] or "–"),
-    ])]
+        (L["accounts_count"], str(d["all_accounts"])),
+    ]
+    if d["all_accounts"] > 1:
+        mode = d.get("zip_mode") or "gesamt"
+        case_items.append((L["zip_mode"], L[f"zip_mode_{mode}"]))
     if d.get("work_dir"):
-        secs[0][1].append((L["work_dir"], _work_dir_text(d["work_dir"], L)))
+        case_items.append((L["work_dir"], _work_dir_text(d["work_dir"], L)))
+    secs = [(L["case"], case_items)]
     if d["system"]:
         s = d["system"][0]
         secs.append((L["system"], [
@@ -157,26 +197,47 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
             (L["online"], yn.get(s["online"], "?")), (L["target"], s["target_path"]),
             (L["removable"], yn.get(s["target_removable"], "?")), (L["free"], _fmt_bytes(s["free_bytes"])),
         ]))
-    for a in d["accounts"]:
-        rng = "–"
-        if a["date_from"] or a["date_to"]:
-            rng = f"{a['date_from'] or '…'} – {a['date_to'] or '…'} ({L['partial']})"
-        secs.append((f"{L['account']} {a['email']}", [
-            (L["evidence"], a["evidence_number"]), (L["server"], f"{a['server']}:{a['port']} ({a['security']})"),
-            (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], a["autoconfig_source"] or "–"),
-            (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
-        ]))
-    ts = d.get("timestamp")
-    if ts and ts["ok"]:
+    return secs
+
+
+def _state_text(o: dict, L: dict) -> str:
+    text = L.get(f"st_{o['state']}", o["state"])
+    return text + (f" ({L['partial']})" if o["date_filter"] else "")
+
+
+def _overview_rows(d: dict, L: dict) -> list[list[str]]:
+    return [[o["evidence"], o["email"], _state_text(o, L), f"{o['saved']} / {o['expected']}", _fmt_bytes(o["bytes"]),
+             str(o["attempts"])] for o in d["overview"]]
+
+
+def _account_items(a: dict, L: dict) -> list[tuple[str, str]]:
+    rng = "–"
+    if a["date_from"] or a["date_to"]:
+        rng = f"{a['date_from'] or '…'} – {a['date_to'] or '…'} ({L['partial']})"
+    return [
+        (L["evidence"], a["evidence_number"]), (L["server"], f"{a['server']}:{a['port']} ({a['security']})"),
+        (L["username"], a["username"]),
+        (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], a["autoconfig_source"] or "–"),
+        (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
+    ]
+
+
+def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
+    """Zeitstempel und Log-Kette (Ende des Berichts)."""
+    secs = []
+    many = len(d.get("timestamps", [])) > 1
+    for ts in d.get("timestamps", []):
+        title = L["ts"] + (f" – {ts.get('file', '').removesuffix('.tsr') or ts.get('zip', '')}" if many else "")
+        if not ts["ok"]:
+            secs.append((title, [(L["status"], L["ts_failed"]), (L["ts_tsa"], ts["tsa"]), ("", ts["error"])]))
+            continue
         zip_name = ts["file"].removesuffix(".tsr")
-        secs.append((L["ts"], [
+        secs.append((title, [
             (L["ts_file"], ts["file"]), (L["ts_tsa"], ts["tsa"]), (L["ts_time"], tf.both(ts["gen_time"])),
             (L["ts_serial"], ts["serial"]), (L["ts_policy"], ts["policy"]), (L["ts_acc"], ts["accuracy"] or "–"),
             (L["ts_hash"], ts["sha256"]), (L["ts_offset"], f"{ts['local_minus_tsa_s']:+.3f} s"),
             (L["ts_verify"], L["ts_verify_cmd"].format(tsr=ts["file"], zip=zip_name)),
         ]))
-    elif ts:
-        secs.append((L["ts"], [(L["status"], L["ts_failed"]), (L["ts_tsa"], ts["tsa"]), ("", ts["error"])]))
     lg = d["log"]
     secs.append((L["logchain"], [
         (L["status"], L["ok"] if lg["ok"] else f"{L['broken']} (#{lg['bad']})"),
@@ -185,36 +246,70 @@ def _sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
     return secs
 
 
+def _title(d: dict, L: dict) -> str:
+    if d["account_id"] is None:
+        return L["title"]
+    a = d["accounts"][0]
+    return f"{L['title_account']} {a['evidence_number']} · {a['email']}"
+
+
 # ---------------------------------------------------------------- TXT
-def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500) -> str:
-    L = labels(language)
-    d = collect(case)
+def _kv_txt(items: list[tuple[str, str]], indent: str = "") -> list[str]:
+    w = max((len(k) for k, _ in items), default=0)
+    return [f"{indent}{k:<{w}}  {v}" for k, v in items]
+
+
+def _folder_lines(d: dict, L: dict, email: str) -> list[str]:
     out = []
-    ag = d["agency"]
-    if ag.get("name"):
-        out += [ag["name"], ag.get("adresse", ""), ""]
-    out += [L["title"], "=" * len(L["title"]), ""]
-    for title, items in _sections(d, L):
-        out += [title, "-" * len(title)]
-        w = max(len(k) for k, _ in items)
-        out += [f"{k:<{w}}  {v}" for k, v in items] + [""]
-    out += [L["attempts"], "-" * len(L["attempts"])]
-    for t in d["attempts"]:
-        out.append(f"{t['email']} #{t['nr']}  {t['mode']:<8} {t['status']:<10} {tf.both(t['started_utc'])} – "
-                   f"{tf.both(t['ended_utc']) if t['ended_utc'] else '…'}  {t['reason'] or ''}"
-                   f"{'  -> ' + t['moved_to'] if t['moved_to'] else ''}")
-    out += ["", L["folders"], "-" * len(L["folders"])]
-    last = None
-    for f in folder_tree(d["folders"]):
-        if f["email"] != last:
-            out.append(f["email"])
-            last = f["email"]
+    for f in (x for x in folder_tree(d["folders"]) if x["email"] == email):
         diff = (f["count_saved"] or 0) - (f["count_server"] or 0) if f["selected"] else ""
         name = "  " + "  " * f["depth"] + ("└ " if f["depth"] else "") + f["display_name"].split(f["delimiter"] or "\0")[-1]
         out.append(f"{name:<36} {'[x]' if f['selected'] else '[ ]'}  {L['server_count']} {f['count_server'] or 0:>6}  "
                    f"{L['saved']} {f['count_saved'] or 0:>6}  {L['diff']} {diff!s:>4}  "
                    f"{_fmt_bytes(f['size_server']):>9}  {_status_pair(f, L)}")
-    out += ["", L["issues"], "-" * len(L["issues"])]
+    return out
+
+
+def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
+               account_id: int | None = None) -> str:
+    L = labels(language)
+    d = collect(case, account_id)
+    out = []
+    ag = d["agency"]
+    if ag.get("name"):
+        out += [ag["name"], ag.get("adresse", ""), ""]
+    title = _title(d, L)
+    out += [title, "=" * len(title), ""]
+    if account_id is not None:
+        out += [L["part_of"].format(case=d["info"]["case_number"], n=d["all_accounts"]), ""]
+    if d["info"]["notes"]:
+        out += [L["case_notes"], "-" * len(L["case_notes"]), d["info"]["notes"].strip(), ""]
+    for title, items in _head_sections(d, L):
+        out += [title, "-" * len(title), *_kv_txt(items), ""]
+    if account_id is None:
+        out += [L["overview"], "-" * len(L["overview"])]
+        rows = [[L["evidence"], L["account"], L["status"], f"{L['saved']} / {L['server_count']}", L["size"],
+                 L["attempts"]], *_overview_rows(d, L)]
+        widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
+        out += ["  ".join(c.ljust(w) for c, w in zip(r, widths, strict=True)).rstrip() for r in rows]
+        tot = d["overview"]
+        out += ["", L["overview_sum"].format(n=len(tot), done=sum(o["state"] == "done" for o in tot),
+                                             mails=sum(o["saved"] for o in tot),
+                                             size=_fmt_bytes(sum(o["bytes"] for o in tot))), ""]
+    for a in d["accounts"]:
+        head = f"{L['account']} {a['evidence_number']} · {a['email']}"
+        out += [head, "=" * len(head), *_kv_txt(_account_items(a, L))]
+        if a.get("notes"):
+            out += ["", f"{L['account_notes']}:", *("  " + x for x in a["notes"].splitlines())]
+        out += ["", f"{L['attempts']}:"]
+        for x in (x for x in d["attempts"] if x["account_id"] == a["id"]):
+            out.append(f"  #{x['nr']}  {x['mode']:<8} {x['status']:<10} {tf.both(x['started_utc'])} – "
+                       f"{tf.both(x['ended_utc']) if x['ended_utc'] else '…'}  {x['reason'] or ''}"
+                       f"{'  -> ' + x['moved_to'] if x['moved_to'] else ''}")
+        out += ["", f"{L['folders']}:", *_folder_lines(d, L, a["email"]), ""]
+    for title, items in _tail_sections(d, L):
+        out += [title, "-" * len(title), *_kv_txt(items), ""]
+    out += [L["issues"], "-" * len(L["issues"])]
     out += [f"{tf.both(x['ts_utc'])} {x['level']:<7} {x['event']}: {x['details']}" for x in d["issues"]] or [L["none"]]
     out += ["", L["outputs"], "-" * len(L["outputs"])]
     for o in d["outputs"]:
@@ -229,24 +324,27 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out.append("")
         return "\n".join(out)
     for n, m in enumerate(d["messages"], 1):
-        out.append(f"{n:>5}  {tf.both(m['Eingangszeit_UTC'])}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
+        acc = f"{m['Evidence']}  " if d["all_accounts"] > 1 and account_id is None else ""
+        out.append(f"{n:>5}  {acc}{tf.both(m['Eingangszeit_UTC'])}  {m['Ordner']}  UID {m['UID']}  {m['Absender']}  "
                    f"{L['to']}: {m['An'] or m['CC'] or m['Empfaenger_Hinweis']}  {L['att']} {m['Anlagen']}  "
                    f"{m['Betreff']}\n       {m['Datei']}\n       SHA-256 {m['SHA256']}")
     out.append("")
     return "\n".join(out)
 
 
-def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500) -> None:
-    path.write_text(render_txt(case, language, mail_list, mail_list_max), encoding="utf-8")
+def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
+              account_id: int | None = None) -> None:
+    path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id), encoding="utf-8")
 
 
 # ---------------------------------------------------------------- PDF
-def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500) -> None:
+def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
+              account_id: int | None = None) -> None:
     from fpdf import FPDF
     from fpdf.fonts import FontFace
 
     L = labels(language)
-    d = collect(case)
+    d = collect(case, account_id)
     fonts = resources.files("fed.resources") / "fonts"
     logo = case.logo()
     ag = d["agency"]
@@ -261,9 +359,12 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
             self.cell(85, 5, ag.get("name", ""), align="R", new_x="LMARGIN", new_y="NEXT")
             self.set_font("DejaVu", "", 8)
             self.set_x(110)
-            self.cell(85, 4, ag.get("adresse", ""), align="R", new_x="LMARGIN", new_y="NEXT")
+            self.cell(85, 4, ag.get("adresse", "").replace("\n", " · "), align="R", new_x="LMARGIN", new_y="NEXT")
             self.set_x(110)
-            self.cell(85, 4, f"{L['case_number']} {info['case_number']}", align="R")
+            sub = f"{L['case_number']} {info['case_number']}"
+            if account_id is not None:
+                sub += f" · {L['evidence']} {d['accounts'][0]['evidence_number']}"
+            self.cell(85, 4, sub, align="R")
             self.set_draw_color(200, 205, 214)
             self.line(15, 29, 195, 29)
             self.set_y(33)
@@ -283,18 +384,27 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.add_font("DejaVu", "", str(fonts / "DejaVuSans.ttf"))
     pdf.add_font("DejaVu", "B", str(fonts / "DejaVuSans-Bold.ttf"))
     pdf.add_font("Mono", "", str(fonts / "DejaVuSansMono.ttf"))
-    pdf.set_title(f"{L['title']} {info['case_number']}")
+    pdf.set_title(f"{_title(d, L)} – {info['case_number']}")
     pdf.set_creator(f"{APP_NAME} {__version__}")
     pdf.add_page()
     pdf.set_font("DejaVu", "B", 16)
-    pdf.cell(0, 10, L["title"], new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(2)
+    pdf.multi_cell(0, 9, _title(d, L), new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(1)
     head = FontFace(emphasis="BOLD", fill_color=(234, 240, 252))
+    note_bg = (247, 248, 250)
 
     def h2(text):
         pdf.ln(3)
+        if pdf.get_y() > 250:
+            pdf.add_page()
         pdf.set_font("DejaVu", "B", 11)
         pdf.cell(0, 7, text, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DejaVu", "", 8.5)
+
+    def h3(text):
+        pdf.ln(1.5)
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.cell(0, 6, text, new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("DejaVu", "", 8.5)
 
     def kv(items):
@@ -305,33 +415,68 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                 r.cell(k)
                 r.cell(str(v))
 
-    for title, items in _sections(d, L):
+    def note(text):
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_fill_color(*note_bg)
+        pdf.multi_cell(0, 5, text.strip(), fill=True, padding=2, new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("DejaVu", "", 8.5)
+
+    if account_id is not None:
+        pdf.set_font("DejaVu", "", 9)
+        pdf.multi_cell(0, 5, L["part_of"].format(case=info["case_number"], n=d["all_accounts"]),
+                       new_x="LMARGIN", new_y="NEXT")
+    if info["notes"]:
+        h2(L["case_notes"])
+        note(info["notes"])
+
+    for title, items in _head_sections(d, L):
         h2(title)
         kv(items)
 
-    h2(L["attempts"])
-    with pdf.table(col_widths=(10, 20, 18, 44, 44, 44), headings_style=head, line_height=4.4) as t:
-        t.row([L["nr"], L["mode"], L["status"], L["start"], L["end"], L["reason"]])
-        for a in d["attempts"]:
-            t.row([str(a["nr"]), a["mode"], a["status"], tf.both_short(a["started_utc"]),
-                   tf.both_short(a["ended_utc"]) if a["ended_utc"] else "…",
-                   (a["reason"] or "") + (f" -> {a['moved_to']}" if a["moved_to"] else "")])
+    if account_id is None:
+        h2(L["overview"])
+        with pdf.table(col_widths=(22, 50, 42, 28, 18, 20), headings_style=head, line_height=4.6,
+                       text_align=("LEFT", "LEFT", "LEFT", "RIGHT", "RIGHT", "RIGHT")) as t:
+            t.row([L["evidence"], L["account"], L["status"], f"{L['saved']} / {L['server_count']}", L["size"],
+                   L["attempts"]])
+            for r in _overview_rows(d, L):
+                t.row(r)
+        tot = d["overview"]
+        pdf.ln(1)
+        pdf.multi_cell(0, 4.6, L["overview_sum"].format(n=len(tot), done=sum(o["state"] == "done" for o in tot),
+                                                        mails=sum(o["saved"] for o in tot),
+                                                        size=_fmt_bytes(sum(o["bytes"] for o in tot))),
+                       new_x="LMARGIN", new_y="NEXT")
 
-    h2(L["folders"])
     tree = folder_tree(d["folders"])
-    for email in dict.fromkeys(f["email"] for f in tree):
-        pdf.set_font("DejaVu", "B", 8.5)
-        pdf.cell(0, 5, email, new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("DejaVu", "", 8.5)
+    for a in d["accounts"]:
+        if account_id is None:
+            pdf.add_page()
+        h2(f"{L['account']} {a['evidence_number']} · {a['email']}")
+        kv(_account_items(a, L))
+        if a.get("notes"):
+            h3(L["account_notes"])
+            note(a["notes"])
+        h3(L["attempts"])
+        with pdf.table(col_widths=(10, 20, 18, 44, 44, 44), headings_style=head, line_height=4.4) as t:
+            t.row([L["nr"], L["mode"], L["status"], L["start"], L["end"], L["reason"]])
+            for x in (x for x in d["attempts"] if x["account_id"] == a["id"]):
+                t.row([str(x["nr"]), x["mode"], x["status"], tf.both_short(x["started_utc"]),
+                       tf.both_short(x["ended_utc"]) if x["ended_utc"] else "…",
+                       (x["reason"] or "") + (f" -> {x['moved_to']}" if x["moved_to"] else "")])
+        h3(L["folders"])
         with pdf.table(col_widths=(46, 17, 15, 18, 19, 18, 47), headings_style=head, line_height=4.4,
                        text_align=("LEFT", "CENTER", "RIGHT", "RIGHT", "RIGHT", "RIGHT", "LEFT")) as t:
             t.row([L["folders"], L["selected"], L["server_count"], L["saved"], L["diff"], L["size"],
                    L["before_after"]])
-            for f in (x for x in tree if x["email"] == email):
+            for f in (x for x in tree if x["email"] == a["email"]):
                 diff = str((f["count_saved"] or 0) - (f["count_server"] or 0)) if f["selected"] else ""
                 t.row([f["label"], "✓" if f["selected"] else "–", str(f["count_server"] or 0),
                        str(f["count_saved"] or 0), diff, _fmt_bytes(f["size_server"]), _status_pair(f, L)])
-        pdf.ln(1)
+
+    for title, items in _tail_sections(d, L):
+        h2(title)
+        kv(items)
 
     h2(L["issues"])
     if d["issues"]:
@@ -366,19 +511,42 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.set_font("DejaVu", "B", 11)
     pdf.cell(0, 7, f"{L['mails']} ({len(d['messages'])})", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("DejaVu", "", 6.5)
+    multi = d["all_accounts"] > 1 and account_id is None
     with pdf.table(col_widths=(8, 30, 40, 102), headings_style=head, line_height=3.3) as t:
-        t.row([L["nr"], f"{L['received']} / UID", f"{L['folders']} / {L['from']}",
+        t.row([L["nr"], f"{L['received']} / UID", (f"{L['evidence']} / " if multi else "") + f"{L['folders']} / {L['from']}",
                f"{L['subject']} · {L['to']} · {L['att']} / {L['file']} / SHA-256"])
         for n, m in enumerate(d["messages"], 1):
             to = m["An"] or (f"CC: {m['CC']}" if m["CC"] else m["Empfaenger_Hinweis"] or "–")
-            t.row([str(n), f"{tf.both_short(m['Eingangszeit_UTC'])}\nUID {m['UID']}", f"{m['Ordner']}\n{m['Absender']}",
+            t.row([str(n), f"{tf.both_short(m['Eingangszeit_UTC'])}\nUID {m['UID']}",
+                   (f"{m['Evidence']} · " if multi else "") + f"{m['Ordner']}\n{m['Absender']}",
                    f"{m['Betreff']} · {to} · {L['att']} {m['Anlagen']}\n{m['Datei']}\n{m['SHA256']}"])
     pdf.output(str(path))
 
 
+def account_report_name(evidence: str, email: str, suffix: str) -> str:
+    """Dateiname des Einzelberichts, z. B. ``report_A-01.pdf``."""
+    from fed.core.naming import sanitize_component
+
+    return f"report_{sanitize_component(evidence or email)}{suffix}"
+
+
 def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
                   mail_list_max: int = 500) -> tuple[Path, Path]:
+    """Gesamtbericht ``report.txt``/``report.pdf`` und – bei mehreren Konten – je Konto
+    ``report_<Evidence>.txt``/``.pdf``. Rückgabe: der Gesamtbericht."""
     txt, pdfp = case.root / "report.txt", case.root / "report.pdf"
     write_txt(case, txt, language, mail_list, mail_list_max)
     write_pdf(case, pdfp, language, mail_list, mail_list_max)
+    accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
+    if len(accounts) > 1:
+        for acc_id, evidence, email in accounts:
+            write_txt(case, case.root / account_report_name(evidence, email, ".txt"), language, mail_list,
+                      mail_list_max, acc_id)
+            write_pdf(case, case.root / account_report_name(evidence, email, ".pdf"), language, mail_list,
+                      mail_list_max, acc_id)
     return txt, pdfp
+
+
+def account_reports(case: Case) -> list[Path]:
+    """Vorhandene Einzelberichte je Konto."""
+    return sorted(p for p in case.root.glob("report_*.*") if p.suffix in (".pdf", ".txt"))

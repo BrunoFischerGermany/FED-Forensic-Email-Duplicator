@@ -60,7 +60,8 @@ CREATE TABLE IF NOT EXISTS account (
     namespaces        TEXT,
     quota             TEXT,
     date_from         TEXT,                   -- optionaler Zeitraum-Filter
-    date_to           TEXT
+    date_to           TEXT,
+    notes             TEXT                    -- Notiz des Examiners zum Konto (Änderungen im Log)
 );
 
 CREATE TABLE IF NOT EXISTS attempt (
@@ -155,5 +156,6 @@ CREATE TABLE IF NOT EXISTS output (
     md5         TEXT,
     sha512      TEXT,
     size        INTEGER NOT NULL,
-    created_utc TEXT NOT NULL
+    created_utc TEXT NOT NULL,
+    account_id  INTEGER                      -- gesetzt bei Dateien eines einzelnen Kontos (ZIP je Konto)
 );

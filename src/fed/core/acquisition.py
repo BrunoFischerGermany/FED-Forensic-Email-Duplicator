@@ -60,6 +60,7 @@ class AccountSpec:
     autoconfig_source: str = "manuell"
     date_from: datetime | None = None
     date_to: datetime | None = None  # einschließlich
+    notes: str = ""  # Notiz des Examiners zum Konto
 
     def __post_init__(self) -> None:
         from fed.core.naming import normalize_email
@@ -90,18 +91,34 @@ def register_account(case: Case, spec: AccountSpec, imap: ReadOnlyImap) -> int:
     with case.conn:
         cur = case.conn.execute(
             "INSERT INTO account (email, evidence_number, server, port, security, auth_method, username, "
-            "autoconfig_source, tls_cert_sha256, capabilities, server_id, namespaces, quota, date_from, date_to) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "autoconfig_source, tls_cert_sha256, capabilities, server_id, namespaces, quota, date_from, date_to, "
+            "notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (spec.email, spec.evidence_number, spec.server, spec.port, spec.security, spec.auth_method,
              spec.username or spec.email, spec.autoconfig_source, tls["sha256"], json.dumps(info["capabilities"]),
              info.get("id"), info.get("namespace"), json.dumps(info.get("quota")),
              spec.date_from.date().isoformat() if spec.date_from else None,
-             spec.date_to.date().isoformat() if spec.date_to else None),
+             spec.date_to.date().isoformat() if spec.date_to else None, spec.notes.strip() or None),
         )
     account_id = cur.lastrowid
     case.log("INFO", "account_registered", {"email": spec.email, "evidence": spec.evidence_number,
-                                             "server": f"{spec.server}:{spec.port}", "tls": tls})
+                                             "server": f"{spec.server}:{spec.port}", "tls": tls,
+                                             "notes": spec.notes.strip()})
     return account_id
+
+
+def set_account_notes(case: Case, account_id: int, notes: str) -> bool:
+    """Notiz eines Kontos ändern (alter und neuer Text werden protokolliert). True, wenn geändert."""
+    if case.closed:
+        raise RuntimeError("Case ist abgeschlossen")
+    new = notes.strip() or None
+    row = case.conn.execute("SELECT notes, email FROM account WHERE id = ?", (account_id,)).fetchone()
+    if row is None or row[0] == new:
+        return False
+    with case.conn:
+        case.conn.execute("UPDATE account SET notes = ? WHERE id = ?", (new, account_id))
+    case.log("INFO", "account_notes_changed", {"account_id": account_id, "email": row[1], "old": row[0] or "",
+                                                "new": new or ""})
+    return True
 
 
 def scan(case: Case, account_id: int, imap: ReadOnlyImap, cancel: CancelToken | None = None) -> list[dict]:
@@ -259,6 +276,10 @@ def run_attempt(
     except (ImapError, *NETWORK_ERRORS) as e:
         result.status = "failed"
         case.log("ERROR", "attempt_failed", {"phase": prog.phase, "error": str(e)}, attempt_id)
+    except Exception as e:  # unerwartet (z. B. Datenträger voll): Versuch sauber als fehlgeschlagen beenden
+        result.status = "failed"
+        case.log("ERROR", "attempt_failed", {"phase": prog.phase, "error": f"{type(e).__name__}: {e}"}, attempt_id)
+        raise
     finally:
         if imap is not None:
             imap.logout()
@@ -373,7 +394,7 @@ def _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, 
                     msgs = None
                     for attempt_conn in range(MAX_RECONNECTS + 1):
                         try:
-                            if current is not task.folder.raw_name:
+                            if current != task.folder.raw_name:
                                 imap.examine(task.folder)
                                 current = task.folder.raw_name
                             if len(batch) == 1 and task.sizes.get(batch[0], 0) > chunk:
@@ -553,13 +574,16 @@ def accounts_overview(case: Case) -> list[dict]:
     (fertig, aber weniger gesichert als auf dem Server) | ``cancelled`` | ``failed``.
     """
     out = []
-    for acc_id, email, evidence, server, auth, dfrom, dto in case.conn.execute(
-            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to FROM account ORDER BY id"):
+    for acc_id, email, evidence, server, auth, dfrom, dto, notes in case.conn.execute(
+            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes FROM account ORDER BY id"):
         attempts = case.conn.execute("SELECT nr, status, started_utc, ended_utc FROM attempt WHERE account_id = ? "
                                      "ORDER BY nr", (acc_id,)).fetchall()
-        sel, total, expected = case.conn.execute(
-            "SELECT COALESCE(SUM(selected), 0), COUNT(*), COALESCE(SUM(CASE WHEN selected = 1 THEN count_server END), 0) "
-            "FROM folder WHERE account_id = ?", (acc_id,)).fetchone()
+        folders = case.conn.execute("SELECT selected, count_server, status_after FROM folder WHERE account_id = ?",
+                                    (acc_id,)).fetchall()
+        sel, total = sum(1 for f in folders if f[0]), len(folders)
+        # erwartet: Stand des Servers nach der letzten Sicherung (STATUS), sonst Stand beim Scan
+        expected = sum((json.loads(f[2]).get("MESSAGES", f[1] or 0) if f[2] else f[1] or 0)
+                       for f in folders if f[0])
         saved, size = case.conn.execute(
             "SELECT COUNT(*), COALESCE(SUM(m.size), 0) FROM message m JOIN folder f ON f.id = m.folder_id "
             "WHERE f.account_id = ? AND m.status = 'valid'",
@@ -571,10 +595,11 @@ def accounts_overview(case: Case) -> list[dict]:
         out.append({"id": acc_id, "email": email, "evidence": evidence, "server": server, "auth": auth,
                     "attempts": len(attempts), "state": state, "saved": saved, "expected": expected,
                     "bytes": size, "folders_selected": sel, "folders_total": total,
-                    "date_filter": bool(dfrom or dto), "last_utc": (last[3] or last[2]) if last else None})
+                    "date_filter": bool(dfrom or dto), "last_utc": (last[3] or last[2]) if last else None,
+                    "notes": notes or ""})
     return out
 
 
 __all__ = ["AccountSpec", "AttemptResult", "Mode", "ResumeNotPossible", "accounts_overview", "register_account",
-           "run_attempt", "scan", "set_selection", "summary"]
+           "run_attempt", "scan", "set_account_notes", "set_selection", "summary"]
 

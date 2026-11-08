@@ -61,11 +61,11 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
                    "Mailbox on the server unchanged after acquisition: all Maildir files (content, name incl. "
                    "flags, time) identical, STATUS before = after in every folder.")},
     "V02": {"de": ("Sperre schreibender IMAP-Befehle",
-                   "STORE, COPY, MOVE, EXPUNGE, APPEND, DELETE, RENAME, CREATE, SELECT werden vor dem Senden "
-                   "abgewiesen."),
+                   "STORE, COPY, MOVE, EXPUNGE, APPEND, DELETE, RENAME, CREATE, SELECT und FETCH ohne PEEK "
+                   "(würde das Gelesen-Flag setzen) werden vor dem Senden abgewiesen."),
             "en": ("Blocking of writing IMAP commands",
-                   "STORE, COPY, MOVE, EXPUNGE, APPEND, DELETE, RENAME, CREATE, SELECT are refused before "
-                   "being sent.")},
+                   "STORE, COPY, MOVE, EXPUNGE, APPEND, DELETE, RENAME, CREATE, SELECT and FETCH without PEEK "
+                   "(would set the seen flag) are refused before being sent.")},
     "V03": {"de": ("Vollständigkeit", "Alle Ordner (auch leere) erkannt; Anzahl Mails je Ordner wie erwartet."),
             "en": ("Completeness", "All folders (including empty ones) found; number of messages per folder "
                                    "as expected.")},
@@ -274,6 +274,7 @@ def v02_guard(ctx: Ctx) -> CheckResult:
         "RENAME": lambda: imap.imap.rename("Leer", "Leer2"),
         "CREATE": lambda: imap.imap.create("Neu"),
         "SELECT": lambda: imap.imap.select("INBOX"),
+        "FETCH BODY[]": lambda: imap.imap.uid("FETCH", "1", "(BODY[])"),
     }
     for verb, fn in attempts.items():
         try:

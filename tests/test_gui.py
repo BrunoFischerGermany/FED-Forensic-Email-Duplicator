@@ -248,6 +248,36 @@ def test_accounts_overview_and_evidence_suggestion(app, imap_server, tmp_path, m
     p._test()
     assert "schon für" in p.error.text()
 
+    # Klick auf ein Konto in der linken Leiste übernimmt es (inkl. Notiz)
+    from fed.core.acquisition import set_account_notes
+
+    set_account_notes(case, a2, "Praxis-Postfach")
+    a.rail_accounts._last = None
+    a.refresh_accounts()
+    a.rail_accounts.items[1].clicked.emit()
+    assert p.email.text() == testmailbox.UMLAUT_USER and p.acc_notes.toPlainText() == "Praxis-Postfach"
+    assert a.stack.currentWidget() is p
+
+    # neues Konto: Anmeldeart zurück auf Passwort, Formular leer
+    p.method.set_value("google")
+    p._method_changed("google")
+    a._another()
+    assert p.method.value() == "password" and not p.password.isHidden()
+    assert p.email.text() == "" and p.acc_notes.toPlainText() == "" and p.evidence.text() == "VG-2026-011"
+
+    # abgelehnte Anmeldung: Hinweis auf IMAP-Freischaltung bzw. Google-App-Passwort
+    p.server.setText("imap.gmx.net")
+    p._test_failed("[AUTHENTICATIONFAILED] Authentication failed.", "")
+    assert "IMAP" in p.test_state.text() and "freigeschaltet" in p.test_state.text()
+    p.server.setText("imap.gmail.com")
+    p._test_failed("[AUTHENTICATIONFAILED] Invalid credentials (Failure)", "")
+    assert "App-Passwort" in p.test_state.text()
+    p._test_failed("timed out", "")
+    assert "freigeschaltet" not in p.test_state.text()
+
+    # Abschlussseite hat „FED beenden“
+    assert a.p_fin.quit_btn.text() == "FED beenden"
+
     asked = []
     monkeypatch.setattr(QtWidgets.QMessageBox, "question",
                         staticmethod(lambda *a, **k: asked.append(a[2]) or QtWidgets.QMessageBox.StandardButton.No))
@@ -256,4 +286,34 @@ def test_accounts_overview_and_evidence_suggestion(app, imap_server, tmp_path, m
     w.close()
     w.deleteLater()
     app.processEvents()
+    case.close()
+
+
+def test_ask_zip_mode(app, tmp_path, monkeypatch):
+    from fed.core import config as cfgmod
+    from fed.core.case import Case, CaseInfo
+    from fed.gui import assistant
+
+    case = Case.create(tmp_path, CaseInfo("Z-1", "Tester"))
+    cfg = cfgmod.Config()
+
+    def click(index):
+        def exec_(box):
+            box.buttons()[index].click()
+            return 0
+        return exec_
+
+    # Frage: zweiter Knopf = „Ein ZIP je Konto“
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", click(1))
+    assert assistant.ask_zip_mode(None, case, cfg) == "je_konto" and case.zip_mode() == "je_konto"
+    # „Später entscheiden“ lässt die Wahl unverändert
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", click(2))
+    assert assistant.ask_zip_mode(None, case, cfg, force=True) == "je_konto"
+    # feste Einstellung: keine Frage
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", lambda box: pytest.fail("darf nicht fragen"))
+    cfg.programm.zip_aufteilung = "gesamt"
+    assert assistant.ask_zip_mode(None, case, cfg) == "gesamt"
+    src = case.conn.execute("SELECT details FROM log WHERE event = 'zip_mode_set' ORDER BY id DESC").fetchone()[0]
+    assert "einstellung" in src
+    assert "je Konto" in assistant.zip_mode_text("je_konto") and "offen" in assistant.zip_mode_text(None)
     case.close()

@@ -54,7 +54,8 @@ class AccountsTable(QWidget):
     COLS = (QT_TRANSLATE_NOOP("AccountsTable", "Evidence"), QT_TRANSLATE_NOOP("AccountsTable", "Konto"),
             QT_TRANSLATE_NOOP("AccountsTable", "Status"), QT_TRANSLATE_NOOP("AccountsTable", "Mails gesichert / Server"),
             QT_TRANSLATE_NOOP("AccountsTable", "Größe"), QT_TRANSLATE_NOOP("AccountsTable", "Ordner"),
-            QT_TRANSLATE_NOOP("AccountsTable", "Versuche"), QT_TRANSLATE_NOOP("AccountsTable", "Zuletzt"))
+            QT_TRANSLATE_NOOP("AccountsTable", "Versuche"), QT_TRANSLATE_NOOP("AccountsTable", "Zuletzt"),
+            QT_TRANSLATE_NOOP("AccountsTable", "Notiz"))
 
     picked = Signal(dict)  # Doppelklick auf ein Konto
 
@@ -68,6 +69,7 @@ class AccountsTable(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.table.setAlternatingRowColors(True)
+        self.table.setWordWrap(False)
         self.table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
@@ -93,7 +95,7 @@ class AccountsTable(QWidget):
             folders = f"{o['folders_selected']} / {o['folders_total']}"
             vals = [o["evidence"], o["email"] + ("  ←" if o["email"] == current_email else ""), f"{sym}  {text}",
                     mails, _fmt_bytes(o["bytes"]), folders, str(o["attempts"]),
-                    _short_time(o["last_utc"])]
+                    _short_time(o["last_utc"]), o["notes"].replace("\n", " · ")]
             for c, v in enumerate(vals):
                 it = QTableWidgetItem(v)
                 if c == 2:
@@ -104,6 +106,8 @@ class AccountsTable(QWidget):
                     it.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 if c == 7 and o["last_utc"]:
                     it.setToolTip(tf.both(o["last_utc"]))
+                if c == 8 and o["notes"]:
+                    it.setToolTip(o["notes"])
                 self.table.setItem(r, c, it)
         self.table.resizeRowsToContents()
         hdr = self.table.horizontalHeader().height()
@@ -116,8 +120,23 @@ class AccountsTable(QWidget):
         return self.rows
 
 
+class _RailItem(ElidedLabel):
+    clicked = Signal()
+
+    def __init__(self, text: str, name: str) -> None:
+        super().__init__(text, name, Qt.TextElideMode.ElideRight)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mouseReleaseEvent(self, e) -> None:
+        if e.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mouseReleaseEvent(e)
+
+
 class AccountsRail(QWidget):
-    """Kurzliste in der linken Leiste: ein Eintrag je Konto mit Status-Symbol."""
+    """Kurzliste in der linken Leiste: ein Eintrag je Konto mit Status-Symbol; Klick übernimmt das Konto."""
+
+    picked = Signal(dict)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -142,10 +161,13 @@ class AccountsRail(QWidget):
         self.setVisible(bool(rows))
         for o in rows:
             sym, text, style = state_text(o)
-            lab = ElidedLabel(f"{sym}  {o['evidence']} · {o['email']}", style, Qt.TextElideMode.ElideRight)
+            lab = _RailItem(f"{sym}  {o['evidence']} · {o['email']}", style)
             lab.max_hint = 200
             lab.setToolTip(f"{o['email']}\n{o['evidence']} · {text}\n"
-                           + QCoreApplication.translate("AccountsTable", "{0} von {1} Mails · {2} Versuche").format(o["saved"], o["expected"], o["attempts"]))
+                           + QCoreApplication.translate("AccountsTable", "{0} von {1} Mails · {2} Versuche").format(
+                               o["saved"], o["expected"], o["attempts"])
+                           + "\n" + QCoreApplication.translate("AccountsTable", "Klicken: Konto übernehmen"))
+            lab.clicked.connect(lambda o=o: self.picked.emit(o))
             restyle(lab, style)
             self.lay.addWidget(lab)
             self.items.append(lab)

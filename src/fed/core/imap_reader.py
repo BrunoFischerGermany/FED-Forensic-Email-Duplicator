@@ -38,24 +38,30 @@ class ImapError(RuntimeError):
     pass
 
 
+# FETCH-Elemente, die \\Seen setzen (RFC 3501 6.4.5): BODY[...] ohne PEEK, RFC822, RFC822.TEXT
+_SEEN_SETTING = re.compile(r"(?<![.\w])BODY\[|(?<![.\w])RFC822(?![.\w])|RFC822\.TEXT", re.IGNORECASE)
+
+
 def guard(command: str) -> None:
-    """Wirft ``ForbiddenCommand`` für schreibende IMAP-Befehle."""
+    """Wirft ``ForbiddenCommand`` für schreibende IMAP-Befehle und für FETCH-Elemente,
+    die das Gelesen-Flag setzen würden (nur ``BODY.PEEK[...]`` ist erlaubt)."""
     parts = command.strip().split()
     verb = parts[0].upper()
     if verb == "UID" and len(parts) > 1:
         verb = parts[1].upper()
     if verb in FORBIDDEN_COMMANDS:
         raise ForbiddenCommand(f"Schreibender IMAP-Befehl blockiert: {verb}")
+    if verb == "FETCH" and _SEEN_SETTING.search(command):
+        raise ForbiddenCommand("FETCH ohne PEEK blockiert (würde \\Seen setzen)")
 
 
 class _GuardMixin:
     """Prüft jeden Befehl, bevor imaplib ihn sendet."""
 
     def _command(self, name, *args):
-        arg0 = args[0] if args else ""
-        if isinstance(arg0, bytes):
-            arg0 = arg0.decode("ascii", "replace")
-        guard(f"{name} {arg0}")
+        text = " ".join(a.decode("ascii", "replace") if isinstance(a, bytes) else str(a) for a in args
+                        if isinstance(a, (str, bytes)))
+        guard(f"{name} {text}")
         return super()._command(name, *args)
 
 

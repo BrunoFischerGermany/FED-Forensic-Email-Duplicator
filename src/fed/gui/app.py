@@ -99,7 +99,7 @@ def main() -> int:
     except cfgmod.ConfigError as e:
         from PySide6.QtWidgets import QMessageBox
 
-        QMessageBox.critical(None, APP_NAME, f"config.toml ungültig: {e}")
+        QMessageBox.critical(None, APP_NAME, f"config.toml ungültig / invalid:\n{e}")
         cfg = cfgmod.Config()
         config_broken = True  # ungültige Datei nicht durch die Ersteinrichtung überschreiben
 

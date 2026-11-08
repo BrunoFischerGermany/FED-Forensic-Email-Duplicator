@@ -12,9 +12,10 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 
 - jede Mail unverändert als `.eml`, benannt nach Eingangszeit und UID (`20261106T143012Z_UID00004711.eml`)
 - SHA-256 (zusätzlich MD5 und SHA-512) pro Mail und für das ZIP-Archiv
-- ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse
+- ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse; bei mehreren Konten wählbar: ein ZIP für alle oder eines je Konto
 - Case-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
-- TXT- und PDF-Bericht mit Agentur-Logo, optional RFC-3161-Zeitstempel
+- mehrere Konten je Case mit Übersicht, was schon gesichert ist; Evidence-Nummer wird vorgeschlagen (`A-01` → `A-02`)
+- TXT- und PDF-Bericht mit Agentur-Logo, Anmerkungen zum Case und Notiz je Konto – gesamt und je Konto; optional RFC-3161-Zeitstempel
 - Gmail/Google Workspace und Microsoft 365 per OAuth2
 - Deutsch und Englisch, weitere Sprachen ohne Programmierung ergänzbar ([docs/translating.md](docs/translating.md), englisch); Windows/macOS/Linux, portabel ohne Installation
 
@@ -128,4 +129,4 @@ GPL-3.0-only, siehe [LICENSE](LICENSE). Der Code unter `legacy/` bleibt unter MI
 ## Autoren
 
 - [@BrunoFischerGermany](https://github.com/BrunoFischerGermany)
-- [@ma-fox](https://github.com/ma-fox) (v0.4)
+- Claude (Anthropic) – KI-Assistent, Code, Tests und Dokumentation ab v1.0 mitentwickelt
