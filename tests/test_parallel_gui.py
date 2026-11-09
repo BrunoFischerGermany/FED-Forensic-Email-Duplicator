@@ -308,3 +308,75 @@ def test_account_note_editable_in_overview(acquired, monkeypatch):
     assert not opened and not t.table.item(0, NOTE_COL).toolTip()
     t.deleteLater()
     app.processEvents()
+
+
+def test_password_kept_in_session_until_quit(imap_server, tmp_path, monkeypatch):
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core import auth
+    from fed.core import config as cfgmod
+    from fed.gui import assistant as ga
+    from fed.gui.main_window import MainWindow
+
+    orig = auth.make_connector
+    monkeypatch.setattr(ga, "make_connector", lambda *a, **k: orig(*a, cafile=str(imap_server.cafile), **k))
+    yes = staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", yes)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question", yes)
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    cfg.source_path = tmp_path / "config.toml"
+    w = MainWindow(cfg, tmp_path)
+    w.show()
+    a = w.assistant
+    _pump(app, lambda: a.st.system is not None)
+    a.p_case._create()
+    p = a.p_acc
+    p.email.setText(imap_server.user)
+    p.evidence.setText("A-01")
+    p.server.setText(imap_server.host)
+    p.port.setValue(imap_server.port)
+    p.password.setText(imap_server.password)
+    assert not p.vault_row.isVisibleTo(p)
+    p._test()
+    _pump(app, p.go.isEnabled)
+    assert imap_server.user in a.vault and "***" in repr(a.vault.get(imap_server.user))
+    assert imap_server.password not in repr(a.vault.get(imap_server.user))
+    p._go()
+    _pump(app, a.p_fold.go.isEnabled)
+
+    # weiteres Konto: Formular leer; dasselbe Konto wieder gewählt -> Passwort vorbelegt
+    a._another()
+    assert p.password.text() == "" and not p.vault_row.isVisibleTo(p)
+    a._rail_pick(next(o for o in p.accounts.rows if o["email"] == imap_server.user))
+    assert p.password.text() == imap_server.password and p.vault_row.isVisibleTo(p)
+    p._test()
+    _pump(app, p.go.isEnabled)
+    p._go()
+    case = a.st.case
+    log = case.conn.execute("SELECT details FROM log WHERE event = 'credentials_from_session'").fetchone()
+    assert log and imap_server.user in log[0] and imap_server.password not in log[0]
+    assert imap_server.password not in "".join(r[0] for r in case.conn.execute("SELECT details FROM log"))
+
+    # Adresse eintippen genügt ebenfalls
+    a._another()
+    p.email.setText(imap_server.user)
+    p._check_known()
+    assert p.password.text() == imap_server.password
+    # selbst getipptes Passwort hebt die Übernahme auf; „Vergessen“ löscht
+    p.password.textEdited.emit("x")
+    assert not p.vault_row.isVisibleTo(p)
+    p._recall()
+    assert p.vault_row.isVisibleTo(p)
+    p._forget()
+    assert p.password.text() == "" and imap_server.user not in a.vault
+
+    # neuer Case: Sitzung bleibt erhalten
+    a.vault.put(imap_server.user, "password", imap_server.password)
+    a._new_case()
+    assert a.st.vault is a.vault and imap_server.user in a.vault
+    w.close()
+    assert len(a.vault) == 0  # Beenden verwirft alles
+    w.deleteLater()
+    app.processEvents()

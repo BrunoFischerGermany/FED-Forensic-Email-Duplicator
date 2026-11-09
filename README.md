@@ -14,7 +14,8 @@ FED acquires email mailboxes via IMAP, forensically and strictly read-only:
 - SHA-256 (plus MD5 and SHA-512) per message and for the ZIP archive
 - ZIP with the mailbox folder structure, first level = email address
 - case file (SQLite) with a tamper-evident log, history, multiple attempts, resume/restart
-- several accounts per case with an overview of what is done; evidence numbers are suggested (`A-01` → `A-02`)
+- several accounts per case with an overview of what is done; evidence numbers are suggested (`A-01` → `A-02`); accounts can be acquired in parallel in the background
+- passwords only in memory: kept for the session after a successful test (the person often enters it only once), never written to disk or the log, discarded when FED is closed
 - TXT and PDF report with agency logo, case notes and a note per account – overall and per account; optional RFC 3161 timestamp
 - Gmail/Google Workspace and Microsoft 365 via OAuth2
 - English and German, further languages can be added without programming ([docs/translating.md](docs/translating.md)); Windows/macOS/Linux, portable without installation

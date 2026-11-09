@@ -15,7 +15,8 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 - optional verschlüsselte Kopie für die Weitergabe (AES-256, Passwort wird nie gespeichert)
 - ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse; bei mehreren Konten wählbar: ein ZIP für alle oder eines je Konto
 - Case-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
-- mehrere Konten je Case mit Übersicht, was schon gesichert ist; Evidence-Nummer wird vorgeschlagen (`A-01` → `A-02`)
+- mehrere Konten je Case mit Übersicht, was schon gesichert ist; Evidence-Nummer wird vorgeschlagen (`A-01` → `A-02`); Konten können parallel im Hintergrund gesichert werden
+- Passwörter nur im Arbeitsspeicher: nach erfolgreichem Test für die Sitzung gemerkt (die betroffene Person gibt es oft nur einmal ein), nie auf der Festplatte oder im Log, beim Beenden von FED verworfen
 - TXT- und PDF-Bericht mit Agentur-Logo, Anmerkungen zum Case und Notiz je Konto – gesamt und je Konto; optional RFC-3161-Zeitstempel
 - Gmail/Google Workspace und Microsoft 365 per OAuth2
 - Deutsch und Englisch, weitere Sprachen ohne Programmierung ergänzbar ([docs/translating.md](docs/translating.md), englisch); Windows/macOS/Linux, portabel ohne Installation

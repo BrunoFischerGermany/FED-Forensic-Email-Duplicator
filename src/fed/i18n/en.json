@@ -543,5 +543,8 @@
   "Liste": "List",
   "Aufzählung ein/aus": "Bullet list on/off",
   "Format": "Format",
-  "Formatierung der Auswahl entfernen": "Remove formatting from the selection"
+  "Formatierung der Auswahl entfernen": "Remove formatting from the selection",
+  "Vergessen": "Forget",
+  "Gespeicherte Anmeldedaten dieses Kontos sofort aus dem Arbeitsspeicher löschen": "Remove this account's stored sign-in data from memory now",
+  "✓ Anmeldedaten aus dieser Sitzung übernommen (zuletzt erfolgreich um {0}) – nur im Arbeitsspeicher, bis FED beendet wird.": "✓ Sign-in data taken from this session (last successful at {0}) – in memory only, until FED is closed."
 }

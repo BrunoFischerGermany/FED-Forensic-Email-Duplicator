@@ -75,6 +75,14 @@
         <translation>sign in as (shared mailbox only)</translation>
     </message>
     <message>
+        <source>Vergessen</source>
+        <translation>Forget</translation>
+    </message>
+    <message>
+        <source>Gespeicherte Anmeldedaten dieses Kontos sofort aus dem Arbeitsspeicher löschen</source>
+        <translation>Remove this account's stored sign-in data from memory now</translation>
+    </message>
+    <message>
         <source>Notiz zum Konto</source>
         <translation>Account note</translation>
     </message>
@@ -117,6 +125,10 @@
     <message>
         <source>Dieses Konto ist schon im Case ({0}, {1} {2}) – es wird fortgesetzt, die Evidence-Nummer bleibt {0}.</source>
         <translation>This account is already in the case ({0}, {1} {2}) – it will be resumed, the evidence number stays {0}.</translation>
+    </message>
+    <message>
+        <source>✓ Anmeldedaten aus dieser Sitzung übernommen (zuletzt erfolgreich um {0}) – nur im Arbeitsspeicher, bis FED beendet wird.</source>
+        <translation>✓ Sign-in data taken from this session (last successful at {0}) – in memory only, until FED is closed.</translation>
     </message>
     <message>
         <source>App-Passwort</source>
