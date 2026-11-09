@@ -121,3 +121,41 @@ def test_editor_roundtrip_and_buttons(qapp):
     e.edit.insertFromMimeData(m)
     assert e.html() == "<p>Fremd</p>"
     e.deleteLater()
+
+
+def test_closing_note_and_duration_in_report(acquired, tmp_path):
+    from fed.core.config import Config
+    from fed.core.finalize import finish_case
+    from fed.core.report import _duration_items, fmt_duration, labels
+
+    assert fmt_duration(12) == "12 s" and fmt_duration(242) == "4 min 02 s" and fmt_duration(7509) == "2 h 05 min 09 s"
+    L = labels("de")
+    att = [{"account_id": 1, "started_utc": "2026-11-09T10:00:00.000Z", "ended_utc": "2026-11-09T10:04:00.000Z"},
+           {"account_id": 1, "started_utc": "2026-11-09T10:30:00.000Z", "ended_utc": "2026-11-09T10:31:30.000Z"}]
+    items = dict(_duration_items(att, L))
+    assert items["Dauer der Sicherung"] == "31 min 30 s (Summe der 2 Versuche: 5 min 30 s)"
+    assert items["Beginn der Sicherung"].startswith("2026-11-09 10:00:00 UTC")
+    running = dict(_duration_items([{**att[0], "ended_utc": None}], L))
+    assert running["Dauer der Sicherung"] == "läuft noch" and running["Ende der Sicherung"] == "…"
+
+    case = acquired
+    cfg = Config()
+    cfg.programm.ntp = False
+    res = finish_case(case, cfg, closing_note="", closing_note_html=(
+        "<p>Übergabe an <b>KHK Muster</b></p><ul><li>Datenträger versiegelt</li></ul>"))
+    info = case.info()
+    assert info["closing_note"] == "Übergabe an KHK Muster\n• Datenträger versiegelt" and "<b>" in info["closing_note_html"]
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'closing_note_set'").fetchone()[0] == 1
+    txt = res.report_txt.read_text(encoding="utf-8")
+    i, j = txt.index("Abschlussvermerk"), txt.index("Bestätigung")
+    assert i < j and "Datenträger versiegelt" in txt[i:j]
+    assert "Beginn der Sicherung" in txt and "Dauer der Sicherung" in txt
+    import pypdfium2
+
+    doc = pypdfium2.PdfDocument(res.report_pdf)
+    text = "".join(doc[k].get_textpage().get_text_range() for k in range(len(doc)))
+    assert "Abschlussvermerk" in text and "KHK Muster" in text and "Dauer der Sicherung" in text
+    import pytest as _pytest
+
+    with _pytest.raises(RuntimeError):
+        case.set_closing_note("später")  # nach Abschluss nicht mehr änderbar

@@ -136,5 +136,11 @@
   "title_multi": "Sicherungsbericht von {n} E-Mail-Postfächern",
   "sign_title": "Bestätigung",
   "sign_text": "Die Sicherung wurde wie in diesem Bericht beschrieben mit FED durchgeführt. Die angegebenen Hashwerte wurden beim Abschluss berechnet und geprüft.",
-  "sign_created": "Bericht erstellt"
+  "sign_created": "Bericht erstellt",
+  "dur_begin": "Beginn der Sicherung",
+  "dur_end": "Ende der Sicherung",
+  "dur_total": "Dauer der Sicherung",
+  "dur_active": "(Summe der {n} Versuche: {t})",
+  "dur_running": "läuft noch",
+  "closing_note": "Abschlussvermerk"
 }

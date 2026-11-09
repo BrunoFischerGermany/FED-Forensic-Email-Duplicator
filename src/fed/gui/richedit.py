@@ -9,7 +9,8 @@ from __future__ import annotations
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, Signal
 from PySide6.QtGui import (QAction, QBrush, QColor, QFont, QIcon, QKeySequence, QPixmap, QTextCharFormat, QTextCursor,
                            QTextFormat, QTextListFormat)
-from PySide6.QtWidgets import QHBoxLayout, QMenu, QTextEdit, QToolButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QHBoxLayout, QLabel, QMenu, QTextEdit, QToolButton,
+                               QVBoxLayout, QWidget)
 
 from fed.core import richtext as rt
 
@@ -256,3 +257,39 @@ class RichNoteEdit(QWidget):
         self.b_mark.setChecked(f.hasProperty(QTextFormat.Property.BackgroundBrush)
                                and f.background().style() != Qt.BrushStyle.NoBrush)
         self.b_list.setChecked(self.edit.textCursor().currentList() is not None)
+
+
+class RichNoteDialog(QDialog):
+    """Dialog mit formatierbarer Notiz, z. B. Abschlussvermerk vor dem Bericht."""
+
+    def __init__(self, parent=None, *, title: str, heading: str, plain: str | None = None,
+                 html_value: str | None = None, placeholder: str = "", hint: str = "", ok_text: str = "") -> None:
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setMinimumSize(560, 340)
+        head = QLabel(heading)
+        head.setObjectName("H2")
+        head.setWordWrap(True)
+        self.edit = RichNoteEdit()
+        self.edit.set_value(plain, html_value)
+        self.edit.setPlaceholderText(placeholder)
+        info = QLabel(hint)
+        info.setObjectName("Hint")
+        info.setWordWrap(True)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        if ok_text:
+            buttons.button(QDialogButtonBox.StandardButton.Ok).setText(ok_text)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay = QVBoxLayout(self)
+        lay.addWidget(head)
+        lay.addWidget(self.edit, 1)
+        lay.addWidget(info)
+        lay.addWidget(buttons)
+        self.edit.setFocus()
+
+    def text(self) -> str:
+        return self.edit.toPlainText()
+
+    def html(self) -> str:
+        return self.edit.html()

@@ -546,5 +546,12 @@
   "Formatierung der Auswahl entfernen": "Remove formatting from the selection",
   "Vergessen": "Forget",
   "Gespeicherte Anmeldedaten dieses Kontos sofort aus dem Arbeitsspeicher löschen": "Remove this account's stored sign-in data from memory now",
-  "✓ Anmeldedaten aus dieser Sitzung übernommen (zuletzt erfolgreich um {0}) – nur im Arbeitsspeicher, bis FED beendet wird.": "✓ Sign-in data taken from this session (last successful at {0}) – in memory only, until FED is closed."
+  "✓ Anmeldedaten aus dieser Sitzung übernommen (zuletzt erfolgreich um {0}) – nur im Arbeitsspeicher, bis FED beendet wird.": "✓ Sign-in data taken from this session (last successful at {0}) – in memory only, until FED is closed.",
+  "Abschluss abgebrochen": "Closing cancelled",
+  "Der Case ist noch offen – nichts wurde verändert.": "The case is still open – nothing was changed.",
+  "Abschlussvermerk": "Closing note",
+  "Abschlussvermerk für den Bericht (optional)": "Closing note for the report (optional)",
+  "z. B. Übergabe an …, Besonderheiten, Abweichungen vom Auftrag, Hinweise für die Auswertung": "e.g. handed over to …, particulars, deviations from the order, notes for the analysis",
+  "Erscheint im Bericht vor der Bestätigung und wird protokolliert. Leer lassen, wenn nichts zu vermerken ist.": "Appears in the report before the confirmation and is logged. Leave empty if there is nothing to note.",
+  "Weiter zum Abschluss": "Continue to closing"
 }

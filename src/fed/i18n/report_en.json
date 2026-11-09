@@ -136,5 +136,11 @@
   "title_multi": "Acquisition Report for {n} Email Mailboxes",
   "sign_title": "Confirmation",
   "sign_text": "The acquisition was carried out with FED as described in this report. The hash values given were calculated and verified at closing.",
-  "sign_created": "Report created"
+  "sign_created": "Report created",
+  "dur_begin": "Acquisition started",
+  "dur_end": "Acquisition ended",
+  "dur_total": "Acquisition duration",
+  "dur_active": "(sum of {n} attempts: {t})",
+  "dur_running": "still running",
+  "closing_note": "Closing note"
 }

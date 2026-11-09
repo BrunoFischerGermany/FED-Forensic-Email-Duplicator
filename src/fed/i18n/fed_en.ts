@@ -867,6 +867,34 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Quit FED</translation>
     </message>
     <message>
+        <source>Abschluss abgebrochen</source>
+        <translation>Closing cancelled</translation>
+    </message>
+    <message>
+        <source>Der Case ist noch offen – nichts wurde verändert.</source>
+        <translation>The case is still open – nothing was changed.</translation>
+    </message>
+    <message>
+        <source>Abschlussvermerk</source>
+        <translation>Closing note</translation>
+    </message>
+    <message>
+        <source>Abschlussvermerk für den Bericht (optional)</source>
+        <translation>Closing note for the report (optional)</translation>
+    </message>
+    <message>
+        <source>z. B. Übergabe an …, Besonderheiten, Abweichungen vom Auftrag, Hinweise für die Auswertung</source>
+        <translation>e.g. handed over to …, particulars, deviations from the order, notes for the analysis</translation>
+    </message>
+    <message>
+        <source>Erscheint im Bericht vor der Bestätigung und wird protokolliert. Leer lassen, wenn nichts zu vermerken ist.</source>
+        <translation>Appears in the report before the confirmation and is logged. Leave empty if there is nothing to note.</translation>
+    </message>
+    <message>
+        <source>Weiter zum Abschluss</source>
+        <translation>Continue to closing</translation>
+    </message>
+    <message>
         <source>Arbeitsordner</source>
         <translation>Working folder</translation>
     </message>

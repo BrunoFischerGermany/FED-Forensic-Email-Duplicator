@@ -1362,10 +1362,37 @@ class FinishPage(QWidget):
     def _open(path) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
+    def _aborted(self) -> None:
+        """Rückfrage abgebrochen: nichts abgeschlossen, Case bleibt offen."""
+        self.title.setText(self.tr("Abschluss abgebrochen"))
+        self.sub.setText(self.tr("Der Case ist noch offen – nichts wurde verändert."))
+        restyle(self.sub, "Muted")
+        self.sub.setVisible(True)
+        self.retry_btn.setVisible(True)
+        self.back_btn.setVisible(True)
+
     def run(self) -> None:
         st = self.st
         self.retry_btn.setVisible(False)
         self.back_btn.setVisible(False)
+        # Abschlussvermerk (optional) – vor ZIP und Bericht, damit er im Bericht steht
+        from fed.gui.richedit import RichNoteDialog
+
+        info = st.case.info()
+        dlg = RichNoteDialog(
+            self, title=self.tr("Abschlussvermerk"), heading=self.tr("Abschlussvermerk für den Bericht (optional)"),
+            plain=info.get("closing_note"), html_value=info.get("closing_note_html"),
+            placeholder=self.tr("z. B. Übergabe an …, Besonderheiten, Abweichungen vom Auftrag, Hinweise für die "
+                                "Auswertung"),
+            hint=self.tr("Erscheint im Bericht vor der Bestätigung und wird protokolliert. Leer lassen, wenn nichts "
+                         "zu vermerken ist."),
+            ok_text=self.tr("Weiter zum Abschluss"))
+        accepted = dlg.exec()
+        closing = (dlg.text(), dlg.html() or None)
+        dlg.deleteLater()
+        if not accepted:
+            self._aborted()
+            return
         mode = st.cfg.programm.arbeitsordner_loeschen
         delete = mode == "ja"
         if mode == "fragen":
@@ -1383,6 +1410,7 @@ class FinishPage(QWidget):
 
             dlg = EncryptDialog(self)
             if not dlg.exec():
+                self._aborted()
                 return  # Abbrechen = nicht abschließen
             password = dlg.password
             dlg.deleteLater()
@@ -1396,7 +1424,7 @@ class FinishPage(QWidget):
 
         def work(cancel, report):
             return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete,
-                               encrypt_password=password)
+                               encrypt_password=password, closing_note=closing[0], closing_note_html=closing[1])
 
         def progress(p):
             self.check_kv.set(self.tr("Fortschritt"), f"{p.phase}: {p.mails_done} / {p.mails_total}")
