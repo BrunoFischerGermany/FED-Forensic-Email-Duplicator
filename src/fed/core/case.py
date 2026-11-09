@@ -45,6 +45,7 @@ class CaseInfo:
     case_number: str
     examiner: str
     notes: str = ""
+    notes_html: str | None = None  # formatierte Fassung; ``notes`` wird dann daraus abgeleitet
 
 
 class Case:
@@ -86,18 +87,22 @@ class Case:
             from fed.core.hashing import tool_fingerprint
 
             tool_sha256 = tool_fingerprint()
+        from fed.core.richtext import normalize
+
+        notes, notes_html = normalize(info.notes_html, info.notes)
         conn = _connect(root / CASE_DB)
         conn.executescript(resources.files("fed.resources").joinpath("schema.sql").read_text("utf-8"))
         now = datetime.now(UTC)
         with conn:
             conn.execute("INSERT INTO meta VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
             conn.execute(
-                "INSERT INTO case_info (id, case_number, examiner, notes, created_utc, "
-                "created_local, tool_version, tool_sha256) VALUES (1, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO case_info (id, case_number, examiner, notes, notes_html, created_utc, "
+                "created_local, tool_version, tool_sha256) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     info.case_number.strip(),
                     info.examiner.strip(),
-                    info.notes,
+                    notes,
+                    notes_html,
                     now.isoformat(timespec="milliseconds"),
                     now.astimezone().isoformat(timespec="milliseconds"),
                     __version__,
@@ -289,7 +294,8 @@ def _migrate(case: Case) -> None:
                             ("message", "dkim_result", "TEXT"), ("message", "dkim_domain", "TEXT"),
                             ("message", "dkim_selector", "TEXT"), ("message", "dkim_detail", "TEXT"),
                             ("message", "auth_results", "TEXT"), ("message", "gm_thrid", "TEXT"),
-                            ("account", "filters", "TEXT")):
+                            ("account", "filters", "TEXT"), ("account", "notes_html", "TEXT"),
+                            ("case_info", "notes_html", "TEXT")):
         cols = {r[1] for r in case.conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
             with case.conn:

@@ -25,6 +25,7 @@ from fed.core.finalize import finish_case
 from fed.core.naming import next_evidence, normalize_email
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
+from fed.gui.richedit import RichNoteEdit
 from fed.gui.widgets import (Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
                             run_async, vbox)
 from fed.core.msg import describe
@@ -67,6 +68,7 @@ class State:
     spec: acq.AccountSpec | None = None
     attempts: list = field(default_factory=list)
     jobs: object = None  # JobManager – bleibt beim Wechsel des Case erhalten
+    vault: object = None  # SessionVault – Anmeldedaten nur im Arbeitsspeicher, bis FED beendet wird
 
 
 def page(title: str, subtitle: str = "") -> tuple[QWidget, QVBoxLayout]:
@@ -115,9 +117,9 @@ class CasePage(QWidget):
         f.setVerticalSpacing(6)
         self.case_no = QLineEdit(self._suggest())
         self.examiner = QLineEdit(st.cfg.examiner_name)
-        self.notes = QPlainTextEdit()
+        self.notes = RichNoteEdit()
         self.notes.setPlaceholderText(self.tr("z. B. Auftrag, Aktenzeichen, Beschluss"))
-        self.notes.setFixedHeight(90)
+        self.notes.setFixedHeight(130)
         self.target = QLineEdit(st.cfg.programm.zielpfad or str(Path.cwd()))
         browse = QPushButton(self.tr("Durchsuchen …"))
         browse.clicked.connect(self._browse)
@@ -254,7 +256,7 @@ class CasePage(QWidget):
             return
         try:
             case = Case.create(Path(self.target.text()), CaseInfo(self.case_no.text(), self.examiner.text(),
-                                                                   self.notes.toPlainText()),
+                                                                   self.notes.toPlainText(), self.notes.html() or None),
                                replace_spaces=self.st.cfg.programm.leerzeichen_ersetzen)
         except (FileExistsError, ValueError, OSError) as e:
             self.error.setText(str(e))
@@ -301,6 +303,7 @@ class AccountPage(QWidget):
         self.accounts_card.add(label(self.tr("Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues "
                                              "Konto unten die Adresse eingeben."), "Hint", wrap=True))
         self.accounts.picked.connect(self._pick)
+        self.accounts.notes_changed.connect(self._notes_changed)
         self.accounts_card.setVisible(False)
         lay.addWidget(self.accounts_card)
         cols = QHBoxLayout()
@@ -355,14 +358,28 @@ class AccountPage(QWidget):
         self.device = QCheckBox(self.tr("Anmeldung per Gerätecode (anderes Gerät)"))
         self.login_as = QLineEdit()
         self.login_as.setPlaceholderText(self.tr("anmelden als (nur bei geteiltem Postfach)"))
-        for x in (self.pw_label, self.password, self.pw_hint, self.oauth_hint, self.device, self.login_as):
+        # Anmeldedaten aus dieser Sitzung (nur im Arbeitsspeicher) – Hinweis und „Vergessen“
+        self.vault_row = QWidget()
+        vr = QHBoxLayout(self.vault_row)
+        vr.setContentsMargins(0, 0, 0, 0)
+        self.vault_lbl = label("", "Ok", wrap=True)
+        forget = QPushButton(self.tr("Vergessen"))
+        forget.setToolTip(self.tr("Gespeicherte Anmeldedaten dieses Kontos sofort aus dem Arbeitsspeicher löschen"))
+        forget.clicked.connect(self._forget)
+        vr.addWidget(self.vault_lbl, 1)
+        vr.addWidget(forget)
+        self.vault_row.setVisible(False)
+        self._recalled: str | None = None
+        self.password.textEdited.connect(lambda *_: self._recall_off())
+        for x in (self.pw_label, self.password, self.vault_row, self.pw_hint, self.oauth_hint, self.device,
+                  self.login_as):
             c2.add(x)
         left.addWidget(c2)
         cn = Card(self.tr("Notiz zum Konto"))
-        self.acc_notes = QPlainTextEdit()
+        self.acc_notes = RichNoteEdit()
         self.acc_notes.setPlaceholderText(self.tr("z. B. Herkunft der Zugangsdaten, Kontoinhaber, Einwilligung/Beschluss, "
                                                   "Besonderheiten – erscheint im Bericht"))
-        self.acc_notes.setFixedHeight(80)
+        self.acc_notes.setFixedHeight(120)
         cn.add(self.acc_notes)
         left.addWidget(cn)
         cols.addLayout(left, 3)
@@ -416,6 +433,7 @@ class AccountPage(QWidget):
         self.method.set_value("password")
         self._method_changed("password")
         self.found = None
+        self._recall_off()
         self.go.setEnabled(False)
         self.test.clear()
         self.test_state.setText(self.tr("noch nicht getestet"))
@@ -438,6 +456,13 @@ class AccountPage(QWidget):
             self.evidence_hint.setText("")
         self.evidence_hint.setVisible(bool(self.evidence_hint.text()))
 
+    def _notes_changed(self, account_id: int, text: str) -> None:
+        """Notiz in der Übersicht geändert: Formular nachziehen, wenn es dasselbe Konto zeigt."""
+        row = self.st.case.conn.execute("SELECT email, notes, notes_html FROM account WHERE id = ?",
+                                        (account_id,)).fetchone()
+        if row and normalize_email(self.email.text()) == row[0]:
+            self.acc_notes.set_value(row[1], row[2])
+
     def _pick(self, o: dict) -> None:
         """Konto aus der Übersicht übernehmen (Server, Port, Benutzer aus der Case-Datei)."""
         row = self.st.case.conn.execute("SELECT server, port, security, username, auth_method FROM account "
@@ -452,7 +477,7 @@ class AccountPage(QWidget):
         self.method.set_value(m)
         self._method_changed(m)
         self.found = None
-        self.acc_notes.setPlainText(o.get("notes", ""))
+        self.acc_notes.set_value(o.get("notes", ""), o.get("notes_html"))
         self._check_known()
         self.password.setFocus()
 
@@ -467,9 +492,54 @@ class AccountPage(QWidget):
                                                "die Evidence-Nummer bleibt {0}.").format(o["evidence"], sym, text))
             self.evidence.setText(o["evidence"])
             self.evidence_hint.setVisible(True)
+        self._recall()
+
+    # ------------------------------------------------------------ Anmeldedaten der Sitzung
+    def _recall(self) -> None:
+        """Passwort/OAuth-Anmeldung aus dieser Sitzung übernehmen, wenn das Konto schon einmal erfolgreich
+        getestet wurde – nichts davon wird auf die Festplatte geschrieben oder geloggt."""
+        vault = self.st.vault
+        email = normalize_email(self.email.text())
+        entry = vault.get(email) if vault is not None and email else None
+        if entry is None:
+            return
+        if self.method.value() != entry.method:  # Adresse getippt: Anmeldeart des letzten Erfolgs übernehmen
+            if self.password.text():
+                return
+            self.method.set_value(entry.method)
+            self._method_changed(entry.method)
+        if entry.method in ("password", "google_app"):
+            if self.password.text() and self.password.text() != entry.password:
+                return  # selbst eingegebenes Passwort hat Vorrang
+            self.password.setText(entry.password)
+        elif entry.oauth is not None:
+            self.st.oauth_session = entry.oauth
+        self._recalled = email
+        self.vault_lbl.setText(self.tr("✓ Anmeldedaten aus dieser Sitzung übernommen (zuletzt erfolgreich um {0}) – "
+                                       "nur im Arbeitsspeicher, bis FED beendet wird.").format(entry.when))
+        self.vault_row.setVisible(True)
+
+    def _recall_off(self) -> None:
+        self._recalled = None
+        self.vault_row.setVisible(False)
+
+    def _forget(self) -> None:
+        email = self._recalled or normalize_email(self.email.text())
+        if self.st.vault is not None:
+            self.st.vault.forget(email)
+        if self.method.value() in ("password", "google_app"):
+            self.password.clear()
+        else:
+            self.st.oauth_session = None
+        self._recall_off()
+        self.go.setEnabled(False)
+        self.test_state.setText(self.tr("noch nicht getestet"))
+        restyle(self.test_state, "Muted")
 
     def _method_changed(self, m: str) -> None:
         pw = m in ("password", "google_app")
+        if self._recalled:
+            self._recall_off()
         for x in (self.pw_label, self.password, self.pw_hint):
             x.setVisible(pw)
         self.pw_label.setText(self.tr("App-Passwort") if m == "google_app" else self.tr("Passwort"))
@@ -574,6 +644,7 @@ class AccountPage(QWidget):
         host, port, sec = self.server.text().strip(), self.port.value(), self.security.currentText()
         user = normalize_email(self.user.text()) or normalize_email(self.email.text())
         password = normalize_app_password(self.password.text()) if m == "google_app" else self.password.text()
+        self._tested = (normalize_email(self.email.text()), m, password)
         hint = normalize_email(self.login_as.text()) or normalize_email(self.email.text())
         device = self.device.isChecked()
         timeout = cfg.programm.socket_timeout_s
@@ -623,6 +694,11 @@ class AccountPage(QWidget):
               + tf.local_str(now, with_date=False), "ok")
         t.set(self.tr("Ordner"), self.tr("{0} gefunden").format(nfolders))
         self.go.setEnabled(True)
+        tested = getattr(self, "_tested", None)
+        if self.st.vault is not None and tested and tested[0] == normalize_email(self.email.text()):
+            email, m, password = tested
+            self.st.vault.put(email, m, password if m in ("password", "google_app") else None,
+                              self.st.oauth_session if m in ("google", "microsoft") else None)
 
     def _login_hint(self, err: str) -> str:
         """Hinweis bei abgelehnter Anmeldung mit Passwort/App-Passwort (übersetzbar)."""
@@ -655,6 +731,8 @@ class AccountPage(QWidget):
         self.st.email = normalize_email(self.email.text())
         self.st.connect = self._connector()
         case = self.st.case
+        if self._recalled == self.st.email:  # nachvollziehbar: Anmeldedaten nicht neu eingegeben (Wert nie im Log)
+            case.log("INFO", "credentials_from_session", {"email": self.st.email, "method": self.method.value()})
         if self.st.oauth_session and self.st.oauth_session.token:
             warn = log_oauth_login(case, self.st.oauth_session.token, self.st.email)
             if warn:
@@ -669,9 +747,11 @@ class AccountPage(QWidget):
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
             {"password": "password", "google_app": "app_password_google", "google": "oauth_google",
              "microsoft": "oauth_microsoft"}[self.method.value()],
-            self.found.source if self.found else "manual", notes=self.acc_notes.toPlainText())
+            self.found.source if self.found else "manual", notes=self.acc_notes.toPlainText(),
+            notes_html=self.acc_notes.html() or None)
         if self.st.account_id is not None:
-            acq.set_account_notes(case, self.st.account_id, self.acc_notes.toPlainText())
+            acq.set_account_notes(case, self.st.account_id, self.acc_notes.toPlainText(),
+                                  self.acc_notes.html() or None)
         self.next.emit()
 
 
@@ -1442,6 +1522,10 @@ class Assistant(QWidget):
 
         self.jobs = JobManager(self)
         self.st.jobs = self.jobs
+        from fed.gui.vault import SessionVault
+
+        self.vault = SessionVault()
+        self.st.vault = self.vault
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
@@ -1585,6 +1669,7 @@ class Assistant(QWidget):
         cfg = self.st.cfg
         self.st.__init__(cfg)
         self.st.jobs = self.jobs
+        self.st.vault = self.vault  # Anmeldedaten gelten für die ganze Sitzung, auch im neuen Case
         self.jobs.clear()
         self.p_case.case_no.setText(self.p_case._suggest())
         self.p_case.notes.clear()

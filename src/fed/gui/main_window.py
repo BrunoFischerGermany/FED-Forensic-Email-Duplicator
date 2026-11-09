@@ -141,6 +141,7 @@ class MainWindow(QMainWindow):
                 e.ignore()
                 return
             self.assistant.jobs.cancel_all(15000)
+        self.assistant.vault.clear()  # Anmeldedaten der Sitzung verwerfen
         from fed.core import keepawake
 
         while keepawake.shared().active:

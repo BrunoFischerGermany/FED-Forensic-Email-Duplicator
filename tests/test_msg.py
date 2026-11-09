@@ -58,3 +58,19 @@ def test_cli_help_language(lang):
         assert not re.search(r"[äöüß]|\b(Zeitraum|Konto|Neubeginn|Passwort|mehrfach)\b", out), out
     else:
         assert "Zeitraum ab (JJJJ-MM-TT)" in out and "Teilsicherung: Absender enthält" in out
+
+
+def test_gui_helper_tr_literals_are_translatable():
+    """``_tr("…")`` mit festem Text erkennt lupdate nicht – solche Texte müssen anderswo markiert sein
+    (QT_TRANSLATE_NOOP/self.tr/translate), sonst blieben sie auf Englisch deutsch."""
+    import html
+
+    ts = (ROOT / "src" / "fed" / "i18n" / "fed_en.ts").read_text(encoding="utf-8")
+    sources = {html.unescape(s) for s in re.findall(r"<source>(.*?)</source>", ts, re.S)}
+    missing = []
+    for path in (ROOT / "src" / "fed" / "gui").glob("*.py"):
+        for lit in re.findall(r'(?<![\w.])_tr\("((?:[^"\\]|\\.)*)"\)', path.read_text(encoding="utf-8")):
+            text = lit.encode().decode("unicode_escape").encode("latin-1").decode("utf-8")
+            if text not in sources:
+                missing.append(f"{path.name}: {text}")
+    assert not missing, missing

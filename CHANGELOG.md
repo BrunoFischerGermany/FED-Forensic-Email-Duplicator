@@ -145,6 +145,20 @@
 - Abschluss fehlgeschlagen: „Erneut versuchen“ und „Zurück zu den Konten“ (der Case bleibt offen);
   „Case abschließen …“ jetzt auch auf der Kontoseite – nach einem Neustart von FED war ein
   geöffneter Case sonst nur über eine neue Sicherung abschließbar
+- Passwort/OAuth-Anmeldung wird nach einem erfolgreichen Verbindungstest für die Sitzung gemerkt –
+  nur im Arbeitsspeicher, bis FED beendet wird (auch über weitere Konten und einen neuen Case
+  hinweg). Wird das Konto erneut gewählt oder seine Adresse eingetippt, ist die Anmeldung
+  vorbelegt; „Vergessen“ löscht sie sofort. Protokolliert wird nur, dass die Anmeldedaten aus der
+  Sitzung kamen (`credentials_from_session`), nie der Wert
+- Formatierte Notizen (Case-Anmerkungen und Notiz zum Konto): fett, kursiv, unterstrichen, vier
+  Farben, Marker, Aufzählung und Absätze; Werkzeugleiste mit Tastenkürzeln, Einfügen immer als
+  reiner Text. Gespeichert als bereinigtes HTML (`notes_html`), daneben weiter der reine Text für
+  TXT-Bericht, CSV und Log; im PDF-Bericht formatiert gesetzt (neue Schriftschnitte DejaVu Oblique)
+- Bericht: bei mehreren Konten „Sicherungsbericht von N E-Mail-Postfächern“; Examiner im
+  Seitenkopf und Abschnitt „Bestätigung“ (Examiner, Zeitpunkt) am Ende vor der Mail-Liste
+- Notiz zum Konto direkt in der Kontenübersicht bearbeitbar (Klick auf die Notiz, auch in der
+  Historie, solange der Case offen ist); Änderungen werden mit altem und neuem Text protokolliert.
+  Mehrzeilige Notizen werden vollständig und umbrochen angezeigt
 - Verbindung testen: leere Pflichtfelder (auch das Passwort) werden rot markiert, der Test
   startet erst, wenn alles ausgefüllt ist
 - Ordnerseite scrollt auf kleinen Bildschirmen, „Zurück“/„Sicherung starten“ bleiben fest
