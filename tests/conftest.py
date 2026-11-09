@@ -85,3 +85,13 @@ def acquired(tmp_path, imap_server):
     run_attempt(case, acc, connect, cfg=Config())
     yield case
     case.close()
+
+
+@pytest.fixture(autouse=True)
+def _closing_note_dialog(monkeypatch):
+    """Abschlussvermerk-Dialog in GUI-Tests nicht blockieren lassen (leerer Vermerk, „Weiter“)."""
+    try:
+        from fed.gui import richedit
+    except ImportError:  # ohne PySide6
+        return
+    monkeypatch.setattr(richedit.RichNoteDialog, "exec", lambda self: 1)

@@ -338,11 +338,13 @@ def delete_work_dir(case: Case, zip_result: ZipResult | list[ZipResult]) -> dict
 
 def finish_case(case: Case, cfg: Config | None = None, language: str | None = None,
                 cancel: CancelToken | None = None, progress: ProgressCallback | None = None,
-                delete_work: bool | None = None, encrypt_password: str | None = None) -> FinishResult:
+                delete_work: bool | None = None, encrypt_password: str | None = None,
+                closing_note: str | None = None, closing_note_html: str | None = None) -> FinishResult:
     """ZIP packen und prüfen, Case abschließen, ggf. Arbeitsordner löschen, Berichte erzeugen und hashen.
 
     ``delete_work``: ``None`` = nach Config (``arbeitsordner_loeschen == "ja"``).
     ``encrypt_password``: zusätzlich verschlüsselte Kopie für die Weitergabe (Passwort wird nie gespeichert).
+    ``closing_note``/``closing_note_html``: Abschlussvermerk für den Bericht (``None`` = unverändert lassen).
     """
     from fed.core.report import write_reports
 
@@ -359,6 +361,8 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     running = case.conn.execute("SELECT COUNT(*) FROM attempt WHERE status = 'running'").fetchone()[0]
     if running:
         raise ValueError(_t("Es läuft noch ein Versuch"))
+    if closing_note is not None or closing_note_html is not None:
+        case.set_closing_note(closing_note or "", closing_note_html)
     mode = zip_mode_for(case, cfg)
     case.log("INFO", "zip_mode_used", {"mode": mode})
     if mode == "je_konto":

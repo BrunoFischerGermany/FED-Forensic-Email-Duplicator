@@ -225,6 +225,7 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
         (L["created"], tf.both(i["created_utc"])), (L["closed"], tf.both(i["closed_utc"]) if i["closed_utc"] else "–"),
         (L["tool"], f"{APP_NAME} {i['tool_version']}"), (L["tool_sha"], i["tool_sha256"] or "–"),
         (L["accounts_count"], str(d["all_accounts"])),
+        *_duration_items(d["attempts"], L),
     ]
     if d["all_accounts"] > 1:
         mode = d.get("zip_mode") or "gesamt"
@@ -254,7 +255,52 @@ def _overview_rows(d: dict, L: dict) -> list[list[str]]:
              str(o["attempts"])] for o in d["overview"]]
 
 
-def _account_items(a: dict, L: dict, dkim_counts: dict | None = None) -> list[tuple[str, str]]:
+def fmt_duration(seconds: float | None) -> str:
+    """``2 h 05 min 09 s`` / ``4 min 02 s`` / ``12 s``."""
+    if seconds is None:
+        return "–"
+    s = max(round(seconds), 0)
+    h, rest = divmod(s, 3600)
+    m, s = divmod(rest, 60)
+    if h:
+        return f"{h} h {m:02d} min {s:02d} s"
+    return f"{m} min {s:02d} s" if m else f"{s} s"
+
+
+def _seconds(start: str | None, end: str | None) -> float | None:
+    if not start or not end:
+        return None
+    from datetime import datetime as _dt
+
+    return (_dt.fromisoformat(end.replace("Z", "+00:00")) - _dt.fromisoformat(start.replace("Z", "+00:00"))
+            ).total_seconds()
+
+
+def _duration_items(attempts: list[dict], L: dict) -> list[tuple[str, str]]:
+    """Beginn, Ende und Dauer der Sicherung aus den Versuchen; bei Pausen/Wiederholungen oder parallelen
+    Konten zusätzlich die reine Laufzeit der Versuche."""
+    started = [x["started_utc"] for x in attempts if x["started_utc"]]
+    if not started:
+        return []
+    ended = [x["ended_utc"] for x in attempts if x["ended_utc"]]
+    begin = min(started)
+    end = max(ended) if ended and len(ended) == len(started) else None
+    span = _seconds(begin, end)
+    active = sum(_seconds(x["started_utc"], x["ended_utc"]) or 0 for x in attempts if x["ended_utc"])
+    text = fmt_duration(span) if end else L["dur_running"]
+    if end and span is not None and abs(span - active) > 1:
+        text += " " + L["dur_active"].format(t=fmt_duration(active), n=len(attempts))
+    return [(L["dur_begin"], tf.both(begin)), (L["dur_end"], tf.both(end) if end else "…"), (L["dur_total"], text)]
+
+
+def _attempt_end(x: dict) -> str:
+    if not x["ended_utc"]:
+        return "…"
+    return f"{tf.both_short(x['ended_utc'])}\n({fmt_duration(_seconds(x['started_utc'], x['ended_utc']))})"
+
+
+def _account_items(a: dict, L: dict, dkim_counts: dict | None = None,
+                   attempts: list[dict] | None = None) -> list[tuple[str, str]]:
     rng = "–"
     if a["date_from"] or a["date_to"]:
         rng = f"{a['date_from'] or '…'} – {a['date_to'] or '…'} ({L['partial']})"
@@ -265,6 +311,7 @@ def _account_items(a: dict, L: dict, dkim_counts: dict | None = None) -> list[tu
         (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
         (L["dkim"], _dkim_summary((dkim_counts or {}).get(a["id"], {}), L)),
         *_filter_items(a, L),
+        *_duration_items([x for x in (attempts or []) if x["account_id"] == a["id"]], L),
     ]
 
 
@@ -382,13 +429,15 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                                              size=_fmt_bytes(sum(o["bytes"] for o in tot))), ""]
     for a in d["accounts"]:
         head = f"{L['account']} {a['evidence_number']} · {a['email']}"
-        out += [head, "=" * len(head), *_kv_txt(_account_items(a, L, d["dkim_counts"]) + _gmail_items(a, d, L))]
+        out += [head, "=" * len(head),
+                *_kv_txt(_account_items(a, L, d["dkim_counts"], d["attempts"]) + _gmail_items(a, d, L))]
         if a.get("notes"):
             out += ["", f"{L['account_notes']}:", *("  " + x for x in a["notes"].splitlines())]
         out += ["", f"{L['attempts']}:"]
         for x in (x for x in d["attempts"] if x["account_id"] == a["id"]):
+            dur = f" ({fmt_duration(_seconds(x['started_utc'], x['ended_utc']))})" if x["ended_utc"] else ""
             out.append(f"  #{x['nr']}  {x['mode']:<8} {x['status']:<10} {tf.both(x['started_utc'])} – "
-                       f"{tf.both(x['ended_utc']) if x['ended_utc'] else '…'}  {x['reason'] or ''}"
+                       f"{tf.both(x['ended_utc']) if x['ended_utc'] else '…'}{dur}  {x['reason'] or ''}"
                        f"{'  -> ' + x['moved_to'] if x['moved_to'] else ''}")
         out += ["", f"{L['folders']}:", *_folder_lines(d, L, a["email"]), ""]
     out += [L["dkim_section"], "-" * len(L["dkim_section"]), L["dkim_intro"], ""]
@@ -412,6 +461,8 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         name = _encrypted_name(d)
         out += ["", f"{L['enc_title']}: {L['enc_text'].format(file=name)}"]
     i = d["info"]
+    if i.get("closing_note"):
+        out += ["", L["closing_note"], "-" * len(L["closing_note"]), i["closing_note"].strip()]
     out += ["", L["sign_title"], "-" * len(L["sign_title"]), L["sign_text"],
             *_kv_txt([(L["examiner"], i["examiner"]),
                       (L["sign_created"], tf.both(i["closed_utc"] or utc_now()))])]
@@ -563,7 +614,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         if account_id is None:
             pdf.add_page()
         h2(f"{L['account']} {a['evidence_number']} · {a['email']}")
-        kv(_account_items(a, L, d["dkim_counts"]) + _gmail_items(a, d, L))
+        kv(_account_items(a, L, d["dkim_counts"], d["attempts"]) + _gmail_items(a, d, L))
         if a.get("notes"):
             h3(L["account_notes"])
             note(a["notes"], a.get("notes_html"))
@@ -571,8 +622,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         with pdf.table(col_widths=(10, 20, 18, 44, 44, 44), headings_style=head, line_height=4.4) as t:
             t.row([L["nr"], L["mode"], L["status"], L["start"], L["end"], L["reason"]])
             for x in (x for x in d["attempts"] if x["account_id"] == a["id"]):
-                t.row([str(x["nr"]), x["mode"], x["status"], tf.both_short(x["started_utc"]),
-                       tf.both_short(x["ended_utc"]) if x["ended_utc"] else "…",
+                t.row([str(x["nr"]), x["mode"], x["status"], tf.both_short(x["started_utc"]), _attempt_end(x),
                        (x["reason"] or "") + (f" -> {x['moved_to']}" if x["moved_to"] else "")])
         h3(L["folders"])
         with pdf.table(col_widths=(46, 17, 15, 18, 19, 18, 47), headings_style=head, line_height=4.4,
@@ -637,6 +687,10 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         pdf.cell(0, 5, L["enc_title"], new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("DejaVu", "", 8.5)
         pdf.multi_cell(0, 4.6, L["enc_text"].format(file=_encrypted_name(d)), new_x="LMARGIN", new_y="NEXT")
+
+    if info.get("closing_note"):
+        h2(L["closing_note"])
+        note(info["closing_note"], info.get("closing_note_html"))
 
     # Bestätigung: wer die Sicherung durchgeführt hat (Ende des Berichts; die Mail-Liste folgt als Anhang)
     if pdf.get_y() + 30 > pdf.page_break_trigger:

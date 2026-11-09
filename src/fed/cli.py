@@ -90,6 +90,8 @@ def build_parser() -> argparse.ArgumentParser:
                      help=t("verschlüsselte Kopie (AES-256); Passwort aus FED_ZIP_PASSWORD oder Abfrage"))
     enc.add_argument("--encrypt-generate", action="store_true",
                      help=t("verschlüsselte Kopie mit erzeugtem Passwort (wird einmal angezeigt)"))
+    fin.add_argument("--closing-note", metavar=t("TEXT"),
+                     help=t("Abschlussvermerk für den Bericht (z. B. Übergabe, Besonderheiten)"))
     fin.add_argument("--zip", choices=["gesamt", "je-konto"], default=None,
                      help=t("mehrere Konten: ein ZIP für alle oder eines je Konto (Standard: Wahl im Case, sonst config)"))
 
@@ -153,7 +155,8 @@ def main(argv: list[str] | None = None) -> int:
                         print(t("Passwörter stimmen nicht überein"), file=sys.stderr)
                         return 2
             with KeepAwake() if cfg.programm.wach_halten else _nullctx():
-                res = finish_case(case, cfg, delete_work=delete, encrypt_password=password)
+                res = finish_case(case, cfg, delete_work=delete, encrypt_password=password,
+                                  closing_note=args.closing_note)
         finally:
             case.close()
         for z, (ts, err) in zip(res.zips, res.timestamps, strict=True):

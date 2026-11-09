@@ -167,6 +167,26 @@ class Case:
             self._all.clear()
         self._local = threading.local()
 
+    def set_closing_note(self, text: str = "", html_value: str | None = None) -> bool:
+        """Abschlussvermerk des Examiners (vor dem Bericht); wird protokolliert. True, wenn geändert."""
+        from fed.core.richtext import normalize
+
+        if self.closed:
+            raise RuntimeError(t("Case ist abgeschlossen"))
+        plain, html_ = normalize(html_value, text)
+        plain = plain.strip() or None
+        old = self.conn.execute("SELECT closing_note, closing_note_html FROM case_info WHERE id = 1").fetchone()
+        if (old[0], old[1]) == (plain, html_):
+            return False
+        with self.conn:
+            self.conn.execute("UPDATE case_info SET closing_note = ?, closing_note_html = ? WHERE id = 1",
+                              (plain, html_))
+        details = {"old": old[0] or "", "new": plain or ""}
+        if html_ or old[1]:
+            details.update(old_html=old[1] or "", new_html=html_ or "")
+        self.log("INFO", "closing_note_set", details)
+        return True
+
     # ------------------------------------------------------------ Einstellungen des Case
     @property
     def replace_spaces(self) -> bool:
@@ -295,7 +315,8 @@ def _migrate(case: Case) -> None:
                             ("message", "dkim_selector", "TEXT"), ("message", "dkim_detail", "TEXT"),
                             ("message", "auth_results", "TEXT"), ("message", "gm_thrid", "TEXT"),
                             ("account", "filters", "TEXT"), ("account", "notes_html", "TEXT"),
-                            ("case_info", "notes_html", "TEXT")):
+                            ("case_info", "notes_html", "TEXT"), ("case_info", "closing_note", "TEXT"),
+                            ("case_info", "closing_note_html", "TEXT")):
         cols = {r[1] for r in case.conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
             with case.conn:

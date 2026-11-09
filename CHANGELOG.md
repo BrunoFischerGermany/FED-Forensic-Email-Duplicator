@@ -145,6 +145,11 @@
 - Abschluss fehlgeschlagen: „Erneut versuchen“ und „Zurück zu den Konten“ (der Case bleibt offen);
   „Case abschließen …“ jetzt auch auf der Kontoseite – nach einem Neustart von FED war ein
   geöffneter Case sonst nur über eine neue Sicherung abschließbar
+- Abschlussvermerk: vor dem Abschluss optional ein formatierbarer Vermerk für den Bericht
+  (Abschnitt „Abschlussvermerk“ vor der Bestätigung; gespeichert und protokolliert, CLI
+  `fed finish --closing-note`). Abbrechen lässt den Case offen
+- Bericht: Beginn, Ende und Dauer der Sicherung – gesamt in den Grunddaten und je Konto; bei
+  mehreren Versuchen oder parallelen Konten zusätzlich die Summe der Versuche; Dauer je Versuch
 - Passwort/OAuth-Anmeldung wird nach einem erfolgreichen Verbindungstest für die Sitzung gemerkt –
   nur im Arbeitsspeicher, bis FED beendet wird (auch über weitere Konten und einen neuen Case
   hinweg). Wird das Konto erneut gewählt oder seine Adresse eingetippt, ist die Anmeldung

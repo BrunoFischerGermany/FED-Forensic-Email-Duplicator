@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS case_info (
     created_local TEXT NOT NULL,
     tool_version TEXT NOT NULL,
     tool_sha256  TEXT,
-    closed_utc   TEXT
+    closed_utc   TEXT,
+    closing_note TEXT,                       -- Abschlussvermerk des Examiners (vor dem Bericht)
+    closing_note_html TEXT
 );
 
 CREATE TABLE IF NOT EXISTS config_snapshot (
