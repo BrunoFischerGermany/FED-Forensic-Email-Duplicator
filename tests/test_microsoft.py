@@ -60,3 +60,28 @@ def test_oauth_error_hint_only_for_known_errors():
     assert oauth.explain_error("microsoft", "Zeitüberschreitung bei der Anmeldung im Browser") == ""
     assert oauth.explain_error("google", "AADSTS65001") == ""
 
+
+
+@pytest.mark.parametrize("lang", ["de", "en"])
+def test_help_text_present(lang):
+    from fed.gui.help import help_text
+
+    text = help_text("oauth", lang)
+    assert text.startswith("# ") and "IMAP.AccessAsUser.All" in text and "consumers" in text
+    assert "## Microsoft" in text and "## Google" in text
+
+
+def test_help_text_falls_back_to_english():
+    from fed.gui.help import help_text
+
+    assert help_text("oauth", "fr") == help_text("oauth", "en")
+
+
+def test_help_files_have_same_structure():
+    """Beide Sprachen haben dieselben Überschriften-Ebenen und Tabellenzeilen (nichts vergessen)."""
+    from fed.gui.help import help_text
+
+    def shape(t):
+        return [ln.split(" ")[0] for ln in t.splitlines() if ln.startswith(("#", "|", "1.", "2.", "3.", "4.", "5.", "6."))]
+
+    assert shape(help_text("oauth", "de")) == shape(help_text("oauth", "en"))

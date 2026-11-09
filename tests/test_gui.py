@@ -222,6 +222,16 @@ def test_gui_warns_on_password_for_microsoft(app, tmp_path):
     p.method.set_value("microsoft")
     p._method_changed("microsoft")
     assert "Administratorzustimmung" in p._login_hint("AADSTS65001: consent")
+    # Anleitung: Link im Hinweis öffnet das Hilfe-Fenster am Microsoft-Abschnitt
+    assert 'href="microsoft"' in p.oauth_hint.text()
+    p.oauth_hint.linkActivated.emit("microsoft")
+    dlg = win._fed_help
+    assert dlg.isVisible() and "Microsoft" in dlg.browser.toPlainText()
+    assert dlg.browser.verticalScrollBar().value() > 0
+    ms_pos = dlg.browser.verticalScrollBar().value()
+    win.settings.help_google.click()
+    assert win._fed_help is dlg and dlg.browser.verticalScrollBar().value() != ms_pos
+    dlg.close()
     win.close()
     win.deleteLater()
     app.processEvents()

@@ -65,7 +65,7 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account jane@example.com --evide
 #   password is prompted for (or environment variable FED_PASSWORD)
 #   run again = resume; --force --reason "…" = restart from scratch
 #   Gmail / Microsoft 365: sign-in via OAuth in the browser
-#   (setting up client IDs: docs/oauth-einrichtung.md, German)
+#   (setting up client IDs: in the program under Settings → guide)
 fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + hashes + report.pdf/.txt, close the case
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```

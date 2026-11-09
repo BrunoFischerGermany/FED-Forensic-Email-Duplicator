@@ -8,6 +8,7 @@ This guide uses French (`fr`) as the example; replace it with your language code
 | Interface | `src/fed/i18n/<code>.json` | all texts of windows, buttons, dialogs (≈ 950) |
 | Report | `src/fed/i18n/report_<code>.json` | all texts of the TXT/PDF report (≈ 130) |
 | Messages | `src/fed/i18n/core_<code>.json` | messages of the program core and the command line `fed` (≈ 150): errors, server detection, DKIM reasons, hints |
+| Help | `src/fed/resources/help/oauth_<code>.md` | in-app guide for Google/Microsoft sign-in (Markdown, optional – English is shown if missing) |
 | Built file | `src/fed/i18n/fed_<code>.qm` | generated from the JSON – never edit by hand |
 
 The program's source language is **German**: the keys in the JSON files are the German texts,

@@ -53,7 +53,7 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidenc
 #   Passwort wird abgefragt (oder Umgebungsvariable FED_PASSWORD)
 #   erneut aufrufen = Fortsetzen; --force --reason "…" = Neubeginn
 #   Gmail / Microsoft 365: Anmeldung automatisch per OAuth im Browser
-#   (Einrichtung der Client-IDs: docs/oauth-einrichtung.md)
+#   (Einrichtung der Client-IDs: im Programm unter Einstellungen → Anleitung)
 fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + report.pdf/.txt, Case abschließen
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```

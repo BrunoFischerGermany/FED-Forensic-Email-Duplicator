@@ -15,6 +15,7 @@ from fed import APP_NAME, __version__
 from fed.core import config as cfgmod
 from fed.core.languages import report_languages, ui_languages
 from fed.gui import i18n
+from fed.gui.help import show_help
 from fed.gui.widgets import Card, ElidedLabel, PasswordField, Segmented, label
 
 
@@ -182,8 +183,16 @@ class SettingsTab(QWidget):
         f.addRow(self.tr("Microsoft Client-ID"), self.m_id)
         f.addRow(self.tr("Microsoft Tenant"), self.m_tenant)
         o.add(f)
-        o.add(label(self.tr("Keine Passwörter oder Tokens in der Config – nur die App-Kennungen. "
-                            "Anleitung: docs/oauth-einrichtung.md"), "Hint", wrap=True))
+        o.add(label(self.tr("Keine Passwörter oder Tokens in der Config – nur die App-Kennungen."), "Hint", wrap=True))
+        hb = QHBoxLayout()
+        self.help_ms = QPushButton(self.tr("Anleitung Microsoft"))
+        self.help_google = QPushButton(self.tr("Anleitung Google"))
+        self.help_ms.clicked.connect(lambda: show_help(self, "oauth", "microsoft"))
+        self.help_google.clicked.connect(lambda: show_help(self, "oauth", "google"))
+        hb.addWidget(self.help_ms)
+        hb.addWidget(self.help_google)
+        hb.addStretch(1)
+        o.add(hb)
         grid.addWidget(o, 2, 1)
         for card in (a, c, d, s, n, o):
             card.lay.addStretch(1)

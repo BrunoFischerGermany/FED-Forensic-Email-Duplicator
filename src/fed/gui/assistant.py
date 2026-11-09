@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import json
 import time
 from dataclasses import dataclass, field
@@ -26,6 +27,7 @@ from fed.core.finalize import finish_case
 from fed.core.naming import next_evidence, normalize_email
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
+from fed.gui.help import show_help
 from fed.gui.richedit import RichNoteEdit
 from fed.gui.widgets import (Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
                             run_async, vbox)
@@ -357,6 +359,8 @@ class AccountPage(QWidget):
         self.password = PasswordField()
         self.pw_hint = label(self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt."), "Hint")
         self.oauth_hint = label("", "Hint", wrap=True)
+        for lab in (self.pw_hint, self.oauth_hint):  # Link „Anleitung öffnen“ -> Hilfe-Fenster
+            lab.linkActivated.connect(lambda section: show_help(self, "oauth", section))
         self.device = QCheckBox(self.tr("Anmeldung per Gerätecode (anderes Gerät)"))
         self.login_as = QLineEdit()
         self.login_as.setPlaceholderText(self.tr("anmelden als (nur bei geteiltem Postfach)"))
@@ -389,6 +393,7 @@ class AccountPage(QWidget):
         c3 = Card(self.tr("Verbindungstest"))
         self.test_state = label(self.tr("noch nicht getestet"), "Muted")
         c3.add(self.test_state)
+        self.test_state.linkActivated.connect(lambda section: show_help(self, "oauth", section))
         self.test = KeyValues()
         c3.add(self.test)
         c3.lay.addStretch(1)
@@ -551,9 +556,10 @@ class AccountPage(QWidget):
             x.setVisible(not pw)
         self.device.setVisible(m == "microsoft")
         cid = {"google": self.st.cfg.oauth_google.client_id, "microsoft": self.st.cfg.oauth_microsoft.client_id}.get(m)
-        self.oauth_hint.setText(
-            self.tr("Beim Test öffnet sich der Browser zur Anmeldung. Das Passwort sieht FED nicht.")
-            if cid else self.tr("Keine Client-ID in den Einstellungen – siehe docs/oauth-einrichtung.md"))
+        text = (self.tr("Beim Test öffnet sich der Browser zur Anmeldung. Das Passwort sieht FED nicht.")
+                if cid else self.tr("Keine Client-ID in den Einstellungen eingetragen (Einstellungen → "
+                                    "Google / Microsoft 365)."))
+        self.oauth_hint.setText(self._with_help_link(text, "microsoft" if m == "microsoft" else "google"))
         restyle(self.oauth_hint, "Hint" if cid else "Warn")
         self.go.setEnabled(False)
 
@@ -563,11 +569,15 @@ class AccountPage(QWidget):
                        "erlaubt sein: Outlook.com → Einstellungen → E-Mail → Weiterleitung und IMAP; Microsoft 365 → "
                        "Administrator (Admin Center → Benutzer → E-Mail-Apps).")
 
+    def _with_help_link(self, text: str, section: str) -> str:
+        link = html.escape(self.tr("Anleitung öffnen"))
+        return f'{html.escape(text)} <a href="{section}">{link}</a>'
+
     def _update_pw_hint(self) -> None:
         """Hinweis unter dem Passwortfeld; bei einem Microsoft-Server mit Passwort-Anmeldung als Warnung."""
         m = self.method.value()
         if m in ("password", "google_app") and is_microsoft(self.server.text()):
-            self.pw_hint.setText(self._ms_password_text())
+            self.pw_hint.setText(self._with_help_link(self._ms_password_text(), "microsoft"))
             restyle(self.pw_hint, "Warn")
             return
         self.pw_hint.setText(
@@ -744,7 +754,14 @@ class AccountPage(QWidget):
     def _test_failed(self, err: str, tb: str) -> None:
         self.test_btn.setEnabled(True)
         hint = self._login_hint(err)
-        self.test_state.setText(self.tr("✗ fehlgeschlagen: ") + err + (f"\n\n{hint}" if hint else ""))
+        m, host = self.method.value(), self.server.text()
+        section = ("microsoft" if m == "microsoft" or is_microsoft(host)
+                   else "google" if m in ("google", "google_app") or is_gmail(host) else None)
+        if hint and section:  # mit Link zur passenden Anleitung
+            self.test_state.setText(html.escape(self.tr("✗ fehlgeschlagen: ") + err).replace("\n", "<br>")
+                                    + "<br><br>" + self._with_help_link(hint, section))
+        else:
+            self.test_state.setText(self.tr("✗ fehlgeschlagen: ") + err + (f"\n\n{hint}" if hint else ""))
         self.test_state.setWordWrap(True)
         restyle(self.test_state, "Error")
         self.go.setEnabled(False)

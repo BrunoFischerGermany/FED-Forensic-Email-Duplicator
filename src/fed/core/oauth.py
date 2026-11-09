@@ -9,7 +9,7 @@ Gerätecode-Ablauf (Anmeldung auf einem anderen Gerät).
 Tokens bleiben nur im Arbeitsspeicher. Protokolliert werden Anbieter,
 angemeldetes Konto (aus dem ID-Token), Scopes und Zeitpunkt – nie Tokens.
 Client-IDs kommen aus der Config (je Agentur eigene Registrierung, siehe
-``docs/oauth-einrichtung.md``).
+``fed/resources/help/oauth_de.md``, im Programm unter Einstellungen).
 """
 
 from __future__ import annotations
@@ -84,11 +84,11 @@ def explain_error(provider: str, error: str) -> str:
     if provider != "microsoft":
         return ""
     low = error.lower()
-    if any(k in low for k in ("aadsts50020", "aadsts9002331", "aadsts70000", "not enabled for consumers",
+    if any(k in low for k in ("aadsts50020", "aadsts9002331", "aadsts700016", "not enabled for consumers",
                               "unauthorized_client", "aadsts50194", "aadsts500200")):
         return t("Die App-Registrierung erlaubt diesen Kontotyp nicht. Für private Konten (Outlook.com, Hotmail) "
                  "in Entra unter „Unterstützte Kontotypen“ auch persönliche Microsoft-Konten zulassen und "
-                 "tenant = \"common\" eintragen – siehe docs/oauth-einrichtung.md.")
+                 "tenant = \"common\" eintragen – siehe Anleitung unter Einstellungen → Google / Microsoft 365.")
     if any(k in low for k in ("aadsts65001", "aadsts90094", "consent_required")):
         return t("Die Zustimmung fehlt: Ein Administrator des Tenants muss der App die Berechtigung "
                  "IMAP.AccessAsUser.All erteilen (Entra → App-Registrierung → API-Berechtigungen → "
@@ -221,7 +221,8 @@ def authorize(
 ) -> Token:
     """Interaktive Anmeldung im System-Browser; liefert ein Token."""
     if not client_id:
-        raise OAuthError(t("Keine Client-ID für {provider} in der config.toml – siehe docs/oauth-einrichtung.md", provider=provider.name))
+        raise OAuthError(t("Keine Client-ID für {provider} eingetragen – siehe Anleitung unter Einstellungen → Google / Microsoft 365",
+                           provider=provider.name))
     cancel = cancel or CancelToken()
     verifier, challenge = pkce_pair()
     state = secrets.token_urlsafe(24)
@@ -320,7 +321,8 @@ def device_code_start(provider: OAuthProvider, client_id: str, proxy: str = "") 
     if not provider.device_url:
         raise OAuthError(t("{provider} unterstützt hier keinen Gerätecode", provider=provider.name))
     if not client_id:
-        raise OAuthError(t("Keine Client-ID für {provider} in der config.toml – siehe docs/oauth-einrichtung.md", provider=provider.name))
+        raise OAuthError(t("Keine Client-ID für {provider} eingetragen – siehe Anleitung unter Einstellungen → Google / Microsoft 365",
+                           provider=provider.name))
     r = _post(provider.device_url, {"client_id": client_id, "scope": " ".join(provider.scopes)}, proxy)
     if "device_code" not in r:
         raise OAuthError(t("Gerätecode: {error}", error=f"{r.get('error', 'error')} – {r.get('error_description', '')}"))
