@@ -89,7 +89,7 @@ QLabel#Error {{ color: {t['danger']}; font-weight: 600; }}
 QLabel#Accent {{ color: {t['accent']}; font-weight: 600; }}
 QFrame#RailItem {{ border-radius: 6px; }}
 QFrame#RailItem:hover {{ background: {t['accent_soft']}; }}
-QLabel#Mono, QPlainTextEdit#Mono {{ font-family: "{mono_font}"; font-size: 12px; }}
+QLabel#Mono, QPlainTextEdit#Mono, QLineEdit#Mono {{ font-family: "{mono_font}"; font-size: 12px; }}
 QLabel#Big {{ font-size: 22px; font-weight: 700; }}
 QLabel#Huge {{ font-size: 28px; font-weight: 700; }}
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QDateEdit, QSpinBox {{ background: {t['surface']};

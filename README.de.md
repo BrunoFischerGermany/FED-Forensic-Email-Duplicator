@@ -16,6 +16,7 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 - ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse; bei mehreren Konten wählbar: ein ZIP für alle oder eines je Konto
 - Case-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
 - mehrere Konten je Case mit Übersicht, was schon gesichert ist; Evidence-Nummer wird vorgeschlagen (`A-01` → `A-02`); Konten können parallel im Hintergrund gesichert werden
+- alle Schriften: Ordner und Mails in Kyrillisch, Chinesisch, Japanisch, Myanmar, Arabisch, Hebräisch, Vietnamesisch … werden bitgenau gesichert; der PDF-Bericht zeigt sie korrekt an, auch von rechts nach links und mit verbundenen arabischen Buchstaben (Validierung V16)
 - Passwörter nur im Arbeitsspeicher: nach erfolgreichem Test für die Sitzung gemerkt (die betroffene Person gibt es oft nur einmal ein), nie auf der Festplatte oder im Log, beim Beenden von FED verworfen
 - TXT- und PDF-Bericht mit Agentur-Logo, Anmerkungen zum Case und Notiz je Konto – gesamt und je Konto; optional RFC-3161-Zeitstempel
 - Gmail/Google Workspace und Microsoft 365 per OAuth2
@@ -127,6 +128,7 @@ tests/
 ## Lizenz
 
 GPL-3.0-only, siehe [LICENSE](LICENSE). Der Code unter `legacy/` bleibt unter MIT ([legacy/LICENSE-MIT](legacy/LICENSE-MIT)).
+Schriften für den PDF-Bericht unter `src/fed/resources/fonts/`: DejaVu Sans ([LICENSE-DejaVu.txt](src/fed/resources/fonts/LICENSE-DejaVu.txt)); Noto Sans SC (Chinesisch/Japanisch), Noto Sans Myanmar, Noto Sans Arabic, Noto Sans Hebrew und Noto Emoji – alle SIL Open Font License 1.1 (`LICENSE-Noto*-OFL.txt` neben den Schriften). Die Textformung im PDF nutzt [uharfbuzz](https://github.com/harfbuzz/uharfbuzz) (Apache-2.0).
 
 ## Autoren
 

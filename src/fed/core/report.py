@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import tomllib
 from importlib import resources
 from pathlib import Path
@@ -205,7 +206,9 @@ def folder_tree(folders: list[dict]) -> list[dict]:
     for f in sorted(folders, key=key):
         parts = f["display_name"].split(f["delimiter"]) if f["delimiter"] else [f["display_name"]]
         depth = len(parts) - 1
-        out.append({**f, "depth": depth, "label": ("\u2003" * depth) + ("\u2514 " if depth else "") + parts[-1]})
+        # LRM vorn: Baum immer von links (sonst stünde └ bei arabischen/hebräischen Namen rechts)
+        out.append({**f, "depth": depth,
+                    "label": "\u200e" + ("\u2003" * depth) + ("\u2514 " if depth else "") + parts[-1]})
     return out
 
 
@@ -546,6 +549,10 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.add_font("DejaVu", "I", str(fonts / "DejaVuSans-Oblique.ttf"))
     pdf.add_font("DejaVu", "BI", str(fonts / "DejaVuSans-BoldOblique.ttf"))
     pdf.add_font("Mono", "", str(fonts / "DejaVuSansMono.ttf"))
+    # Ersatzschriften (CJK, Myanmar, Arabisch, Hebräisch, Emojis) und Textformung/Schreibrichtung
+    from fed.core import pdftext
+
+    pdftext.setup(pdf, shaping=pdftext.needs_shaping(json.dumps(d, ensure_ascii=False, default=str)))
     pdf.set_title(f"{_title(d, L)} – {info['case_number']}")
     pdf.set_creator(f"{APP_NAME} {__version__}")
     pdf.add_page()
@@ -570,7 +577,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         pdf.set_font("DejaVu", "", 8.5)
 
     def kv(items):
-        with pdf.table(col_widths=(55, 125), first_row_as_headings=False, line_height=4.6,
+        with pdf.table(col_widths=(55, 125), first_row_as_headings=False, line_height=4.6, text_align="LEFT",
                        borders_layout="HORIZONTAL_LINES") as t:
             for k, v in items:
                 r = t.row()
@@ -619,7 +626,8 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
             h3(L["account_notes"])
             note(a["notes"], a.get("notes_html"))
         h3(L["attempts"])
-        with pdf.table(col_widths=(10, 20, 18, 44, 44, 44), headings_style=head, line_height=4.4) as t:
+        with pdf.table(col_widths=(10, 20, 18, 44, 44, 44), headings_style=head, line_height=4.4,
+                       text_align="LEFT") as t:
             t.row([L["nr"], L["mode"], L["status"], L["start"], L["end"], L["reason"]])
             for x in (x for x in d["attempts"] if x["account_id"] == a["id"]):
                 t.row([str(x["nr"]), x["mode"], x["status"], tf.both_short(x["started_utc"]), _attempt_end(x),
@@ -640,7 +648,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.ln(1)
     issues = _dkim_issue_rows(d, L)
     if issues:
-        with pdf.table(col_widths=(18, 40, 46, 28, 48), headings_style=head, line_height=4.2) as t:
+        with pdf.table(col_widths=(18, 40, 46, 28, 48), headings_style=head, line_height=4.2, text_align="LEFT") as t:
             t.row([L["evidence"], L["mail"], L["subject"], L["result"], L["detail"]])
             for r in issues:
                 t.row([r[0], r[1], r[2], r[3], r[4][:300]])
@@ -651,7 +659,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         pdf.set_font("DejaVu", "", 8)
         pdf.multi_cell(0, 4.2, L["dns_intro"], new_x="LMARGIN", new_y="NEXT")
         pdf.ln(1)
-        with pdf.table(col_widths=(55, 25, 40, 60), headings_style=head, line_height=4.2) as t:
+        with pdf.table(col_widths=(55, 25, 40, 60), headings_style=head, line_height=4.2, text_align="LEFT") as t:
             t.row([L["dns_name"], L["status"], L["fetched"], "SHA-256"])
             for r in _dns_rows(d, L):
                 t.row(r)
@@ -662,7 +670,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
 
     h2(L["issues"])
     if d["issues"]:
-        with pdf.table(col_widths=(42, 18, 120), headings_style=head, line_height=4.2) as t:
+        with pdf.table(col_widths=(42, 18, 120), headings_style=head, line_height=4.2, text_align="LEFT") as t:
             t.row([L["time_col"], L["status"], ""])
             for x in d["issues"]:
                 t.row([tf.both_short(x["ts_utc"]), x["level"], f"{x['event']}: {x['details']}"[:400]])
@@ -712,31 +720,46 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.cell(0, 7, f"{L['mails']} ({len(d['messages'])})", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("DejaVu", "", 6.5)
     multi = d["all_accounts"] > 1 and account_id is None
-    with pdf.table(col_widths=(8, 30, 40, 102), headings_style=head, line_height=3.3) as t:
+    with pdf.table(col_widths=(8, 30, 40, 102), headings_style=head, line_height=3.3, text_align="LEFT") as t:
         t.row([L["nr"], f"{L['received']} / UID", (f"{L['evidence']} / " if multi else "") + f"{L['folders']} / {L['from']}",
                f"{L['subject']} · {L['to']} · {L['att']} / {L['file']} / SHA-256"])
         for n, m in enumerate(d["messages"], 1):
             to = m["To"] or (f"CC: {m['CC']}" if m["CC"] else describe(m["Recipient_Note"]) or "–")
+            # LRM: Grundrichtung links nach rechts – arabische/hebräische Betreffs stehen richtig herum,
+            # Dateipfad und Hash darunter bleiben aber in normaler Leserichtung
             t.row([str(n), f"{tf.both_short(m['Received_UTC'])}\nUID {m['UID']}",
-                   (f"{m['Evidence']} · " if multi else "") + f"{m['Folder']}\n{m['From']}",
-                   f"{m['Subject']} · {to} · {L['att']} {m['Attachments']}"
+                   LRM + (f"{m['Evidence']} · " if multi else "") + f"{_ltr_path(m['Folder'])}\n{LRM}{m['From']}",
+                   f"{LRM}{m['Subject']} · {to} · {L['att']} {m['Attachments']}"
                    + (f" · DKIM {L.get('dkim_' + m['DKIM'], m['DKIM'])}" if m["DKIM"] else "")
                    + (f" · Labels: {m['Gmail_Labels']}" if m["Gmail_Labels"] else "")
-                   + f"\n{m['File']}\n{m['SHA256']}"])
+                   + f"\n{_ltr_path(m['File'])}\n{m['SHA256']}"])
     pdf.output(str(path))
+
+
+LRM = "\u200e"  # Richtungsmarke links-nach-rechts (unsichtbar)
+
+
+def _ltr_path(path: str) -> str:
+    """Pfad mit Richtungsmarke vor jedem Teil: Die Teile bleiben in ihrer echten Reihenfolge, auch wenn
+    Ordner arabisch/hebräisch heißen (sonst zöge die Bidi-Regel z. B. das Datum des Dateinamens vor)."""
+    return LRM + path.replace("/", "/" + LRM)
 
 
 def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: float = 2) -> None:
     """Formatierte Notiz Wort für Wort setzen: Umbruch, Seitenwechsel, grauer Hintergrund je Zeile
-    (wirkt als durchgehender Kasten), Marker als farbiges Feld hinter dem Wort."""
+    (wirkt als durchgehender Kasten), Marker als farbiges Feld hinter dem Wort. Absätze in Arabisch
+    oder Hebräisch stehen rechtsbündig; die Wortfolge jeder Zeile folgt dem Unicode-Bidi-Algorithmus."""
     import re as _re
+
+    from fpdf.bidi import auto_detect_base_direction
+    from fpdf.enums import TextDirection
 
     from fed.core.richtext import hex_rgb, parse
 
     x0, width = pdf.l_margin, pdf.w - pdf.l_margin - pdf.r_margin
     inner = width - 2 * pad
     old_margin, pdf.c_margin = pdf.c_margin, 0  # Text exakt an der gemessenen Position
-    lines: list[tuple[bool, float, list]] = []  # (Aufzählungspunkt?, Einzug, [(x, text, style, breite)])
+    lines: list[tuple[bool, float, list, bool]] = []  # (Aufzählungspunkt?, Einzug, [(x, text, style, breite)], RTL?)
 
     def font(st):
         pdf.set_font("DejaVu", ("B" if st.bold else "") + ("I" if st.italic else "") + ("U" if st.underline else ""),
@@ -744,6 +767,7 @@ def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: 
 
     for b in parse(value):
         indent = 5.0 if b.kind == "li" else 0.0
+        rtl = bool(b.text.strip()) and auto_detect_base_direction(b.text) == TextDirection.RTL
         cur, x, first = [], indent, True
         for text, st in b.runs:
             font(st)
@@ -752,7 +776,7 @@ def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: 
                     continue  # kein Leerraum am Zeilenanfang
                 word = pdf.get_string_width(tok.rstrip())
                 if cur and x + word > inner:
-                    lines.append((first and b.kind == "li", indent, cur))
+                    lines.append((first and b.kind == "li", indent, cur, rtl))
                     cur, x, first = [], indent, False
                     tok = tok.lstrip()
                     if not tok:
@@ -761,12 +785,12 @@ def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: 
                     n = len(tok)
                     while n > 1 and pdf.get_string_width(tok[:n]) > inner - indent:
                         n -= 1
-                    lines.append((first and b.kind == "li", indent, [*cur, (x, tok[:n], st, 0)]))
+                    lines.append((first and b.kind == "li", indent, [*cur, (x, tok[:n], st, 0)], rtl))
                     cur, x, first, tok = [], indent, False, tok[n:]
                 tw = pdf.get_string_width(tok)
                 cur.append((x, tok, st, tw))
                 x += tw
-        lines.append((first and b.kind == "li", indent, cur))
+        lines.append((first and b.kind == "li", indent, cur, rtl))
 
     def band(h):
         pdf.set_fill_color(*bg)
@@ -776,7 +800,7 @@ def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: 
         pdf.add_page()
     band(pad)
     pdf.set_y(pdf.get_y() + pad)
-    for bullet, _indent, segs in lines:
+    for bullet, indent, segs, rtl in lines:
         if pdf.get_y() + lh > pdf.page_break_trigger:
             pdf.add_page()
         y = pdf.get_y()
@@ -784,8 +808,9 @@ def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: 
         if bullet:
             pdf.set_text_color(0, 0, 0)
             pdf.set_font("DejaVu", "", size)
-            pdf.set_xy(x0 + pad + 1, y)
+            pdf.set_xy(x0 + pad + (inner - 4 if rtl else 1), y)
             pdf.cell(4, lh, "•")
+        segs = _bidi_visual(pdf, segs, rtl, indent, inner, font)
         for k, (x, tok, st, _tw) in enumerate(segs):
             font(st)
             if st.background:  # Marker: Leerraum zum nächsten Wort mit markieren, außer am Zeilenende
@@ -800,6 +825,62 @@ def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: 
     pdf.set_xy(x0, pdf.get_y() + pad)
     pdf.set_text_color(0, 0, 0)
     pdf.c_margin = old_margin
+
+
+def _bidi_visual(pdf, segs: list, rtl: bool, indent: float, inner: float, font) -> list:
+    """Wörter einer Zeile in Anzeigereihenfolge (Unicode-Regel L2 auf Wortebene) und neu positioniert;
+    rechtsbündig bei Absätzen von rechts nach links. Jedes Wort selbst formt fpdf2/HarfBuzz."""
+    from fpdf.bidi import BidiParagraph
+    from fpdf.enums import TextDirection
+
+    if not segs:
+        return segs
+    text = "".join(t for _x, t, _s, _w in segs)
+    has_rtl = rtl or any("\u0590" <= ch <= "\u08ff" or "\ufb1d" <= ch <= "\ufefc" for ch in text)
+    if not has_rtl:
+        return segs
+    try:
+        bp = BidiParagraph(text=text, base_direction=TextDirection.RTL if rtl else TextDirection.LTR,
+                           preserve_bn_chars=True)
+        levels = [c.embedding_level for c in bp.characters]
+    except Exception:  # Anzeige darf nie am Bericht scheitern
+        return segs
+    if len(levels) != len(text):
+        return segs
+    # Wörter und Leerraum getrennt, jeder Teil mit seiner eigenen Ebene (Leerraum zwischen zwei
+    # Wörtern von rechts nach links gehört in deren Lauf, sonst sitzt er auf der falschen Seite)
+    pieces, tok_levels, pos = [], [], 0
+    for _x, t, st, _w in segs:
+        for m in re.finditer(r"\S+|\s+", t):
+            pieces.append((0.0, m.group(0), st, 0.0))
+            tok_levels.append(levels[pos + m.start()])
+        pos += len(t)
+    segs = pieces
+    order = list(range(len(segs)))
+    top = max(tok_levels)
+    low = min((lv for lv in tok_levels if lv % 2), default=top + 1)
+    for level in range(top, low - 1, -1):
+        out, rev = [], []
+        for i in order:
+            if tok_levels[i] >= level:
+                rev.append(i)
+            else:
+                out += reversed(rev)
+                rev = []
+                out.append(i)
+        out += reversed(rev)
+        order = out
+    widths = []
+    for i in order:
+        font(segs[i][2])
+        widths.append(pdf.get_string_width(segs[i][1]))
+    x = max(inner - indent - sum(widths), 0) if rtl else indent
+    result = []
+    for i, w in zip(order, widths, strict=True):
+        _x, t, st, _tw = segs[i]
+        result.append((x, t, st, w))
+        x += w
+    return result
 
 
 def account_report_name(evidence: str, email: str, suffix: str, replace_spaces: bool = False) -> str:

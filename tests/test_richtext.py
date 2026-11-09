@@ -159,3 +159,32 @@ def test_closing_note_and_duration_in_report(acquired, tmp_path):
 
     with _pytest.raises(RuntimeError):
         case.set_closing_note("später")  # nach Abschluss nicht mehr änderbar
+
+
+def test_pdf_report_renders_emojis_without_missing_glyphs(acquired, tmp_path, caplog):
+    import logging
+
+    import pypdfium2
+
+    from fed.core.report import write_pdf
+
+    case = acquired
+    case.conn.execute("UPDATE message SET subject = 'Glückwunsch 💬📼🐰🌼💪🍝👍🍽👎🌍 🇩🇪 ❤️' WHERE id = 1")
+    case.conn.execute("UPDATE case_info SET notes = 'x', notes_html = ?",
+                      ("<p>Notiz mit <b>Emoji 🎉</b> und <i>👍</i></p>",))
+    case.conn.commit()
+    with caplog.at_level(logging.WARNING, logger="fpdf"):
+        write_pdf(case, tmp_path / "e.pdf", "de", mail_list="full")
+    assert not [r for r in caplog.records if "missing" in r.getMessage()], caplog.text
+    doc = pypdfium2.PdfDocument(tmp_path / "e.pdf")
+    text = "".join(doc[k].get_textpage().get_text_range() for k in range(len(doc)))
+    assert "💬" in text and "🎉" in text
+
+
+def test_no_named_monospace_font_in_gui():
+    """Qt sucht nach „monospace“ als Schriftname (macOS: kostet Zeit, Warnung) – Festbreite nur über das Design."""
+    from pathlib import Path
+
+    gui = Path(__file__).resolve().parent.parent / "src" / "fed" / "gui"
+    hits = [p.name for p in gui.glob("*.py") if "font-family: monospace" in p.read_text(encoding="utf-8")]
+    assert not hits, hits

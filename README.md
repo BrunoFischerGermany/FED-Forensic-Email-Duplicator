@@ -15,6 +15,7 @@ FED acquires email mailboxes via IMAP, forensically and strictly read-only:
 - ZIP with the mailbox folder structure, first level = email address
 - case file (SQLite) with a tamper-evident log, history, multiple attempts, resume/restart
 - several accounts per case with an overview of what is done; evidence numbers are suggested (`A-01` → `A-02`); accounts can be acquired in parallel in the background
+- all scripts: folders and messages in Cyrillic, Chinese, Japanese, Myanmar, Arabic, Hebrew, Vietnamese … are acquired bit-exact; the PDF report shows them correctly, including right-to-left and joined Arabic letters (validation V16)
 - passwords only in memory: kept for the session after a successful test (the person often enters it only once), never written to disk or the log, discarded when FED is closed
 - TXT and PDF report with agency logo, case notes and a note per account – overall and per account; optional RFC 3161 timestamp
 - Gmail/Google Workspace and Microsoft 365 via OAuth2
@@ -149,6 +150,7 @@ tests/
 ## License
 
 GPL-3.0-only, see [LICENSE](LICENSE). The code in `legacy/` remains under MIT ([legacy/LICENSE-MIT](legacy/LICENSE-MIT)).
+Fonts for the PDF report in `src/fed/resources/fonts/`: DejaVu Sans ([LICENSE-DejaVu.txt](src/fed/resources/fonts/LICENSE-DejaVu.txt)); Noto Sans SC (Chinese/Japanese), Noto Sans Myanmar, Noto Sans Arabic, Noto Sans Hebrew and Noto Emoji – all SIL Open Font License 1.1 (`LICENSE-Noto*-OFL.txt` next to the fonts). Text shaping in the PDF uses [uharfbuzz](https://github.com/harfbuzz/uharfbuzz) (Apache-2.0).
 
 ## Authors
 

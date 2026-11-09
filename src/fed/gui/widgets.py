@@ -278,6 +278,7 @@ class _Relay(QObject):
     def __init__(self, on_done, on_failed, on_progress) -> None:
         super().__init__(QApplication.instance())
         self._done, self._failed, self._progress = on_done, on_failed, on_progress
+        self.worker: Worker | None = None
 
     @Slot(object)
     def done(self, value) -> None:
@@ -294,6 +295,23 @@ class _Relay(QObject):
         if self._progress:
             self._progress(value)
 
+    @Slot()
+    def finished(self) -> None:
+        """Im GUI-Thread, nach done/failed: auf das Thread-Ende warten, dann geordnet freigeben.
+        (Früher hing hier eine Funktion ohne Bezugsobjekt am QThread.finished – sie lief im endenden
+        Worker-Thread und legte dort einen Timer an; selten stürzte danach die Speicherbereinigung ab.)"""
+        w = self.worker
+        if w is not None:
+            w.thread.wait(10000)
+        QTimer.singleShot(500, self, self._release)  # verspätete Signale noch zustellen lassen
+
+    def _release(self) -> None:
+        w, self.worker = self.worker, None
+        if w is not None:
+            w.relay = None
+            _running.discard(w)
+        self.deleteLater()
+
 
 def run_async(fn: Callable, on_done=None, on_failed=None, on_progress=None, parent=None) -> Worker:
     w = Worker(fn, parent)
@@ -301,12 +319,12 @@ def run_async(fn: Callable, on_done=None, on_failed=None, on_progress=None, pare
     relay = _Relay(on_done, on_failed, on_progress)
     w.relay = relay
     queued = Qt.ConnectionType.QueuedConnection
+    relay.worker = w
     w.done.connect(relay.done, queued)
     w.failed.connect(relay.failed, queued)
     w.progress.connect(relay.progress, queued)
-    w.thread.finished.connect(relay.deleteLater)
-    # erst freigeben, wenn alle Signale im GUI-Thread zugestellt sind
-    w.thread.finished.connect(lambda: QTimer.singleShot(500, lambda: _running.discard(w)))
+    # Ende im GUI-Thread behandeln (Reihenfolge: nach done/failed, beide gleich eingereiht)
+    w.finished.connect(relay.finished, queued)
     return w.start()
 
 
