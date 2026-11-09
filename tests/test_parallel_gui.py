@@ -270,3 +270,41 @@ def test_finish_reachable_after_restart_and_retry_after_failure(acquired):
     for w in (p, f):
         w.deleteLater()
     app.processEvents()
+
+
+def test_account_note_editable_in_overview(acquired, monkeypatch):
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.gui.accounts import NOTE_COL, AccountsTable, NoteDialog
+
+    case = acquired
+    t = AccountsTable()
+    t.resize(900, 200)
+    t.show()
+    t.refresh(case)
+    assert t.table.item(0, NOTE_COL).text() == "✎ Notiz hinzufügen"
+    monkeypatch.setattr(NoteDialog, "exec", lambda dlg: dlg.edit.setPlainText("RUDI STILLER\nEinwilligung liegt vor") or 1)
+    changed = []
+    t.notes_changed.connect(lambda i, s: changed.append((i, s)))
+    t._clicked(0, NOTE_COL)
+    assert case.conn.execute("SELECT notes FROM account").fetchone()[0] == "RUDI STILLER\nEinwilligung liegt vor"
+    assert changed and changed[0][1].endswith("liegt vor")
+    item = t.table.item(0, NOTE_COL)
+    assert item.text() == "RUDI STILLER\nEinwilligung liegt vor"  # Zeilenumbruch bleibt erhalten
+    assert t.table.rowHeight(0) > t.table.verticalHeader().defaultSectionSize() * 0.9
+    row = case.conn.execute("SELECT details FROM log WHERE event = 'account_notes_changed'").fetchone()
+    assert row and "Einwilligung" in row[0]
+    # Klick auf andere Spalten öffnet keinen Dialog; Doppelklick übernimmt weiterhin das Konto
+    picked = []
+    t.picked.connect(picked.append)
+    t._double_clicked(0, 1)
+    t._double_clicked(0, NOTE_COL)
+    assert len(picked) == 1
+    # abgeschlossener Case: nur lesen
+    monkeypatch.setattr(type(case), "closed", property(lambda self: True))
+    t.refresh(case)
+    opened = []
+    monkeypatch.setattr(NoteDialog, "exec", lambda dlg: opened.append(1) or 0)
+    t._clicked(0, NOTE_COL)
+    assert not opened and not t.table.item(0, NOTE_COL).toolTip()
+    t.deleteLater()
+    app.processEvents()

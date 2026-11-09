@@ -250,6 +250,18 @@
         <translation>(date filter)</translation>
     </message>
     <message>
+        <source>Notiz zum Konto</source>
+        <translation>Account note</translation>
+    </message>
+    <message>
+        <source>z. B. Anlass, Einwilligung, Besonderheiten beim Zugriff</source>
+        <translation>e.g. reason, consent, particulars of access</translation>
+    </message>
+    <message>
+        <source>Erscheint im Bericht. Jede Änderung wird mit altem und neuem Text protokolliert.</source>
+        <translation>Appears in the report. Every change is logged with the old and new text.</translation>
+    </message>
+    <message>
         <source>Evidence</source>
         <translation>Evidence</translation>
     </message>

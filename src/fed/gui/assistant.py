@@ -301,6 +301,7 @@ class AccountPage(QWidget):
         self.accounts_card.add(label(self.tr("Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues "
                                              "Konto unten die Adresse eingeben."), "Hint", wrap=True))
         self.accounts.picked.connect(self._pick)
+        self.accounts.notes_changed.connect(self._notes_changed)
         self.accounts_card.setVisible(False)
         lay.addWidget(self.accounts_card)
         cols = QHBoxLayout()
@@ -437,6 +438,12 @@ class AccountPage(QWidget):
         else:
             self.evidence_hint.setText("")
         self.evidence_hint.setVisible(bool(self.evidence_hint.text()))
+
+    def _notes_changed(self, account_id: int, text: str) -> None:
+        """Notiz in der Übersicht geändert: Formular nachziehen, wenn es dasselbe Konto zeigt."""
+        row = self.st.case.conn.execute("SELECT email FROM account WHERE id = ?", (account_id,)).fetchone()
+        if row and normalize_email(self.email.text()) == row[0]:
+            self.acc_notes.setPlainText(text)
 
     def _pick(self, o: dict) -> None:
         """Konto aus der Übersicht übernehmen (Server, Port, Benutzer aus der Case-Datei)."""

@@ -145,6 +145,9 @@
 - Abschluss fehlgeschlagen: „Erneut versuchen“ und „Zurück zu den Konten“ (der Case bleibt offen);
   „Case abschließen …“ jetzt auch auf der Kontoseite – nach einem Neustart von FED war ein
   geöffneter Case sonst nur über eine neue Sicherung abschließbar
+- Notiz zum Konto direkt in der Kontenübersicht bearbeitbar (Klick auf die Notiz, auch in der
+  Historie, solange der Case offen ist); Änderungen werden mit altem und neuem Text protokolliert.
+  Mehrzeilige Notizen werden vollständig und umbrochen angezeigt
 - Verbindung testen: leere Pflichtfelder (auch das Passwort) werden rot markiert, der Test
   startet erst, wenn alles ausgefüllt ist
 - Ordnerseite scrollt auf kleinen Bildschirmen, „Zurück“/„Sicherung starten“ bleiben fest

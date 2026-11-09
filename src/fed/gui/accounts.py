@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, Signal
-from PySide6.QtWidgets import (QAbstractItemView, QFrame, QHeaderView, QLabel, QProgressBar, QTableWidget,
-                               QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QFrame, QHeaderView, QLabel,
+                               QPlainTextEdit, QProgressBar, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from fed.core import timefmt as tf
-from fed.core.acquisition import accounts_overview
+from fed.core.acquisition import accounts_overview, set_account_notes
 from fed.core.case import Case
 from fed.core.report import _fmt_bytes
 from fed.gui.widgets import ElidedLabel, restyle
@@ -49,8 +49,45 @@ def incomplete(case: Case) -> list[dict]:
     return [o for o in accounts_overview(case) if o["state"] != "done"]
 
 
+NOTE_COL = 8
+
+
+class NoteDialog(QDialog):
+    """Notiz zu einem Konto bearbeiten (mehrzeilig; Änderung wird mit altem und neuem Text protokolliert)."""
+
+    def __init__(self, evidence: str, email: str, text: str, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(QCoreApplication.translate("AccountsTable", "Notiz zum Konto"))
+        self.setMinimumSize(520, 300)
+        head = QLabel(f"{evidence} · {email}")
+        head.setObjectName("H2")
+        self.edit = QPlainTextEdit(text)
+        self.edit.setPlaceholderText(QCoreApplication.translate(
+            "AccountsTable", "z. B. Anlass, Einwilligung, Besonderheiten beim Zugriff"))
+        hint = QLabel(QCoreApplication.translate(
+            "AccountsTable", "Erscheint im Bericht. Jede Änderung wird mit altem und neuem Text protokolliert."))
+        hint.setObjectName("Hint")
+        hint.setWordWrap(True)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay = QVBoxLayout(self)
+        lay.addWidget(head)
+        lay.addWidget(self.edit, 1)
+        lay.addWidget(hint)
+        lay.addWidget(buttons)
+        self.edit.setFocus()
+        cur = self.edit.textCursor()
+        cur.movePosition(cur.MoveOperation.End)
+        self.edit.setTextCursor(cur)
+
+    def text(self) -> str:
+        return self.edit.toPlainText()
+
+
 class AccountsTable(QWidget):
-    """Tabelle aller Konten im Case (für die Seiten „Konto“ und „Sicherung“)."""
+    """Tabelle aller Konten im Case (für die Seiten „Konto“ und „Sicherung“ und die Historie).
+    Die Notiz ist per Klick bearbeitbar, solange der Case offen ist."""
 
     COLS = (QT_TRANSLATE_NOOP("AccountsTable", "Evidence"), QT_TRANSLATE_NOOP("AccountsTable", "Konto"),
             QT_TRANSLATE_NOOP("AccountsTable", "Status"), QT_TRANSLATE_NOOP("AccountsTable", "Mails gesichert / Server"),
@@ -59,22 +96,29 @@ class AccountsTable(QWidget):
             QT_TRANSLATE_NOOP("AccountsTable", "Notiz"))
 
     picked = Signal(dict)  # Doppelklick auf ein Konto
+    notes_changed = Signal(int, str)  # account_id, neue Notiz
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.case: Case | None = None
+        self._current = ""
         self.table = QTableWidget(0, len(self.COLS))
-        self.table.cellDoubleClicked.connect(lambda r, _c: self.picked.emit(self.rows[r]) if r < len(self.rows) else None)
+        self.table.cellClicked.connect(self._clicked)
+        self.table.cellDoubleClicked.connect(self._double_clicked)
         self.table.setHorizontalHeaderLabels([_tr(c) for c in self.COLS])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.table.setAlternatingRowColors(True)
-        self.table.setWordWrap(False)
+        self.table.setWordWrap(True)  # nur die Notiz ist mehrzeilig
+        self.table.setStyleSheet("QTableWidget::item { padding: 6px 10px; }")
         self.table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         h = self.table.horizontalHeader()
         h.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        h.setStretchLastSection(True)
+        h.setSectionResizeMode(NOTE_COL, QHeaderView.ResizeMode.Stretch)
+        h.setMinimumSectionSize(60)
+        self.table.horizontalHeader().sectionResized.connect(lambda *_: self._fit_height())
         self.summary = QLabel()
         self.summary.setObjectName("Muted")
         self.summary.setWordWrap(True)
@@ -84,9 +128,39 @@ class AccountsTable(QWidget):
         lay.addWidget(self.summary)
         self.rows: list[dict] = []
 
+    @property
+    def editable(self) -> bool:
+        return self.case is not None and not self.case.closed
+
+    def _clicked(self, r: int, c: int) -> None:
+        if c == NOTE_COL and r < len(self.rows) and self.editable:
+            self.edit_note(r)
+
+    def _double_clicked(self, r: int, c: int) -> None:
+        if c != NOTE_COL and r < len(self.rows):
+            self.picked.emit(self.rows[r])
+
+    def edit_note(self, r: int) -> bool:
+        o = self.rows[r]
+        dlg = NoteDialog(o["evidence"], o["email"], o["notes"], self)
+        if not dlg.exec():
+            return False
+        if set_account_notes(self.case, o["id"], dlg.text()):
+            self.notes_changed.emit(o["id"], dlg.text().strip())
+        self.refresh(self.case, self._current)
+        return True
+
+    def _fit_height(self) -> None:
+        self.table.resizeRowsToContents()
+        hdr = self.table.horizontalHeader().height()
+        self.table.setFixedHeight(hdr + sum(self.table.rowHeight(i) for i in range(self.table.rowCount())) + 4)
+
     def refresh(self, case: Case | None, current_email: str = "") -> list[dict]:
+        from PySide6.QtGui import QColor
+
         from fed.gui import theme
 
+        self.case, self._current = case, current_email
         self.rows = accounts_overview(case) if case else []
         t = theme.tokens()
         self.table.setRowCount(len(self.rows))
@@ -96,23 +170,24 @@ class AccountsTable(QWidget):
             folders = f"{o['folders_selected']} / {o['folders_total']}"
             vals = [o["evidence"], o["email"] + ("  ←" if o["email"] == current_email else ""), f"{sym}  {text}",
                     mails, _fmt_bytes(o["bytes"]), folders, str(o["attempts"]),
-                    _short_time(o["last_utc"]), o["notes"].replace("\n", " · ")]
+                    _short_time(o["last_utc"]), o["notes"].strip()]
             for c, v in enumerate(vals):
                 it = QTableWidgetItem(v)
                 if c == 2:
-                    from PySide6.QtGui import QColor
-
                     it.setForeground(QColor(t[_COLOR[style]]))
+                if c == NOTE_COL:
+                    it.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+                    if self.editable:
+                        if not v:
+                            it.setText(_tr("✎ Notiz hinzufügen"))
+                            it.setForeground(QColor(t["muted"]))
+                        it.setToolTip(_tr("Klicken: Notiz bearbeiten"))
                 if c in (3, 4, 5, 6):
                     it.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 if c == 7 and o["last_utc"]:
                     it.setToolTip(tf.both(o["last_utc"]))
-                if c == 8 and o["notes"]:
-                    it.setToolTip(o["notes"])
                 self.table.setItem(r, c, it)
-        self.table.resizeRowsToContents()
-        hdr = self.table.horizontalHeader().height()
-        self.table.setFixedHeight(hdr + sum(self.table.rowHeight(i) for i in range(len(self.rows))) + 4)
+        self._fit_height()
         done = sum(1 for o in self.rows if o["state"] == "done")
         mails = sum(o["saved"] for o in self.rows)
         self.summary.setText(QCoreApplication.translate("AccountsTable", "{0} Konten · {1} vollständig gesichert · {2} offen · {3} Mails · {4}").format(

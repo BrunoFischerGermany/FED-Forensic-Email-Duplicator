@@ -524,5 +524,9 @@
   "Erneut versuchen": "Try again",
   "Zurück zu den Konten": "Back to the accounts",
   "Der Case ist noch offen – die gesicherten Mails sind unverändert. Ursache beheben und erneut versuchen.": "The case is still open – the acquired messages are unchanged. Fix the cause and try again.",
-  "Leerzeichen in Case-Ordner- und Dateinamen durch „_“ ersetzen (gilt für neue Cases)": "Replace spaces in case folder and file names with “_” (applies to new cases)"
+  "Leerzeichen in Case-Ordner- und Dateinamen durch „_“ ersetzen (gilt für neue Cases)": "Replace spaces in case folder and file names with “_” (applies to new cases)",
+  "z. B. Anlass, Einwilligung, Besonderheiten beim Zugriff": "e.g. reason, consent, particulars of access",
+  "Erscheint im Bericht. Jede Änderung wird mit altem und neuem Text protokolliert.": "Appears in the report. Every change is logged with the old and new text.",
+  "✎ Notiz hinzufügen": "✎ Add note",
+  "Klicken: Notiz bearbeiten": "Click: edit note"
 }
