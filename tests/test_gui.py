@@ -202,6 +202,41 @@ def test_google_app_password_method(app, tmp_path):
     app.processEvents()
 
 
+def test_gui_warns_on_password_for_microsoft(app, tmp_path):
+    from fed.core import config as cfgmod
+    from fed.gui.main_window import MainWindow
+
+    cfg = cfgmod.Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    win = MainWindow(cfg, tmp_path)
+    _pump(app, lambda: win.assistant.st.system is not None)
+    p = win.assistant.p_acc
+    p.method.set_value("password")
+    p._method_changed("password")
+    p.server.setText("imap.gmx.net")
+    assert "Arbeitsspeicher" in p.pw_hint.text() and p.pw_hint.objectName() == "Hint"
+    p.server.setText("outlook.office365.com")
+    assert "OAuth" in p.pw_hint.text() and p.pw_hint.objectName() == "Warn"
+    assert "Weiterleitung und IMAP" in p._login_hint("AUTHENTICATE failed.")
+    p.method.set_value("microsoft")
+    p._method_changed("microsoft")
+    assert "Administratorzustimmung" in p._login_hint("AADSTS65001: consent")
+    # Anleitung: Link im Hinweis öffnet das Hilfe-Fenster am Microsoft-Abschnitt
+    assert 'href="microsoft"' in p.oauth_hint.text()
+    p.oauth_hint.linkActivated.emit("microsoft")
+    dlg = win._fed_help
+    assert dlg.isVisible() and "Microsoft" in dlg.browser.toPlainText()
+    assert dlg.browser.verticalScrollBar().value() > 0
+    ms_pos = dlg.browser.verticalScrollBar().value()
+    win.settings.help_google.click()
+    assert win._fed_help is dlg and dlg.browser.verticalScrollBar().value() != ms_pos
+    dlg.close()
+    win.close()
+    win.deleteLater()
+    app.processEvents()
+
+
 def test_accounts_overview_and_evidence_suggestion(app, imap_server, tmp_path, monkeypatch):
     from fed.core import config as cfgmod
     from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan

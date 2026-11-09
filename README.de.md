@@ -19,7 +19,7 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 - alle Schriften: Ordner und Mails in Kyrillisch, Chinesisch, Japanisch, Myanmar, Arabisch, Hebräisch, Vietnamesisch … werden bitgenau gesichert; der PDF-Bericht zeigt sie korrekt an, auch von rechts nach links und mit verbundenen arabischen Buchstaben (Validierung V16)
 - Passwörter nur im Arbeitsspeicher: nach erfolgreichem Test für die Sitzung gemerkt (die betroffene Person gibt es oft nur einmal ein), nie auf der Festplatte oder im Log, beim Beenden von FED verworfen
 - TXT- und PDF-Bericht mit Agentur-Logo, Anmerkungen zum Case und Notiz je Konto – gesamt und je Konto; optional RFC-3161-Zeitstempel
-- Gmail/Google Workspace und Microsoft 365 per OAuth2
+- Gmail/Google Workspace und Microsoft 365/Outlook.com per OAuth2 (Microsoft erlaubt für IMAP keine Passwörter oder App-Passwörter mehr)
 - Deutsch und Englisch, weitere Sprachen ohne Programmierung ergänzbar ([docs/translating.md](docs/translating.md), englisch); Windows/macOS/Linux, portabel ohne Installation
 
 ## Stand
@@ -53,7 +53,7 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidenc
 #   Passwort wird abgefragt (oder Umgebungsvariable FED_PASSWORD)
 #   erneut aufrufen = Fortsetzen; --force --reason "…" = Neubeginn
 #   Gmail / Microsoft 365: Anmeldung automatisch per OAuth im Browser
-#   (Einrichtung der Client-IDs: docs/oauth-einrichtung.md)
+#   (Einrichtung der Client-IDs: im Programm unter Einstellungen → Anleitung)
 fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + report.pdf/.txt, Case abschließen
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```

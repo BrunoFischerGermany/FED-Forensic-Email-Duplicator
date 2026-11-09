@@ -135,16 +135,24 @@
         <translation>App password</translation>
     </message>
     <message>
-        <source>16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
-        <translation>16 letters from {0} (requires 2-Step Verification; spaces don't matter). The normal Google password does not work. Only in memory – never stored or logged.</translation>
-    </message>
-    <message>
         <source>Beim Test öffnet sich der Browser zur Anmeldung. Das Passwort sieht FED nicht.</source>
         <translation>The test opens the browser for sign-in. FED never sees the password.</translation>
     </message>
     <message>
-        <source>Keine Client-ID in den Einstellungen – siehe docs/oauth-einrichtung.md</source>
-        <translation>No client ID in the settings – see docs/oauth-einrichtung.md</translation>
+        <source>Keine Client-ID in den Einstellungen eingetragen (Einstellungen → Google / Microsoft 365).</source>
+        <translation>No client ID entered in the settings (Settings → Google / Microsoft 365).</translation>
+    </message>
+    <message>
+        <source>Microsoft (Outlook.com, Hotmail, Live, Microsoft 365) nimmt für IMAP weder das Kontopasswort noch ein App-Passwort an – nur „Microsoft 365 (OAuth)“. IMAP muss im Postfach erlaubt sein: Outlook.com → Einstellungen → E-Mail → Weiterleitung und IMAP; Microsoft 365 → Administrator (Admin Center → Benutzer → E-Mail-Apps).</source>
+        <translation>Microsoft (Outlook.com, Hotmail, Live, Microsoft 365) accepts neither the account password nor an app password for IMAP – only "Microsoft 365 (OAuth)". IMAP must be allowed for the mailbox: Outlook.com → Settings → Mail → Forwarding and IMAP; Microsoft 365 → administrator (admin center → Users → Mail apps).</translation>
+    </message>
+    <message>
+        <source>Anleitung öffnen</source>
+        <translation>Open guide</translation>
+    </message>
+    <message>
+        <source>16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
+        <translation>16 letters from {0} (requires 2-Step Verification; spaces don't matter). The normal Google password does not work. Only in memory – never stored or logged.</translation>
     </message>
     <message>
         <source>Suche Einstellungen …</source>
@@ -2346,8 +2354,16 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Microsoft tenant</translation>
     </message>
     <message>
-        <source>Keine Passwörter oder Tokens in der Config – nur die App-Kennungen. Anleitung: docs/oauth-einrichtung.md</source>
-        <translation>No passwords or tokens in the config – only the app identifiers. Guide: docs/oauth-einrichtung.md</translation>
+        <source>Keine Passwörter oder Tokens in der Config – nur die App-Kennungen.</source>
+        <translation>No passwords or tokens in the config – only the app IDs.</translation>
+    </message>
+    <message>
+        <source>Anleitung Microsoft</source>
+        <translation>Microsoft guide</translation>
+    </message>
+    <message>
+        <source>Anleitung Google</source>
+        <translation>Google guide</translation>
     </message>
     <message>
         <source>PNG oder JPG, max. 2 MB · wird beim Anlegen eines Case in die case.sqlite kopiert · SHA-256 </source>

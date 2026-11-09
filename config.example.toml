@@ -46,7 +46,7 @@ tsa_url = ""                    # RFC-3161-Zeitstempeldienst für den ZIP-Hash, 
 [oauth.google]
 client_id     = ""
 client_secret = ""              # bei Google-Desktop-Apps vorgesehen, gilt nicht als geheim
-# Einrichtung: docs/oauth-einrichtung.md
+# Einrichtung: im Programm unter Einstellungen → Google / Microsoft 365 → Anleitung
 
 [oauth.microsoft]
 client_id = ""

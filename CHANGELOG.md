@@ -199,6 +199,11 @@
 - **`log.csv` mit festen englischen Spaltennamen** (`Account`, `Folder`, `Received_UTC`, `Subject`,
   `File` …), unabhängig von der Sprache – wie die Namen im Case-Ordner
 - Historie „Dateien nachhashen“ prüft alle ZIPs des Case (auch je Konto), nicht nur das letzte
+- Microsoft: Warnung, wenn bei einem Microsoft-Server Passwort/App-Passwort gewählt ist (dort nur OAuth);
+  private Konten (outlook.*, hotmail.*, live.*, msn.com) melden sich automatisch am Endpunkt `consumers` an;
+  verständliche Hinweise zu typischen Microsoft-Anmeldefehlern (AADSTS…), auch in der Kommandozeile
+- Anleitung zur Google-/Microsoft-Anmeldung im Programm (DE/EN): Einstellungen → „Anleitung Microsoft/Google“,
+  verlinkt im Assistenten bei fehlender Client-ID, Microsoft-Passwortwarnung und Anmeldefehlern
 
 ## 0.4-beta
 
