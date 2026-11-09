@@ -18,7 +18,8 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFo
 from fed.core import acquisition as acq
 from fed.core import autoconfig, keepawake, oauth, syscheck
 from fed.core import timefmt as tf
-from fed.core.auth import APP_PASSWORD_URL, OAuthSession, is_gmail, log_oauth_login, make_connector, normalize_app_password
+from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, is_gmail, is_microsoft, log_oauth_login, make_connector,
+                           normalize_app_password)
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
 from fed.core.finalize import finish_case
@@ -344,6 +345,7 @@ class AccountPage(QWidget):
         c1.add(mf)
         self.email.editingFinished.connect(self._discover)
         self.email.editingFinished.connect(self._check_known)
+        self.server.textChanged.connect(lambda _t: self._update_pw_hint())
         left.addWidget(c1)
 
         c2 = Card(self.tr("Anmeldung"))
@@ -543,12 +545,8 @@ class AccountPage(QWidget):
         for x in (self.pw_label, self.password, self.pw_hint):
             x.setVisible(pw)
         self.pw_label.setText(self.tr("App-Passwort") if m == "google_app" else self.tr("Passwort"))
-        self.pw_hint.setText(
-            self.tr("16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale "
-                    "Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.")
-            .format(APP_PASSWORD_URL) if m == "google_app"
-            else self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt."))
         self.pw_hint.setWordWrap(True)
+        self._update_pw_hint()
         for x in (self.oauth_hint, self.login_as):
             x.setVisible(not pw)
         self.device.setVisible(m == "microsoft")
@@ -558,6 +556,26 @@ class AccountPage(QWidget):
             if cid else self.tr("Keine Client-ID in den Einstellungen – siehe docs/oauth-einrichtung.md"))
         restyle(self.oauth_hint, "Hint" if cid else "Warn")
         self.go.setEnabled(False)
+
+    def _ms_password_text(self) -> str:
+        return self.tr("Microsoft (Outlook.com, Hotmail, Live, Microsoft 365) nimmt für IMAP weder das "
+                       "Kontopasswort noch ein App-Passwort an – nur „Microsoft 365 (OAuth)“. IMAP muss im Postfach "
+                       "erlaubt sein: Outlook.com → Einstellungen → E-Mail → Weiterleitung und IMAP; Microsoft 365 → "
+                       "Administrator (Admin Center → Benutzer → E-Mail-Apps).")
+
+    def _update_pw_hint(self) -> None:
+        """Hinweis unter dem Passwortfeld; bei einem Microsoft-Server mit Passwort-Anmeldung als Warnung."""
+        m = self.method.value()
+        if m in ("password", "google_app") and is_microsoft(self.server.text()):
+            self.pw_hint.setText(self._ms_password_text())
+            restyle(self.pw_hint, "Warn")
+            return
+        self.pw_hint.setText(
+            self.tr("16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale "
+                    "Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.")
+            .format(APP_PASSWORD_URL) if m == "google_app"
+            else self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt."))
+        restyle(self.pw_hint, "Hint")
 
     def _discover(self) -> None:
         email = normalize_email(self.email.text())
@@ -654,7 +672,8 @@ class AccountPage(QWidget):
             if m in ("password", "google_app"):
                 connect = make_connector(host, port, sec, user, password=password, timeout=timeout)
             else:
-                prov = oauth.GOOGLE if m == "google" else oauth.microsoft(cfg.oauth_microsoft.tenant)
+                prov = (oauth.GOOGLE if m == "google"
+                        else oauth.microsoft(oauth.microsoft_tenant(cfg.oauth_microsoft.tenant, hint)))
                 cid = cfg.oauth_google.client_id if m == "google" else cfg.oauth_microsoft.client_id
                 secret = cfg.oauth_google.client_secret if m == "google" else ""
                 sess = OAuthSession(prov, cid, secret, cfg.proxy_url)
@@ -702,13 +721,17 @@ class AccountPage(QWidget):
 
     def _login_hint(self, err: str) -> str:
         """Hinweis bei abgelehnter Anmeldung mit Passwort/App-Passwort (übersetzbar)."""
+        m = self.method.value()
+        if m == "microsoft":  # OAuth-Fehler (AADSTS…) kommen ohne die IMAP-Schlüsselwörter
+            return oauth.explain_error("microsoft", err)
         low = err.lower()
         if not any(k in low for k in ("authenticationfailed", "authentication failed", "invalid credentials",
                                       "login failed", "logon failure", "auth", "credentials")):
             return ""
-        m = self.method.value()
         if m not in ("password", "google_app"):
             return ""
+        if is_microsoft(self.server.text()):
+            return self._ms_password_text()
         if is_gmail(self.server.text()):
             return self.tr("Google nimmt kein normales Kontopasswort an: App-Passwort (16 Buchstaben, {0}, "
                            "2-Schritt-Bestätigung nötig) oder OAuth verwenden. In Google Workspace muss der "

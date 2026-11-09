@@ -74,6 +74,20 @@ FED wie jedes Passwort nur im Arbeitsspeicher gehalten.
 
 ## Microsoft 365 / Outlook.com
 
+> **Kein Passwort, kein App-Passwort.** Microsoft hat die Anmeldung mit Passwort
+> (Basic Auth) für IMAP abgeschaltet – in Exchange Online / Microsoft 365 in allen
+> Tenants, bei privaten Konten (Outlook.com, Hotmail, Live, MSN) am 16.09.2024.
+> App-Passwörter zählen dazu und werden ebenfalls abgelehnt, auch wenn manche
+> Anleitungen im Netz etwas anderes sagen. Für Microsoft-Postfächer gibt es in FED
+> daher nur **„Microsoft 365 (OAuth)“**. Wählt man bei einem Microsoft-Server
+> „Passwort“, warnt FED schon vor dem Test.
+
+**IMAP muss im Postfach erlaubt sein:**
+
+- Outlook.com/Hotmail: <https://outlook.live.com> → Einstellungen → E-Mail →
+  *Weiterleitung und IMAP* → „Geräten und Apps die Verwendung von IMAP erlauben“.
+- Microsoft 365: Administrator im Admin Center → Benutzer → *E-Mail-Apps verwalten* → IMAP.
+
 1. **App registrieren:** [Microsoft Entra Admin Center](https://entra.microsoft.com/) →
    *Entra ID* → *App-Registrierungen* → *Neue Registrierung*.
    - Name: z. B. „FED – Muster Forensik GmbH“
@@ -81,6 +95,12 @@ FED wie jedes Passwort nur im Arbeitsspeicher gehalten.
      - nur eigene Organisation → `tenant` = Ihre Tenant-ID
      - Konten in beliebigen Organisationen → `tenant = "organizations"`
      - zusätzlich private Microsoft-Konten (Outlook.com, Hotmail) → `tenant = "common"`
+     - nur private Microsoft-Konten → `tenant = "consumers"`
+
+     Steht `tenant = "organizations"` (Standard) und ist das Postfach eine private
+     Adresse (outlook.*, hotmail.*, live.*, msn.com …), meldet FED automatisch am
+     Endpunkt `consumers` an. Das klappt nur, wenn die App-Registrierung private
+     Konten zulässt – sonst meldet Microsoft `AADSTS…` und FED zeigt, was zu ändern ist.
    - Umleitungs-URI: Plattform **Öffentlicher Client/nativ (mobil und Desktop)**,
      URI `http://localhost`
 2. **Authentifizierung → Erweiterte Einstellungen:** *Öffentliche Clientflows zulassen*
@@ -98,8 +118,7 @@ FED wie jedes Passwort nur im Arbeitsspeicher gehalten.
    tenant    = "organizations"   # oder Tenant-ID / "common"
    ```
 
-Server: `outlook.office365.com:993`, SSL. Für das Postfach muss IMAP in Exchange
-Online aktiviert sein (Admin: Microsoft 365 Admin Center → Benutzer → E-Mail-Apps).
+Server: `outlook.office365.com:993`, SSL – für Microsoft 365 und private Konten.
 
 **Geteiltes Postfach:** mit einem berechtigten Benutzer anmelden und das geteilte
 Postfach als Konto angeben:

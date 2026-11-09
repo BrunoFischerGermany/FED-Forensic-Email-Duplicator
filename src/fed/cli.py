@@ -203,7 +203,8 @@ def _acquire(args) -> int:
     from fed.core import acquisition as acqmod
     from fed.core import autoconfig, oauth
     from fed.core import config as cfgmod
-    from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, is_gmail, log_oauth_login, make_connector,
+    from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, is_gmail, is_microsoft, log_oauth_login,
+                               explain_login_error, make_connector, microsoft_password_hint,
                                normalize_app_password)
     from fed.core.cancel import CancelToken
     from fed.core.case import Case
@@ -237,13 +238,15 @@ def _acquire(args) -> int:
                           "app_password_google": "google-app"}.get(stored, "password")
             elif is_gmail(server) or str(provider_hint) == "google":
                 method = "google" if cfg.oauth_google.client_id else "google-app"
-            elif server.lower() == "outlook.office365.com" or str(provider_hint) == "microsoft":
+            elif is_microsoft(server) or str(provider_hint) == "microsoft":
                 method = "microsoft"
             else:
                 method = "password"
         auth_method = {"google": "oauth_google", "microsoft": "oauth_microsoft",
                        "google-app": "app_password_google"}.get(method, "password")
         timeout = cfg.programm.socket_timeout_s
+        if method in ("password", "google-app") and is_microsoft(server):
+            print(t("  WARNUNG: {text}", text=microsoft_password_hint()), file=sys.stderr)
         if method in ("password", "google-app"):
             prompt = (t("Google-App-Passwort für {user} ({url}): ", user=user, url=APP_PASSWORD_URL)
                       if method == "google-app" else t("Passwort für {user}: ", user=user))
@@ -256,7 +259,8 @@ def _acquire(args) -> int:
             if method == "google":
                 prov, cid, secret = oauth.GOOGLE, cfg.oauth_google.client_id, cfg.oauth_google.client_secret
             else:
-                prov, cid, secret = oauth.microsoft(cfg.oauth_microsoft.tenant), cfg.oauth_microsoft.client_id, ""
+                tenant = oauth.microsoft_tenant(cfg.oauth_microsoft.tenant, args.login_as or args.account)
+                prov, cid, secret = oauth.microsoft(tenant), cfg.oauth_microsoft.client_id, ""
             sess = OAuthSession(prov, cid, secret, cfg.proxy_url)
             print(t("Anmeldung bei {provider} – ", provider=method.title())
                   + (t("Gerätecode folgt …") if args.device_code else t("Browser wird geöffnet …")))
@@ -267,6 +271,9 @@ def _acquire(args) -> int:
             except oauth.OAuthError as e:
                 case.log("ERROR", "oauth_failed", str(e))
                 print(t("Anmeldung fehlgeschlagen: {error}", error=e), file=sys.stderr)
+                hint = oauth.explain_error(prov.name, str(e))
+                if hint:
+                    print("  " + hint, file=sys.stderr)
                 return 1
             warning = log_oauth_login(case, token, args.account)
             print(t("Angemeldet als {login}", login=token.account or "?"))
@@ -283,7 +290,14 @@ def _acquire(args) -> int:
                 date_to=datetime.fromisoformat(args.date_to).replace(tzinfo=UTC) if args.date_to else None,
                 notes=args.account_notes or "",
             )
-            imap = connect()
+            try:
+                imap = connect()
+            except Exception as e:
+                if method in ("password", "google-app"):
+                    explained = explain_login_error(server, str(e))
+                    if explained != str(e):
+                        print(t("Anmeldung fehlgeschlagen: {error}", error=explained), file=sys.stderr)
+                raise
             acc_id = acqmod.register_account(case, spec, imap)
             folders = acqmod.scan(case, acc_id, imap)
             imap.logout()

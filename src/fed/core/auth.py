@@ -28,6 +28,12 @@ def is_gmail(host: str) -> bool:
     return host.strip().lower().rstrip(".") in GMAIL_HOSTS
 
 
+def is_microsoft(host: str) -> bool:
+    """IMAP-Server von Microsoft (Exchange Online / Outlook.com). Dort gibt es seit 2022 (Microsoft 365)
+    bzw. 16.09.2024 (Outlook.com) keine Anmeldung mit Passwort oder App-Passwort mehr, nur OAuth."""
+    return host.strip().lower().rstrip(".") in oauth.MICROSOFT_IMAP_HOSTS
+
+
 def normalize_app_password(password: str) -> str:
     """Google zeigt App-Passwörter in Vierergruppen an (``abcd efgh ijkl mnop``); IMAP braucht
     die 16 Buchstaben ohne Leerzeichen. Andere Eingaben bleiben unverändert."""
@@ -35,8 +41,17 @@ def normalize_app_password(password: str) -> str:
     return "".join(m.groups()) if m else password
 
 
+def microsoft_password_hint() -> str:
+    return t("Microsoft (Outlook.com, Hotmail, Live, Microsoft 365) nimmt für IMAP weder das Kontopasswort "
+             "noch ein App-Passwort an – nur die Anmeldung per OAuth. Bitte „Microsoft 365 (OAuth)“ wählen. "
+             "IMAP muss im Postfach erlaubt sein: Outlook.com → Einstellungen → E-Mail → Weiterleitung und IMAP; "
+             "Microsoft 365 → Administrator (Admin Center → Benutzer → E-Mail-Apps).")
+
+
 def explain_login_error(host: str, error: str) -> str:
-    """Ergänzt Anmeldefehler bei Gmail um einen Hinweis auf App-Passwort bzw. OAuth."""
+    """Ergänzt Anmeldefehler bei Gmail/Microsoft um einen Hinweis auf App-Passwort bzw. OAuth."""
+    if is_microsoft(host):
+        return error + " – " + microsoft_password_hint()
     if not is_gmail(host):
         return error
     low = error.lower()

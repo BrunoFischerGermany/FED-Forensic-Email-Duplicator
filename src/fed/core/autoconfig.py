@@ -37,6 +37,9 @@ class ImapSettings:
 KNOWN_PROVIDERS = {
     "imap.gmail.com": Provider.GOOGLE,
     "outlook.office365.com": Provider.MICROSOFT,
+    "outlook.office.com": Provider.MICROSOFT,
+    "imap-mail.outlook.com": Provider.MICROSOFT,
+    "imap.outlook.com": Provider.MICROSOFT,
 }
 
 

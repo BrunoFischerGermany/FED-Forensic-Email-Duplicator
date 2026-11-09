@@ -18,6 +18,7 @@ import base64
 import hashlib
 import http.server
 import json
+import re
 import secrets
 import socket
 import threading
@@ -56,6 +57,48 @@ GOOGLE = OAuthProvider(
     redirect_host="127.0.0.1",
     extra_auth_params=(("access_type", "offline"), ("prompt", "consent")),
 )
+
+
+MICROSOFT_IMAP_HOSTS = {"outlook.office365.com", "outlook.office.com", "imap-mail.outlook.com", "imap.outlook.com"}
+# private Microsoft-Konten (MSA): diese Domains (und Länder-Varianten) gehören nicht zu einem Firmen-Tenant
+_MS_CONSUMER = re.compile(r"^(outlook|hotmail|live|windowslive|msn|passport)\.[a-z.]+$")
+
+
+def is_microsoft_consumer(email: str) -> bool:
+    """Privates Microsoft-Konto (Outlook.com, Hotmail, Live, MSN – auch outlook.de, hotmail.co.uk …)."""
+    domain = email.strip().lower().rpartition("@")[2]
+    return bool(_MS_CONSUMER.match(domain)) or domain == "msn.com"
+
+
+def microsoft_tenant(tenant: str, email: str = "") -> str:
+    """Mandant für die Anmeldung. Private Konten können sich am Endpunkt ``organizations`` nicht anmelden –
+    dann wird ``consumers`` genommen. Eine fest eingetragene Tenant-ID oder ``common`` bleibt unverändert."""
+    tenant = (tenant or "organizations").strip()
+    if tenant.lower() == "organizations" and is_microsoft_consumer(email):
+        return "consumers"
+    return tenant
+
+
+def explain_error(provider: str, error: str) -> str:
+    """Hinweis zu typischen Anmeldefehlern bei Microsoft (AADSTS-Codes); sonst leer."""
+    if provider != "microsoft":
+        return ""
+    low = error.lower()
+    if any(k in low for k in ("aadsts50020", "aadsts9002331", "aadsts70000", "not enabled for consumers",
+                              "unauthorized_client", "aadsts50194", "aadsts500200")):
+        return t("Die App-Registrierung erlaubt diesen Kontotyp nicht. Für private Konten (Outlook.com, Hotmail) "
+                 "in Entra unter „Unterstützte Kontotypen“ auch persönliche Microsoft-Konten zulassen und "
+                 "tenant = \"common\" eintragen – siehe docs/oauth-einrichtung.md.")
+    if any(k in low for k in ("aadsts65001", "aadsts90094", "consent_required")):
+        return t("Die Zustimmung fehlt: Ein Administrator des Tenants muss der App die Berechtigung "
+                 "IMAP.AccessAsUser.All erteilen (Entra → App-Registrierung → API-Berechtigungen → "
+                 "Administratorzustimmung erteilen).")
+    if "aadsts7000218" in low:
+        return t("In der App-Registrierung „Öffentliche Clientflows zulassen“ auf Ja stellen "
+                 "(nötig für den Gerätecode).")
+    if "aadsts53003" in low or "aadsts530" in low:
+        return t("Eine Richtlinie für bedingten Zugriff des Tenants blockiert die Anmeldung – Administrator fragen.")
+    return ""
 
 
 def microsoft(tenant: str = "organizations") -> OAuthProvider:

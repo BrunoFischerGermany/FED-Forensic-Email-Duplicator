@@ -18,7 +18,7 @@ FED acquires email mailboxes via IMAP, forensically and strictly read-only:
 - all scripts: folders and messages in Cyrillic, Chinese, Japanese, Myanmar, Arabic, Hebrew, Vietnamese … are acquired bit-exact; the PDF report shows them correctly, including right-to-left and joined Arabic letters (validation V16)
 - passwords only in memory: kept for the session after a successful test (the person often enters it only once), never written to disk or the log, discarded when FED is closed
 - TXT and PDF report with agency logo, case notes and a note per account – overall and per account; optional RFC 3161 timestamp
-- Gmail/Google Workspace and Microsoft 365 via OAuth2
+- Gmail/Google Workspace and Microsoft 365/Outlook.com via OAuth2 (Microsoft no longer accepts passwords or app passwords for IMAP)
 - English and German, further languages can be added without programming ([docs/translating.md](docs/translating.md)); Windows/macOS/Linux, portable without installation
 
 ## Status
