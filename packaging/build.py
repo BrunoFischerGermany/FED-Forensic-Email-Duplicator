@@ -63,6 +63,7 @@ def nuitka_args(system: str, v: str) -> list[str]:
         "--include-package-data=fpdf",
         "--include-package=dns",
         "--include-package=dkim",
+        "--include-package=uharfbuzz",
         "--nofollow-import-to=pytest",
         "--nofollow-import-to=tkinter",
         "--assume-yes-for-downloads",

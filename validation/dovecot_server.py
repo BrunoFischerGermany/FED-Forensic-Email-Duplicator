@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import intlmailbox
 import testmailbox
 
 CONF = """\
@@ -117,10 +118,12 @@ def start(root: Path | None = None, oauth_introspection_url: str | None = None) 
         check=True, capture_output=True,
     )
     (d / "users").write_text(f"{testmailbox.USER}:{{PLAIN}}{testmailbox.PASSWORD}::::::\n"
-                             f"{testmailbox.UMLAUT_USER}:{{PLAIN}}{testmailbox.UMLAUT_PASSWORD}::::::\n",
+                             f"{testmailbox.UMLAUT_USER}:{{PLAIN}}{testmailbox.UMLAUT_PASSWORD}::::::\n"
+                             f"{intlmailbox.USER}:{{PLAIN}}{intlmailbox.PASSWORD}::::::\n",
                              encoding="utf-8")
     testmailbox.build(d / "home" / testmailbox.USER / "Maildir")
     testmailbox.build(d / "home" / testmailbox.UMLAUT_USER / "Maildir")
+    intlmailbox.build(d / "home" / intlmailbox.USER / "Maildir")  # mehrsprachig, 4 Ebenen
     root_mode = os.geteuid() == 0
     me = getpass.getuser()
     port = _free_port()

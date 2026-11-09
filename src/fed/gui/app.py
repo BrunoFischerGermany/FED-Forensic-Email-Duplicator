@@ -56,13 +56,27 @@ def selftest(out: Path) -> int:
         with tempfile.TemporaryDirectory() as tmp:
             from fed.core.report import write_pdf
 
-            case = Case.create(Path(tmp), CaseInfo("SELFTEST", "FED"))
+            import logging
+
+            from fed.core import pdftext
+
+            missing: list[str] = []
+            handler = logging.Handler()
+            handler.emit = lambda rec: missing.append(rec.getMessage()) if "missing" in rec.getMessage() else None
+            logging.getLogger("fpdf").addHandler(handler)
+            # alle Ersatzschriften und die Textformung (uharfbuzz) müssen im gebauten Programm wirken
+            case = Case.create(Path(tmp), CaseInfo("SELFTEST", "FED", "Русский · 中文 日本語 · မြန်မာ · "
+                                                  "العربية 2026 · עברית · Tiếng Việt · 👍"))
             pdf = Path(tmp) / "t.pdf"
             write_pdf(case, pdf, "en")
             res["pdf_bytes"] = pdf.stat().st_size
             res["log_ok"] = case.verify_log()[0]
             case.close()
-        res["ok"] = en == "Settings" and res["pdf_bytes"] > 1000 and res["log_ok"] and "en" in res["ui_languages"]
+            logging.getLogger("fpdf").removeHandler(handler)
+            res["text_shaping"] = pdftext.shaping_available()
+            res["pdf_missing_glyphs"] = missing
+        res["ok"] = (en == "Settings" and res["pdf_bytes"] > 1000 and res["log_ok"] and "en" in res["ui_languages"]
+                     and res["text_shaping"] and not res["pdf_missing_glyphs"])
     except Exception:
         res["error"] = traceback.format_exc()
     out.write_text(json.dumps(res, indent=2), encoding="utf-8")

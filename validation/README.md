@@ -21,7 +21,7 @@ python -m validation.run --out validation-report --lang de,en
 ```
 
 Startet einen lokalen Dovecot mit dem Testpostfach (und einen Test-Zeitstempeldienst mit
-eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 15 Punkte:
+eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 16 Punkte:
 
 | Nr. | Prüfung |
 | --- | --- |
@@ -40,6 +40,7 @@ eigener Test-CA), sichert das Postfach mit FED wie im echten Einsatz und prüft 
 | V13 | Umlaute in Adresse, Domain und Passwort (`bärbel.böhmer@ärzte.de`) |
 | V14 | DKIM-Prüfung: gültig / verändert / nicht signiert, Schlüssel aufbewahrt, Authentication-Results |
 | V15 | Gezielte Teilsicherung: Inhaltsfilter (oder/und, Umlaut), protokolliert, im Bericht |
+| V16 | Internationale Schriften: zweites Postfach (`intlmailbox.py`) mit Ordnern über vier Ebenen in Russisch, Serbisch, Kroatisch, Vietnamesisch, Chinesisch, Japanisch, Myanmar, Arabisch, Hebräisch; UTF-8 und alte Kodierungen (KOI8-R, ISO-2022-JP, GB18030, windows-1256, windows-1255); bitgenau, Struktur im ZIP, Server-Suche, PDF ohne fehlende Zeichen |
 
 Ergebnis: `validation-report-de.pdf/.txt`, `validation-report-en.pdf/.txt`, `validation-report.json`
 mit Datum, Programmversion, SHA-256 des Programms, Git-Stand, Python-, Betriebssystem-,

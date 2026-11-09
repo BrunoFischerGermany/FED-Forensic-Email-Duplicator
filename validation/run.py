@@ -39,6 +39,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import dovecot_server  # noqa: E402
 import fake_tsa  # noqa: E402
+import intlmailbox  # noqa: E402
 import testmailbox  # noqa: E402
 
 from fed import APP_NAME, __version__  # noqa: E402
@@ -139,6 +140,18 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
                    "With subject filter “Rechnung, übermorgen” (incl. umlaut) exactly the two matching messages are "
                    "acquired; with an additional sender filter (and) none; criteria logged and shown in the report "
                    "as partial acquisition.")},
+    "V16": {"de": ("Internationale Schriften und Ordner",
+                   "Postfach mit Ordnern über vier Ebenen und Mails in Russisch, Serbisch, Kroatisch, Vietnamesisch, "
+                   "Chinesisch, Japanisch, Myanmar, Arabisch und Hebräisch (UTF-8 sowie KOI8-R, ISO-2022-JP, "
+                   "GB18030, windows-1256, windows-1255): alle Ordner erkannt, jede Mail bitgenau, Struktur im ZIP "
+                   "erhalten, Betreffs korrekt dekodiert, Server-Suche mit diesen Schriften, PDF-Bericht ohne "
+                   "fehlende Zeichen."),
+            "en": ("International scripts and folders",
+                   "Mailbox with folders four levels deep and messages in Russian, Serbian, Croatian, Vietnamese, "
+                   "Chinese, Japanese, Myanmar, Arabic and Hebrew (UTF-8 plus KOI8-R, ISO-2022-JP, GB18030, "
+                   "windows-1256, windows-1255): all folders found, every message bit-exact, structure kept in the "
+                   "ZIP, subjects decoded correctly, server search with these scripts, PDF report without missing "
+                   "glyphs.")},
 }
 
 T = {
@@ -644,9 +657,75 @@ def v15_content_filter(ctx: Ctx) -> CheckResult:
     return r
 
 
+def v16_international(ctx: Ctx) -> CheckResult:
+    import logging
+
+    from fed.core.acquisition import set_content_filter
+
+    r = CheckResult("V16", PASS)
+
+    def connect() -> ReadOnlyImap:
+        c = ReadOnlyImap(ctx.srv.host, ctx.srv.port, cafile=str(ctx.srv.cafile))
+        c.connect()
+        c.login_password(intlmailbox.USER, intlmailbox.PASSWORD)
+        return c
+
+    mails = intlmailbox.mails()
+    case = Case.create(ctx.work, CaseInfo("VAL-INTL – 国际 · دولي", "Validierung"))
+    imap = connect()
+    acc = register_account(case, AccountSpec(intlmailbox.USER, "VAL-I1", ctx.srv.host, ctx.srv.port), imap)
+    rows = scan(case, acc, imap)
+    imap.logout()
+    names = {x["name"] for x in rows}
+    folders_ok = intlmailbox.folders() <= names
+    found = len(intlmailbox.folders() & names)
+    res = run_attempt(case, acc, connect, cfg=ctx.cfg)
+    subjects = {s for (s,) in case.conn.execute("SELECT subject FROM message")}
+    decoded = all(lang.subject in subjects or lang.subject.replace("–", "-") in subjects
+                  for lang in intlmailbox.LANGS)
+    missing: list[str] = []
+    handler = logging.Handler()
+    handler.emit = lambda rec: missing.append(rec.getMessage()) if "missing" in rec.getMessage() else None
+    logging.getLogger("fpdf").addHandler(handler)
+    try:
+        fin = finish_case(case, Config(), language="de", delete_work=False)
+    finally:
+        logging.getLogger("fpdf").removeHandler(handler)
+    with zipfile.ZipFile(fin.zip.path) as zf:
+        got = Counter(hashlib.sha256(zf.read(i)).hexdigest() for i in zf.infolist() if i.filename.endswith(".eml"))
+        paths = {i.filename.rsplit("/", 1)[0] for i in zf.infolist() if i.filename.endswith(".eml")}
+    want = Counter(hashlib.sha256(m.raw).hexdigest() for m in mails)
+    struct_ok = {f"{intlmailbox.USER}/{m.folder}" for m in mails} == paths
+    # Server-Suche in diesen Schriften (neuer Case, nur Treffer)
+    case2 = Case.create(ctx.work, CaseInfo("VAL-INTL-FILTER", "Validierung"))
+    imap = connect()
+    acc2 = register_account(case2, AccountSpec(intlmailbox.USER, "VAL-I2", ctx.srv.host, ctx.srv.port), imap)
+    scan(case2, acc2, imap)
+    imap.logout()
+    set_content_filter(case2, acc2, {"subject": ["報告書", "تقرير", "דוח", "Отчёт", "အစီရင်ခံစာ"]})
+    res2 = run_attempt(case2, acc2, connect, cfg=ctx.cfg)
+    case2.close()
+    r.details += [_d(f"Ordner erkannt: {found} von {len(intlmailbox.folders())} (bis 4 Ebenen): {_yn(folders_ok, 'de')}",
+                     f"folders found: {found} of {len(intlmailbox.folders())} (up to 4 levels): {_yn(folders_ok, 'en')}"),
+                  _d(f"Sicherung: {res.status}, {res.saved} von {len(mails)} Mails, bitgenau: {_yn(got == want, 'de')}",
+                     f"acquisition: {res.status}, {res.saved} of {len(mails)} messages, bit-exact: "
+                     f"{_yn(got == want, 'en')}"),
+                  _d(f"Ordnerstruktur im ZIP erhalten: {_yn(struct_ok, 'de')}; Betreffs dekodiert: {_yn(decoded, 'de')}",
+                     f"folder structure kept in ZIP: {_yn(struct_ok, 'en')}; subjects decoded: {_yn(decoded, 'en')}"),
+                  _d(f"Server-Suche (Japanisch, Arabisch, Hebräisch, Russisch, Myanmar): {res2.saved} Treffer",
+                     f"server search (Japanese, Arabic, Hebrew, Russian, Myanmar): {res2.saved} hits"),
+                  _d(f"PDF-Bericht ohne fehlende Zeichen: {_yn(not missing, 'de')}",
+                     f"PDF report without missing glyphs: {_yn(not missing, 'en')}")]
+    if (res.status != "done" or not folders_ok or got != want or not struct_ok or not decoded or missing
+            or res2.status != "done" or res2.saved != 9 or not fin.zip.verified):
+        r.status = FAIL
+    case.close()
+    return r
+
+
 STEPS = [v01_read_only, v02_guard, v03_completeness, v04_bit_exact, v05_times, v06_cancel_resume,
          v07_tampered_file, v08_zip, v09_zip_tamper, v10_log, v11_timestamp, v12_reports, v13_umlauts, v14_dkim,
-         v15_content_filter]
+         v15_content_filter, v16_international]
 
 
 # ---------------------------------------------------------------- Ablauf

@@ -150,6 +150,17 @@
   entfällt)
 - Qt-Warnung „missing font family Monospace“ (macOS) behoben: Festbreite über die
   Systemschrift des Designs statt über den Namen „monospace“
+- **Internationale Schriften:** zweites Testpostfach (`validation/intlmailbox.py`) mit Ordnern über
+  vier Ebenen und Mails in Russisch, Serbisch (kyrillisch), Kroatisch/Serbokroatisch,
+  Vietnamesisch, Chinesisch, Japanisch, Myanmar, Arabisch und Hebräisch – UTF-8 und alte
+  Kodierungen (KOI8-R, ISO-2022-JP, GB18030, windows-1256, windows-1255); neue Validierung V16
+- PDF-Bericht: Ersatzschriften Noto Sans SC (Chinesisch/Japanisch), Myanmar, Arabic, Hebrew (SIL
+  OFL 1.1) und Textformung mit HarfBuzz (`uharfbuzz`, nur wenn der Bericht solche Schriften
+  enthält); Korrektur der Bidi-Reihenfolge in fpdf2 (Zahl nach arabischem/hebräischem Text stand
+  auf der falschen Seite); Notizen von rechts nach links rechtsbündig in richtiger Wortfolge;
+  Dateipfade behalten ihre Reihenfolge; Tabellen linksbündig statt Blocksatz
+- Selbsttest der fertigen Programme prüft Textformung und alle Schriften
+- Programmpakete etwa 12 MB größer (vor allem die chinesisch-japanische Schrift)
 - Hintergrund-Threads werden im GUI-Thread geordnet freigegeben: Das Aufräumen hing an einer
   Funktion ohne Bezugsobjekt am Thread-Ende und lief im endenden Thread – selten stürzte danach die
   Speicherbereinigung ab
