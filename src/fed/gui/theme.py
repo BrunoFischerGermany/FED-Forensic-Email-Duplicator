@@ -95,6 +95,8 @@ QLabel#Huge {{ font-size: 28px; font-weight: 700; }}
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QDateEdit, QSpinBox {{ background: {t['surface']};
     border: 1px solid {t['line_strong']}; border-radius: 6px; padding: 7px 10px; selection-background-color: {t['accent']}; }}
 QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ border-color: {t['accent']}; }}
+QLineEdit, QComboBox, QDateEdit, QSpinBox {{ min-height: 22px; }}
+QWidget#ButtonBar {{ border-top: 1px solid {t['line']}; }}
 QLineEdit[invalid="true"], QLineEdit[invalid="true"]:focus {{ border: 2px solid {t['danger']}; }}
 QPushButton {{ background: {t['surface']}; border: 1px solid {t['line_strong']}; border-radius: 6px;
     padding: 9px 16px; font-weight: 500; }}

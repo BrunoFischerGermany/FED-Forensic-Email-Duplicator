@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QPushButton, QRadioButton, QVBoxLayout)
+                               QLayout, QLineEdit, QPushButton, QRadioButton, QVBoxLayout, QWidget)
 
 from fed.core.encrypt import MIN_LENGTH, check_password, generate_password
 
@@ -57,15 +58,26 @@ class EncryptDialog(QDialog):
         self.buttons.rejected.connect(self.reject)
         for w in (self.enable, self.gen, self.own):
             w.toggled.connect(self._update)
+        # Optionen nur bei „Verschlüsselte Kopie erstellen“, eigene Felder nur bei „Eigenes Passwort“
+        self.own_box = QWidget()
+        own_form.setContentsMargins(24, 0, 0, 0)
+        self.own_box.setLayout(own_form)
+        self.options = QWidget()
+        ol = QVBoxLayout(self.options)
+        ol.setContentsMargins(0, 0, 0, 0)
+        ol.addWidget(self.gen)
+        ol.addLayout(grow)
+        ol.addWidget(self.own)
+        ol.addWidget(self.own_box)
+        ol.addWidget(self.hint)
         lay = QVBoxLayout(self)
+        lay.setSizeConstraint(QLayout.SizeConstraint.SetFixedSize)  # wächst und schrumpft mit dem Inhalt
         lay.addWidget(intro)
         lay.addWidget(self.enable)
-        lay.addWidget(self.gen)
-        lay.addLayout(grow)
-        lay.addWidget(self.own)
-        lay.addLayout(own_form)
-        lay.addWidget(self.hint)
+        lay.addWidget(self.options)
+        lay.addStretch(1)
         lay.addWidget(self.buttons)
+        intro.setMinimumWidth(500)
         self._update()
 
     def _current(self) -> str:
@@ -73,10 +85,11 @@ class EncryptDialog(QDialog):
 
     def _update(self, *_) -> None:
         on = self.enable.isChecked()
-        for w in (self.gen, self.own, self.generated):
-            w.setEnabled(on)
-        for w in (self.pw1, self.pw2):
-            w.setEnabled(on and self.own.isChecked())
+        self.options.setVisible(on)
+        self.own_box.setVisible(on and self.own.isChecked())
+        self.generated.setEnabled(self.gen.isChecked())
+        if on and self.own.isChecked() and not self.pw1.text():
+            QTimer.singleShot(0, self.pw1.setFocus)
         ok, msg = True, ""
         if on and self.own.isChecked():
             problem = check_password(self.pw1.text())

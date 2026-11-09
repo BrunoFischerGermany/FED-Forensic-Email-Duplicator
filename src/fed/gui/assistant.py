@@ -703,7 +703,7 @@ class FolderPage(QWidget):
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels([self.tr("Ordner"), self.tr("Mails"), self.tr("Größe")])
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.tree.setMinimumHeight(360)
+        self.tree.setMinimumHeight(260)
         self.tree.itemChanged.connect(self._update_summary)
         cols.addWidget(self.tree, 3)
         right = QVBoxLayout()
@@ -755,14 +755,21 @@ class FolderPage(QWidget):
         self.go = QPushButton(self.tr("Sicherung starten"))
         self.go.setObjectName("Primary")
         self.go.clicked.connect(self._go)
-        b = QHBoxLayout()
+        # Knöpfe fest unten, der Inhalt darüber scrollt – so bleibt auf kleinen Bildschirmen alles
+        # bedienbar und nichts wird zusammengedrückt
+        bar = QWidget()
+        bar.setObjectName("ButtonBar")
+        b = QHBoxLayout(bar)
+        m = lay.contentsMargins()
+        b.setContentsMargins(m.left(), 12, m.right(), 16)
         b.addWidget(back)
         b.addStretch(1)
         b.addWidget(self.go)
-        lay.addLayout(b)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(w)
+        outer.setSpacing(0)
+        outer.addWidget(scroll(w), 1)
+        outer.addWidget(bar)
 
     def scan(self) -> None:
         st = self.st
