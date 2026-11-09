@@ -25,7 +25,8 @@ from fed.core.finalize import finish_case
 from fed.core.naming import next_evidence, normalize_email
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
-from fed.gui.widgets import Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, restyle, run_async, vbox
+from fed.gui.widgets import (Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
+                            run_async, vbox)
 from fed.core.msg import describe
 
 
@@ -65,6 +66,7 @@ class State:
     finish: object = None
     spec: acq.AccountSpec | None = None
     attempts: list = field(default_factory=list)
+    jobs: object = None  # JobManager – bleibt beim Wechsel des Case erhalten
 
 
 def page(title: str, subtitle: str = "") -> tuple[QWidget, QVBoxLayout]:
@@ -132,6 +134,10 @@ class CasePage(QWidget):
         f.addLayout(tr_, 5, 0, 1, 2)
         self.target_hint = ElidedLabel("", "Hint")
         f.addWidget(self.target_hint, 6, 0, 1, 2)
+        self.name_hint = label("", "Warn")
+        self.name_hint.setWordWrap(True)
+        self.name_hint.setVisible(False)
+        f.addWidget(self.name_hint, 7, 0, 1, 2)
         form_card.add(f)
         self.target.textChanged.connect(self._update_hint)
         self.case_no.textChanged.connect(self._update_hint)
@@ -182,10 +188,20 @@ class CasePage(QWidget):
             self.check_system()
 
     def _update_hint(self) -> None:
-        from fed.core.naming import sanitize_component
+        from fed.core.naming import file_name
 
-        self.target_hint.setText(self.tr("Case-Ordner wird angelegt: ")
-                                 + str(Path(self.target.text()) / sanitize_component(self.case_no.text() or "…")))
+        raw = self.case_no.text().strip()
+        safe = file_name(raw or "…", self.st.cfg.programm.leerzeichen_ersetzen)
+        self.target_hint.setText(self.tr("Case-Ordner wird angelegt: ") + str(Path(self.target.text()) / safe))
+        changed = bool(raw) and safe != raw
+        self.name_hint.setVisible(changed)
+        if changed:
+            text = (self.tr("Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \\ : *) und Leerzeichen werden durch "
+                            "„_“ ersetzt (Einstellungen). Die Casenumber selbst bleibt unverändert in Bericht und Log.")
+                    if self.st.cfg.programm.leerzeichen_ersetzen else
+                    self.tr("Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \\ : *), werden "
+                            "durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log."))
+            self.name_hint.setText(text.format(safe))
 
     def check_system(self) -> None:
         target = Path(self.target.text() or ".")
@@ -238,7 +254,8 @@ class CasePage(QWidget):
             return
         try:
             case = Case.create(Path(self.target.text()), CaseInfo(self.case_no.text(), self.examiner.text(),
-                                                                   self.notes.toPlainText()))
+                                                                   self.notes.toPlainText()),
+                               replace_spaces=self.st.cfg.programm.leerzeichen_ersetzen)
         except (FileExistsError, ValueError, OSError) as e:
             self.error.setText(str(e))
             return
@@ -269,6 +286,7 @@ class CasePage(QWidget):
 class AccountPage(QWidget):
     next = Signal()
     back = Signal()
+    finish = Signal()
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -368,8 +386,14 @@ class AccountPage(QWidget):
         self.go.setObjectName("Primary")
         self.go.setEnabled(False)
         self.go.clicked.connect(self._go)
+        # ohne neues Konto direkt zum Abschluss (z. B. nach einem Neustart von FED)
+        self.finish_btn = QPushButton(self.tr("Case abschließen …"))
+        self.finish_btn.setToolTip(self.tr("Kein weiteres Konto – den Case mit den gesicherten Konten abschließen"))
+        self.finish_btn.clicked.connect(self.finish.emit)
+        self.finish_btn.setVisible(False)
         b = QHBoxLayout()
         b.addWidget(back)
+        b.addWidget(self.finish_btn)
         b.addStretch(1)
         b.addWidget(self.test_btn)
         b.addWidget(self.go)
@@ -403,6 +427,7 @@ class AccountPage(QWidget):
         """Vor dem Einrichten eines (weiteren) Kontos: Übersicht zeigen, Evidence-Nummer vorschlagen."""
         rows = self.accounts.refresh(self.st.case)
         self.accounts_card.setVisible(bool(rows))
+        self.finish_btn.setVisible(bool(rows) and not self.st.case.closed)
         suggestion = next_evidence([o["evidence"] for o in rows])
         if suggestion and not self.evidence.text().strip():
             self.evidence.setText(suggestion)
@@ -511,17 +536,34 @@ class AccountPage(QWidget):
         return make_connector(self.server.text().strip(), self.port.value(), self.security.currentText(), user,
                               oauth_session=self.st.oauth_session, **kw)
 
+    def _missing(self) -> list:
+        """Leere Pflichtfelder: Adresse, Evidence-Nummer, Server und – bei Passwort-Anmeldung – das Passwort."""
+        need = [self.email, self.evidence, self.server]
+        if self.method.value() in ("password", "google_app"):
+            need.append(self.password)
+        return [w for w in need if not w.text().strip()]
+
     def _test(self) -> None:
         self.error.setText("")
-        if not normalize_email(self.email.text()) or not self.evidence.text().strip() or not self.server.text().strip():
-            self.error.setText(self.tr("E-Mail-Adresse, Evidence-Nummer und Server sind Pflicht."))
-            return
+        missing = self._missing()
+        for w in (self.email, self.evidence, self.server, self.password):
+            mark_invalid(w, w in missing)
+        problems = []
+        if missing:  # nicht testen – sonst meldet der Server nur „authentication failed“
+            names = {self.email: self.tr("E-Mail-Adresse"), self.evidence: self.tr("Evidence-Nummer"),
+                     self.server: self.tr("Server"), self.password: self.tr("Passwort")}
+            problems.append(self.tr("Bitte ausfüllen: {0}").format(", ".join(names[w] for w in missing)))
         ev, email = self.evidence.text().strip(), normalize_email(self.email.text())
-        other = next((o for o in self.accounts.rows
-                      if o["evidence"].casefold() == ev.casefold() and o["email"].casefold() != email.casefold()), None)
+        other = next((o for o in self.accounts.rows if ev and o["evidence"].casefold() == ev.casefold()
+                      and o["email"].casefold() != email.casefold()), None)
         if other:
-            self.error.setText(self.tr("Die Evidence-Nummer {0} ist im Case schon für {1} vergeben.")
-                               .format(ev, other["email"]))
+            mark_invalid(self.evidence)
+            problems.append(self.tr("Die Evidence-Nummer {0} ist im Case schon für {1} vergeben.")
+                            .format(ev, other["email"]))
+        if problems:
+            self.error.setText("\n".join(problems))
+            self.test_state.setText("")
+            (missing[0] if missing else self.evidence).setFocus()
             return
         m = self.method.value()
         self.test_btn.setEnabled(False)
@@ -673,7 +715,7 @@ class FolderPage(QWidget):
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels([self.tr("Ordner"), self.tr("Mails"), self.tr("Größe")])
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.tree.setMinimumHeight(360)
+        self.tree.setMinimumHeight(260)
         self.tree.itemChanged.connect(self._update_summary)
         cols.addWidget(self.tree, 3)
         right = QVBoxLayout()
@@ -725,14 +767,21 @@ class FolderPage(QWidget):
         self.go = QPushButton(self.tr("Sicherung starten"))
         self.go.setObjectName("Primary")
         self.go.clicked.connect(self._go)
-        b = QHBoxLayout()
+        # Knöpfe fest unten, der Inhalt darüber scrollt – so bleibt auf kleinen Bildschirmen alles
+        # bedienbar und nichts wird zusammengedrückt
+        bar = QWidget()
+        bar.setObjectName("ButtonBar")
+        b = QHBoxLayout(bar)
+        m = lay.contentsMargins()
+        b.setContentsMargins(m.left(), 12, m.right(), 16)
         b.addWidget(back)
         b.addStretch(1)
         b.addWidget(self.go)
-        lay.addLayout(b)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        outer.addWidget(w)
+        outer.setSpacing(0)
+        outer.addWidget(scroll(w), 1)
+        outer.addWidget(bar)
 
     def scan(self) -> None:
         st = self.st
@@ -849,7 +898,7 @@ class AcquirePage(QWidget):
     def __init__(self, st: State) -> None:
         super().__init__()
         self.st = st
-        self.worker = None
+        self.job = None
         w, lay = page(self.tr("Sicherung läuft"))
         self.sub = w.subtitle
         self.title = lay.itemAt(0).widget()
@@ -937,7 +986,7 @@ class AcquirePage(QWidget):
         self.another_btn = QPushButton(self.tr("Weiteres Konto im Case sichern"))
         self.finish_btn = QPushButton(self.tr("Case abschließen"))
         self.finish_btn.setObjectName("Primary")
-        self.resume_btn.clicked.connect(lambda: self.start(acq.Mode.RESUME))
+        self.resume_btn.clicked.connect(lambda: self._restart_job(acq.Mode.RESUME))
         self.restart_btn.clicked.connect(self._restart)
         self.another_btn.clicked.connect(self.another.emit)
         self.finish_btn.clicked.connect(self.finish.emit)
@@ -951,30 +1000,107 @@ class AcquirePage(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tail_log)
 
+    # ------------------------------------------------------------ Auftrag anzeigen
+    @property
+    def worker(self):
+        return self.job.worker if self.job else None
+
     def start(self, mode=acq.Mode.RESUME, reason: str = "", delete_old: bool = False) -> None:
+        """Sicherung des Kontos aus dem Assistenten starten (oder fortsetzen) und anzeigen."""
         st = self.st
-        for x in (self.resume_btn, self.restart_btn, self.another_btn, self.finish_btn):
+        evidence = st.spec.evidence_number if st.spec else ""
+        if not evidence and st.account_id is not None:
+            row = st.case.conn.execute("SELECT evidence FROM account WHERE id = ?", (st.account_id,)).fetchone()
+            evidence = row[0] if row else ""
+        job = st.jobs.start(st, st.account_id, st.email, evidence, st.connect, mode, reason, delete_old)
+        self.show_job(job)
+
+    def _restart_job(self, mode=acq.Mode.RESUME, reason: str = "", delete_old: bool = False) -> None:
+        job = self.job
+        if job is None:
+            return
+        self.st.jobs.start(self.st, job.account_id, job.email, job.evidence, job.connect, mode, reason, delete_old)
+        self.show_job(job)
+
+    def show_job(self, job) -> None:
+        if self.job is not None and self.job is not job:
+            for sig, slot in ((self.job.progress, self._on_progress), (self.job.finished, self._on_finished)):
+                try:
+                    sig.disconnect(slot)
+                except (RuntimeError, TypeError):
+                    pass
+        if self.job is not job:
+            job.progress.connect(self._on_progress)
+            job.finished.connect(self._on_finished)
+        self.job = job
+        self.log.clear()
+        self._last_log = job.log_from
+        restyle(self.sub, "Muted")
+        self._tail_log()
+        if job.running:
+            self._render_running()
+            if job.last is not None:
+                self._progress(job.last)
+            else:
+                self._reset_numbers()
+            self.timer.start(1000)
+        else:
+            self.timer.stop()
+            if job.last is not None:
+                self._progress(job.last)
+            if job.result is not None:
+                self._done(job.result)
+            elif job.error:
+                self._failed(job.error, "")
+
+    def _on_progress(self, job) -> None:
+        if job is self.job:
+            self._progress(job.last)
+
+    def _on_finished(self, job) -> None:
+        if job is not self.job:
+            return
+        self.timer.stop()
+        self._tail_log()
+        if job.result is not None:
+            self._done(job.result)
+        else:
+            self._failed(job.error, "")
+
+    def _reset_numbers(self) -> None:
+        self.bar.setValue(0)
+        self.pct.setText("0 %")
+        self.bytes_lbl.setText("")
+        self.eta_lbl.setText("")
+        for big, small in self.stat.values():
+            big.setText("–")
+            small.setText("")
+        self.folder_lbl.setText(self.tr("Ordner werden vorbereitet …"))
+        self.folder_bar.setValue(0)
+        self.uid_lbl.setText("")
+        self.issues.setText("")
+
+    def _render_running(self) -> None:
+        job = self.job
+        for x in (self.resume_btn, self.restart_btn, self.finish_btn):
             x.setVisible(False)
+        self.another_btn.setText(self.tr("Weiteres Konto sichern – diese Sicherung läuft weiter"))
+        self.another_btn.setVisible(True)
         self.cancel_btn.setVisible(True)
+        self.cancel_btn.setEnabled(not job.cancelling)
         self._show_accounts()
-        self.title.setText(self.tr("Sicherung läuft"))
-        now = datetime.now(UTC)
+        self.title.setText(self.tr("Sicherung läuft") if not job.cancelling else self.tr("Wird abgebrochen …"))
+        started = datetime.fromtimestamp(job.started_wall, UTC)
         self.sub.setText(self.tr("Modus {0} · gestartet {1} UTC ({2}) · {3} Verbindungen · nur lesend "
                                  "(EXAMINE, BODY.PEEK)").format(
-            self.tr("Fortsetzen") if mode is acq.Mode.RESUME else self.tr("Neubeginn"),
-            now.strftime("%H:%M:%S"), tf.local_str(now, with_date=False) or "–", st.cfg.programm.verbindungen))
+            self.tr("Fortsetzen") if job.mode is acq.Mode.RESUME else self.tr("Neubeginn"),
+            started.strftime("%H:%M:%S"), tf.local_str(started, with_date=False) or "–",
+            job.cfg.programm.verbindungen))
         self.sub.setVisible(True)
-        self.bar.setValue(0)
-        self._last_log = 0
-        self.timer.start(1000)
-
-        def work(cancel, report):
-            return acq.run_attempt(st.case, st.account_id, st.connect, mode, cancel, report, reason, delete_old, st.cfg)
-
-        stay_awake(st, "acquisition")
-        self.worker = run_async(work, self._done, self._failed, self._progress, parent=self)
 
     def _progress(self, p) -> None:
+        if p is None:
+            return
         pct = int(100 * p.bytes_done / p.bytes_total) if p.bytes_total else 100
         self.bar.setValue(pct)
         self.pct.setText(f"{pct} %")
@@ -999,8 +1125,14 @@ class AcquirePage(QWidget):
         self.issues.setText(self.tr("{0} Warnungen · {1} Fehler").format(p.warnings, p.errors))
 
     def _tail_log(self) -> None:
-        rows = self.st.case.conn.execute("SELECT id, ts_utc, level, event, details FROM log WHERE id > ? ORDER BY id",
-                                         (getattr(self, "_last_log", 0),)).fetchall()
+        job = self.job
+        if job is None or self.st.case is None:
+            return
+        # nur Einträge dieses Kontos (und allgemeine ohne Versuch), nicht die parallel laufender Konten
+        rows = self.st.case.conn.execute(
+            "SELECT id, ts_utc, level, event, details FROM log WHERE id > ? AND (attempt_id IS NULL OR attempt_id IN "
+            "(SELECT id FROM attempt WHERE account_id = ?)) ORDER BY id",
+            (getattr(self, "_last_log", 0), job.account_id)).fetchall()
         for id_, ts, level, event, details in rows:
             self._last_log = id_
             self.log.appendPlainText(f"{ts[11:19]} {level[:4]:<4} {event} {details[:90]}")
@@ -1009,18 +1141,14 @@ class AcquirePage(QWidget):
             self._show_accounts()
 
     def _cancel(self) -> None:
-        if self.worker:
-            self.worker.cancel.cancel()
+        if self.job and self.job.running:
+            self.job.cancel()
             self.cancel_btn.setEnabled(False)
-            self.sub.setText(self.tr("Wird abgebrochen …"))
+            self.title.setText(self.tr("Wird abgebrochen …"))
 
     def _done(self, res) -> None:
-        allow_sleep(self.st)
-        self.timer.stop()
-        self._tail_log()
         self.cancel_btn.setEnabled(True)
         self.cancel_btn.setVisible(False)
-        self.st.attempts.append(res)
         txt = {"done": self.tr("Sicherung abgeschlossen"), "cancelled": self.tr("Sicherung abgebrochen"),
                "failed": self.tr("Sicherung fehlgeschlagen")}[res.status]
         self.title.setText(txt)
@@ -1029,10 +1157,14 @@ class AcquirePage(QWidget):
         if res.status == "done":
             self.bar.setValue(100)
             self.pct.setText("100 %")
+        others = [j for j in self.st.jobs.running() if j is not self.job]
         self.resume_btn.setVisible(res.status != "done")
         self.restart_btn.setVisible(True)
-        self.another_btn.setVisible(res.status == "done")
+        self.another_btn.setText(self.tr("Weiteres Konto im Case sichern"))
+        self.another_btn.setVisible(res.status == "done" or bool(others))
         self.finish_btn.setVisible(res.status == "done")
+        self.finish_btn.setEnabled(not others)
+        self.finish_btn.setToolTip(self.tr("Erst möglich, wenn alle laufenden Sicherungen beendet sind") if others else "")
         self._show_accounts()
         self.finished.emit(res)
 
@@ -1041,22 +1173,24 @@ class AcquirePage(QWidget):
         self._show_accounts()
 
     def _show_accounts(self) -> None:
-        rows = self.accounts.refresh(self.st.case, self.st.email)
+        email = self.job.email if self.job else self.st.email
+        rows = self.accounts.refresh(self.st.case, email)
         self.accounts_card.setVisible(len(rows) > 1 or self.cancel_btn.isHidden())
         self.zip_lbl.setText(self.tr("ZIP-Archive am Ende: {0}").format(zip_mode_text(self.st.case.zip_mode())))
         for x in (self.zip_lbl, self.zip_btn):
             x.setVisible(len(rows) > 1)
-        self.zip_btn.setEnabled(self.cancel_btn.isHidden())
-        cur = next((o for o in rows if o["email"] == self.st.email), None)
+        self.zip_btn.setEnabled(not self.st.jobs.running())
+        cur = next((o for o in rows if o["email"] == email), None)
         if cur:
             nr = rows.index(cur) + 1
             self.account_lbl.setText(self.tr("Konto {0} von {1}: {2} · {3}").format(
                 nr, len(rows), cur["evidence"], cur["email"]))
+        if self.finish_btn.isVisible():
+            others = [j for j in self.st.jobs.running() if j is not self.job]
+            self.finish_btn.setEnabled(not others)
 
     def _failed(self, err: str, tb: str) -> None:
-        allow_sleep(self.st)
         self.timer.stop()
-        self._tail_log()
         self.cancel_btn.setVisible(False)
         self.title.setText(self.tr("Sicherung fehlgeschlagen"))
         self.sub.setText(err)
@@ -1064,6 +1198,8 @@ class AcquirePage(QWidget):
         self._show_accounts()
         self.resume_btn.setVisible(True)
         self.restart_btn.setVisible(True)
+        self.another_btn.setText(self.tr("Weiteres Konto im Case sichern"))
+        self.another_btn.setVisible(bool(self.st.jobs.running()))
 
     def _restart(self) -> None:
         reason, ok = QInputDialog.getText(self, self.tr("Neubeginn"),
@@ -1080,12 +1216,14 @@ class AcquirePage(QWidget):
                 "Der bisherige Stand wird endgültig gelöscht. Wirklich?"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) != QMessageBox.StandardButton.Yes:
             return
-        self.start(acq.Mode.RESTART, reason.strip(), delete)
+        self._restart_job(acq.Mode.RESTART, reason.strip(), delete)
 
 
 # ====================================================================== Schritt 7
 class FinishPage(QWidget):
     new_case = Signal()
+    retry = Signal()
+    back = Signal()
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -1117,13 +1255,22 @@ class FinishPage(QWidget):
         cols.addWidget(rep, 2)
         lay.addLayout(cols)
         lay.addStretch(1)
+        self.retry_btn = QPushButton(self.tr("Erneut versuchen"))
+        self.retry_btn.setObjectName("Primary")
+        self.retry_btn.clicked.connect(self.retry.emit)
+        self.retry_btn.setVisible(False)
+        self.back_btn = QPushButton(self.tr("Zurück zu den Konten"))
+        self.back_btn.clicked.connect(self.back.emit)
+        self.back_btn.setVisible(False)
         nb = QPushButton(self.tr("Neuen Case anlegen"))
         nb.clicked.connect(self.new_case.emit)
         self.quit_btn = QPushButton(self.tr("FED beenden"))
         self.quit_btn.setObjectName("Primary")
         self.quit_btn.clicked.connect(lambda: self.window().close())
         nr = QHBoxLayout()
+        nr.addWidget(self.back_btn)
         nr.addStretch(1)
+        nr.addWidget(self.retry_btn)
         nr.addWidget(nb)
         nr.addWidget(self.quit_btn)
         lay.addLayout(nr)
@@ -1137,6 +1284,8 @@ class FinishPage(QWidget):
 
     def run(self) -> None:
         st = self.st
+        self.retry_btn.setVisible(False)
+        self.back_btn.setVisible(False)
         mode = st.cfg.programm.arbeitsordner_loeschen
         delete = mode == "ja"
         if mode == "fragen":
@@ -1160,6 +1309,7 @@ class FinishPage(QWidget):
         self._password = password
         self.title.setText(self.tr("Case wird abgeschlossen …"))
         self.sub.setText(self.tr("ZIP packen, prüfen, Hashes und Berichte erzeugen"))
+        restyle(self.sub, "Muted")
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
@@ -1227,8 +1377,11 @@ class FinishPage(QWidget):
     def _failed(self, err, tb) -> None:
         allow_sleep(self.st)
         self.title.setText(self.tr("Abschluss fehlgeschlagen"))
-        self.sub.setText(err)
+        self.sub.setText(err + "\n" + self.tr("Der Case ist noch offen – die gesicherten Mails sind unverändert. "
+                                               "Ursache beheben und erneut versuchen."))
         restyle(self.sub, "Error")
+        self.retry_btn.setVisible(True)
+        self.back_btn.setVisible(True)
 
 
 def ask_zip_mode(parent, case, cfg, force: bool = False) -> str | None:
@@ -1285,6 +1438,10 @@ class Assistant(QWidget):
     def __init__(self, cfg: Config) -> None:
         super().__init__()
         self.st = State(cfg)
+        from fed.gui.jobs import JobManager
+
+        self.jobs = JobManager(self)
+        self.st.jobs = self.jobs
         lay = QHBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(0)
@@ -1305,7 +1462,11 @@ class Assistant(QWidget):
             self.step_btns.append(b)
         rl.addSpacing(20)
         self.rail_accounts = AccountsRail()
+        self.rail_accounts.jobs = self.jobs
         self.rail_accounts.picked.connect(self._rail_pick)
+        self.jobs.progress.connect(self.rail_accounts.update_progress)
+        self.jobs.changed.connect(self.refresh_accounts)
+        self.jobs.changed.connect(self.case_changed.emit)
         self.rail_accounts.setVisible(False)
         rl.addWidget(self.rail_accounts)
         rl.addStretch(1)
@@ -1322,13 +1483,16 @@ class Assistant(QWidget):
             self.stack.addWidget(p)
         self.p_case.next.connect(self._after_case)
         self.p_acc.back.connect(lambda: self._show(0, 0))
-        self.p_acc.next.connect(lambda: (self._show(2, 4), self.p_fold.scan()))
+        self.p_acc.next.connect(self._after_account)
         self.p_fold.back.connect(lambda: self._show(1, 2))
         self.p_fold.next.connect(lambda: (self._show(3, 5), self.p_acq.start()))
         self.p_acq.another.connect(self._another)
         self.p_acq.finish.connect(self._finish)
         self.p_acq.finished.connect(lambda _: self.case_changed.emit())
         self.p_fin.new_case.connect(self._new_case)
+        self.p_fin.retry.connect(self._finish)
+        self.p_fin.back.connect(self._another)
+        self.p_acc.finish.connect(self._finish)
         self._show(0, 0)
 
     def _show(self, page_index: int, step: int) -> None:
@@ -1343,14 +1507,27 @@ class Assistant(QWidget):
         except Exception:  # Anzeige darf eine laufende Sicherung nie stören
             pass
 
-    def _rail_pick(self, o: dict) -> None:
-        """Klick auf ein Konto in der linken Leiste: zum Fortsetzen auf die Kontoseite übernehmen."""
-        w = self.p_acq.worker
-        if w is not None and w.thread.isRunning():
-            QMessageBox.information(self, "FED", self.tr("Während einer laufenden Sicherung kann kein anderes Konto "
-                                                         "gewählt werden."))
+    def show_job(self, job) -> None:
+        self.p_acq.show_job(job)
+        self._show(3, 5)
+
+    def _after_account(self) -> None:
+        job = self.jobs.get(self.st.account_id)
+        if job is not None and job.running:  # dasselbe Konto läuft schon im Hintergrund
+            QMessageBox.information(self, "FED", self.tr("Dieses Konto wird gerade gesichert – hier ist der "
+                                                         "Fortschritt."))
+            self.show_job(job)
             return
+        self._show(2, 4)
+        self.p_fold.scan()
+
+    def _rail_pick(self, o: dict) -> None:
+        """Klick auf ein Konto in der linken Leiste: laufende Sicherung ansehen, sonst Konto übernehmen."""
         if self.st.case is None or self.st.case.closed:
+            return
+        job = self.jobs.get(o["id"])
+        if job is not None and job.running:
+            self.show_job(job)
             return
         self.st.account_id = None
         self.st.oauth_session = None
@@ -1360,6 +1537,13 @@ class Assistant(QWidget):
         self._show(1, 2)
 
     def _finish(self) -> None:
+        running = self.jobs.running()
+        if running:
+            QMessageBox.information(self, self.tr("Case abschließen"), self.tr(
+                "Es laufen noch {0} Sicherungen:\n\n{1}\n\nDer Case kann erst abgeschlossen werden, wenn alle "
+                "beendet sind.").format(len(running), "\n".join(f"⟳  {j.evidence} · {j.email} – {j.percent} %"
+                                                                 for j in running)))
+            return
         open_ = incomplete(self.st.case) if self.st.case else []
         if open_:
             lines = "\n".join(f"{state_text(o)[0]}  {o['evidence']} · {o['email']} – {state_text(o)[1]}" for o in open_)
@@ -1400,6 +1584,8 @@ class Assistant(QWidget):
             self.st.case.close()
         cfg = self.st.cfg
         self.st.__init__(cfg)
+        self.st.jobs = self.jobs
+        self.jobs.clear()
         self.p_case.case_no.setText(self.p_case._suggest())
         self.p_case.notes.clear()
         self._another()

@@ -86,12 +86,18 @@ QLabel#Hint {{ font-size: 12px; }}
 QLabel#Ok {{ color: {t['ok']}; font-weight: 600; }}
 QLabel#Warn {{ color: {t['warn']}; font-weight: 600; }}
 QLabel#Error {{ color: {t['danger']}; font-weight: 600; }}
+QLabel#Accent {{ color: {t['accent']}; font-weight: 600; }}
+QFrame#RailItem {{ border-radius: 6px; }}
+QFrame#RailItem:hover {{ background: {t['accent_soft']}; }}
 QLabel#Mono, QPlainTextEdit#Mono {{ font-family: "{mono_font}"; font-size: 12px; }}
 QLabel#Big {{ font-size: 22px; font-weight: 700; }}
 QLabel#Huge {{ font-size: 28px; font-weight: 700; }}
 QLineEdit, QPlainTextEdit, QTextEdit, QComboBox, QDateEdit, QSpinBox {{ background: {t['surface']};
     border: 1px solid {t['line_strong']}; border-radius: 6px; padding: 7px 10px; selection-background-color: {t['accent']}; }}
 QLineEdit:focus, QPlainTextEdit:focus, QComboBox:focus {{ border-color: {t['accent']}; }}
+QLineEdit, QComboBox, QDateEdit, QSpinBox {{ min-height: 22px; }}
+QWidget#ButtonBar {{ border-top: 1px solid {t['line']}; }}
+QLineEdit[invalid="true"], QLineEdit[invalid="true"]:focus {{ border: 2px solid {t['danger']}; }}
 QPushButton {{ background: {t['surface']}; border: 1px solid {t['line_strong']}; border-radius: 6px;
     padding: 9px 16px; font-weight: 500; }}
 QPushButton:hover {{ border-color: {t['accent']}; }}

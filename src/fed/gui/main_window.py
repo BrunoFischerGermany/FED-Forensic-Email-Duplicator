@@ -131,14 +131,16 @@ class MainWindow(QMainWindow):
             self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
 
     def closeEvent(self, e) -> None:
-        busy = self.assistant.p_acq.worker and self.assistant.p_acq.worker.thread.isRunning()
-        if busy:
-            r = QMessageBox.question(self, "FED", self.tr("Eine Sicherung läuft. Abbrechen und beenden?"))
+        running = self.assistant.jobs.running()
+        if running:
+            r = QMessageBox.question(self, "FED", self.tr("Es laufen noch {0} Sicherungen:\n\n{1}\n\nAbbrechen und "
+                                                          "beenden? Abgebrochene Konten lassen sich später "
+                                                          "fortsetzen.").format(
+                len(running), "\n".join(f"{j.evidence} · {j.email} – {j.percent} %" for j in running)))
             if r != QMessageBox.StandardButton.Yes:
                 e.ignore()
                 return
-            self.assistant.p_acq.worker.cancel.cancel()
-            self.assistant.p_acq.worker.thread.wait(15000)
+            self.assistant.jobs.cancel_all(15000)
         from fed.core import keepawake
 
         while keepawake.shared().active:

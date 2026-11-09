@@ -126,6 +126,31 @@
   Datenträger-Abbildern und Skripten; keine Vorschau für ausführbare Inhalte, Rückfrage vor dem
   Speichern auffälliger Anlagen; jede Vorschau wird mit Hash und Befunden protokolliert
   (`attachment_previewed`)
+- **Sicherung im Hintergrund, mehrere Konten gleichzeitig:** Während ein Konto gesichert wird,
+  kann das nächste vorbereitet und gestartet werden. Die linke Leiste zeigt je laufendem Konto
+  einen Ladebalken mit Prozent, Mails und Tempo; ein Klick öffnet dessen Live-Ansicht.
+  Abschluss erst, wenn alle Sicherungen beendet sind; Beenden bricht alle sauber ab.
+  Dasselbe Konto kann nie zweimal gleichzeitig laufen.
+- Nach einem Absturz auf „läuft“ stehen gebliebene Versuche werden beim Öffnen des Case als
+  abgebrochen erkannt und protokolliert (`attempt_interrupted`) – der Case bleibt abschließbar
+- Beenden während einer Sicherung wartete immer 15 s – jetzt sofort
+- Ordnernamen: `/` und `\` werden durch `_` ersetzt (eine Casenumber wie `VG-1234/26` legte
+  einen Unterordner an); Hinweis im Case-Formular, die Casenumber selbst bleibt unverändert
+- Abschluss schlug fehl, wenn die Casenumber ein `/` enthielt (ZIP-Name zeigte in einen nicht
+  vorhandenen Unterordner) – behoben durch die Ersetzung oben; Test mit `VG-122234/23, EV-1`
+- Leerzeichen in Case-Ordner- und Dateinamen werden standardmäßig durch `_` ersetzt
+  (Einstellung `leerzeichen_ersetzen`); die Regel wird beim Anlegen im Case gespeichert und gilt
+  für alle seine Dateien, ältere Cases behalten ihre Schreibweise. Mail-Ordner im ZIP bleiben
+  unverändert
+- Abschluss fehlgeschlagen: „Erneut versuchen“ und „Zurück zu den Konten“ (der Case bleibt offen);
+  „Case abschließen …“ jetzt auch auf der Kontoseite – nach einem Neustart von FED war ein
+  geöffneter Case sonst nur über eine neue Sicherung abschließbar
+- Verbindung testen: leere Pflichtfelder (auch das Passwort) werden rot markiert, der Test
+  startet erst, wenn alles ausgefüllt ist
+- Ordnerseite scrollt auf kleinen Bildschirmen, „Zurück“/„Sicherung starten“ bleiben fest
+  unten; Eingabefelder werden nicht mehr zusammengedrückt
+- Verschlüsselte Kopie: Passwort-Optionen nur sichtbar, wenn die Kopie gewählt ist; Felder für
+  ein eigenes Passwort nur bei „Eigenes Passwort“
 - Vollständig zweisprachig: Meldungen des Programmkerns (Fehler, Autoerkennung, Anmelde-Hinweise,
   Zeitstempel, DKIM-Begründungen, Empfänger-Hinweise, OAuth-Browserseite) und die Kommandozeile
   über `core_<sprache>.json` (`fed --lang en`, `FED_LANG`); Zonenname im Englischen `CET` statt

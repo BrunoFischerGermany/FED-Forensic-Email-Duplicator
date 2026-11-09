@@ -121,15 +121,15 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     rows = message_rows(case)
     account_sql, account_args = "", ()
     if account_id is None:
-        zip_path = case.root / f"{sanitize_component(info['case_number'])}_{stamp}.zip"
+        zip_path = case.root / f"{case.file_name(info['case_number'])}_{stamp}.zip"
         csv_path = case.root / "log.csv"
         scope = case.work_dir
     else:
         email, evidence = case.conn.execute("SELECT email, evidence_number FROM account WHERE id = ?",
                                             (account_id,)).fetchone()
         rows = [r for r in rows if r["Account"] == email]
-        ev = sanitize_component(evidence or email)
-        zip_path = case.root / f"{sanitize_component(info['case_number'])}_{ev}_{stamp}.zip"
+        ev = case.file_name(evidence or email)
+        zip_path = case.root / f"{case.file_name(info['case_number'])}_{ev}_{stamp}.zip"
         csv_path = case.root / f"log_{ev}.csv"
         scope = case.work_dir / sanitize_component(email)
         account_sql, account_args = " AND a.id = ?", (account_id,)
@@ -355,6 +355,7 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         problem = check_password(encrypt_password)
         if problem:
             raise ValueError(_t("Passwort für die verschlüsselte Kopie ungeeignet: {problem}", problem=problem))
+    case.recover_interrupted()
     running = case.conn.execute("SELECT COUNT(*) FROM attempt WHERE status = 'running'").fetchone()[0]
     if running:
         raise ValueError(_t("Es läuft noch ein Versuch"))
@@ -398,7 +399,7 @@ def encrypted_copy(case: Case, zip_paths: list[Path], password: str, cfg: Config
     """Verschlüsselte Weitergabe-Kopie erstellen, prüfen, hashen und protokollieren (ohne Passwort)."""
     from fed.core.encrypt import create_copy, files_for_copy
 
-    target = case.root / f"{sanitize_component(case.info()['case_number'])}_encrypted.zip"
+    target = case.root / f"{case.file_name(case.info()['case_number'])}_encrypted.zip"
     info = create_copy(target, files_for_copy(case.root, zip_paths), password)
     if not info["verified"]:
         case.log("ERROR", "encrypted_copy_failed", {k: v for k, v in info.items() if k != "files"})

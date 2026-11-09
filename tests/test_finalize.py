@@ -302,3 +302,45 @@ def test_encrypted_copy(acquired, tmp_path):
     assert pw not in all_log  # Passwort nirgends im Log
     assert "Verschlüsselte Weitergabe-Kopie" in res.report_txt.read_text(encoding="utf-8")
     assert path.name in {r[0] for r in case.conn.execute("SELECT file_name FROM output")}
+
+
+def test_finish_with_slash_and_spaces_in_case_number(tmp_path, imap_server, test_mails):
+    """Casenumber „VG-122234/23, EV-1“: Abschluss schrieb das ZIP in einen nicht vorhandenen Unterordner."""
+    from fed.core.acquisition import AccountSpec, register_account, run_attempt, scan
+    from fed.core.case import Case, CaseInfo
+    from fed.core.config import Config
+    from fed.core.finalize import finish_case
+    from fed.core.imap_reader import ReadOnlyImap
+
+    from validation import testmailbox
+
+    def connector(user, password):
+        def connect():
+            c = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+            c.connect()
+            c.login_password(user, password)
+            return c
+        return connect
+
+    case = Case.create(tmp_path, CaseInfo("VG-122234/23, EV-1", "Testamt Ort"))
+    for user, pw, ev in ((imap_server.user, imap_server.password, "DF 001"),
+                         (testmailbox.UMLAUT_USER, testmailbox.UMLAUT_PASSWORD, "DF 002")):
+        connect = connector(user, pw)
+        imap = connect()
+        acc = register_account(case, AccountSpec(user, ev, imap_server.host, imap_server.port), imap)
+        scan(case, acc, imap)
+        imap.logout()
+        assert run_attempt(case, acc, connect).status == "done"
+    case.set_zip_mode("je_konto")
+    cfg = Config()
+    cfg.programm.ntp = False
+    res = finish_case(case, cfg, encrypt_password="Kennwort-fuer-Test-123")
+    assert case.root.parent == tmp_path and case.root.name == "VG-122234_23,_EV-1"
+    names = sorted(p.name for p in case.root.iterdir() if p.is_file())
+    assert all(z.path.parent == case.root and z.verified for z in res.zips)
+    assert res.zips[0].path.name.startswith("VG-122234_23,_EV-1_DF_001_")
+    assert res.zips[1].path.name.startswith("VG-122234_23,_EV-1_DF_002_")
+    assert "VG-122234_23,_EV-1_encrypted.zip" in names and {"log_DF_001.csv", "log_DF_002.csv"} <= set(names)
+    assert {"report_DF_001.pdf", "report_DF_002.pdf"} <= set(names)
+    assert not any("/" in n or " " in n for n in names)
+    case.close()

@@ -23,11 +23,15 @@ from importlib import resources
 from pathlib import Path
 
 from fed import __version__
-from fed.core.naming import sanitize_component
+from fed.core.naming import file_name
 from fed.core.msg import t
 
 SCHEMA_VERSION = "1"
 _LOG_LOCK = threading.Lock()
+# Versuche, die in diesem Prozess gerade laufen: (Case-Pfad, attempt.id). Alles andere mit
+# status = 'running' stammt aus einem abgebrochenen Programmlauf (Absturz, Stromausfall).
+_LIVE: set[tuple[str, int]] = set()
+LIVE_LOCK = threading.Lock()
 GENESIS_HASH = "0" * 64
 CASE_DB = "case.sqlite"
 
@@ -67,12 +71,13 @@ class Case:
 
     # ------------------------------------------------------------ anlegen/öffnen
     @classmethod
-    def create(cls, base_dir: Path, info: CaseInfo, tool_sha256: str | None = None) -> Case:
+    def create(cls, base_dir: Path, info: CaseInfo, tool_sha256: str | None = None,
+               replace_spaces: bool = True) -> Case:
         if not info.case_number.strip():
             raise ValueError(t("Casenumber fehlt"))
         if not info.examiner.strip():
             raise ValueError(t("Examiner fehlt"))
-        root = base_dir / sanitize_component(info.case_number.strip())
+        root = base_dir / file_name(info.case_number.strip(), replace_spaces)
         if (root / CASE_DB).exists():
             raise FileExistsError(f"Case existiert bereits: {root}")
         (root / "work").mkdir(parents=True, exist_ok=True)
@@ -100,7 +105,11 @@ class Case:
                 ),
             )
         case = cls(root, conn)
-        case.log("INFO", "case_created", {"case_number": info.case_number, "path": str(root)})
+        with case.conn:  # Schreibweise der Dateinamen gilt für den ganzen Case
+            case.conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('name_spaces', ?)",
+                              ("underscore" if replace_spaces else "keep",))
+        case.log("INFO", "case_created", {"case_number": info.case_number, "path": str(root),
+                                          "name_spaces": "underscore" if replace_spaces else "keep"})
         return case
 
     @classmethod
@@ -111,7 +120,37 @@ class Case:
         case = cls(root, _connect(db))
         _migrate(case)
         case.log("INFO", "case_opened", {"tool_version": __version__})
+        case.recover_interrupted()
         return case
+
+    # ------------------------------------------------------------ laufende Versuche
+    def _key(self, attempt_id: int) -> tuple[str, int]:
+        return (str(self.root.resolve()), attempt_id)
+
+    def mark_live(self, attempt_id: int) -> None:
+        _LIVE.add(self._key(attempt_id))
+
+    def unmark_live(self, attempt_id: int) -> None:
+        _LIVE.discard(self._key(attempt_id))
+
+    def is_live(self, attempt_id: int) -> bool:
+        return self._key(attempt_id) in _LIVE
+
+    def recover_interrupted(self, account_id: int | None = None) -> int:
+        """Versuche mit status 'running', die in keinem laufenden Vorgang stecken, als abgebrochen
+        ('failed', phase 'interrupted') abschließen und protokollieren. Rückgabe: Anzahl."""
+        with LIVE_LOCK:
+            sql = "SELECT id, account_id FROM attempt WHERE status = 'running'"
+            rows = self.conn.execute(sql + (" AND account_id = ?" if account_id else ""),
+                                     (account_id,) if account_id else ()).fetchall()
+            stale = [(i, a) for i, a in rows if not self.is_live(i)]
+            for attempt_id, _acc in stale:
+                with self.conn:
+                    self.conn.execute("UPDATE attempt SET status = 'failed', phase = 'interrupted', "
+                                      "ended_utc = COALESCE(ended_utc, ?) WHERE id = ?", (utc_now(), attempt_id))
+        for attempt_id, acc in stale:
+            self.log("WARNING", "attempt_interrupted", {"account_id": acc}, attempt_id)
+        return len(stale)
 
     def close(self) -> None:
         with self._lock:
@@ -124,6 +163,16 @@ class Case:
         self._local = threading.local()
 
     # ------------------------------------------------------------ Einstellungen des Case
+    @property
+    def replace_spaces(self) -> bool:
+        """Leerzeichen in Dateinamen durch _ ersetzen – beim Anlegen festgelegt (ältere Cases: nein)."""
+        row = self.conn.execute("SELECT value FROM meta WHERE key = 'name_spaces'").fetchone()
+        return bool(row) and row[0] == "underscore"
+
+    def file_name(self, text: str) -> str:
+        """Datei-/Ordnername aus Casenumber oder Evidence-Nummer nach der Regel dieses Case."""
+        return file_name(text, self.replace_spaces)
+
     ZIP_MODES = ("gesamt", "je_konto")
 
     def zip_mode(self) -> str | None:

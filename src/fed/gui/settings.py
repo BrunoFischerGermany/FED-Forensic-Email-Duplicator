@@ -156,6 +156,9 @@ class SettingsTab(QWidget):
         s.add(self.awake)
         self.dkim = QCheckBox(self.tr("DKIM-Signaturen bei der Sicherung prüfen und DNS-Schlüssel aufbewahren"))
         s.add(self.dkim)
+        self.spaces = QCheckBox(self.tr("Leerzeichen in Case-Ordner- und Dateinamen durch „_“ ersetzen "
+                                        "(gilt für neue Cases)"))
+        s.add(self.spaces)
         grid.addWidget(s, 1, 1)
 
         n = Card(self.tr("Netzwerk und Zeit"))
@@ -225,6 +228,7 @@ class SettingsTab(QWidget):
         self.timeout.setValue(p.socket_timeout_s)
         self.awake.setChecked(p.wach_halten)
         self.dkim.setChecked(p.dkim_pruefen)
+        self.spaces.setChecked(p.leerzeichen_ersetzen)
         self.workdel.setCurrentIndex(max(self.workdel.findData(p.arbeitsordner_loeschen), 0))
         self.zipmode.setCurrentIndex(max(self.zipmode.findData(p.zip_aufteilung), 0))
         self.encmode.setCurrentIndex(max(self.encmode.findData(p.verschluesselung), 0))
@@ -290,6 +294,7 @@ class SettingsTab(QWidget):
         p.socket_timeout_s, p.chunk_mb = self.timeout.value(), self.chunk.value()
         p.wach_halten = self.awake.isChecked()
         p.dkim_pruefen = self.dkim.isChecked()
+        p.leerzeichen_ersetzen = self.spaces.isChecked()
         p.arbeitsordner_loeschen = self.workdel.currentData()
         p.zip_aufteilung = self.zipmode.currentData()
         p.verschluesselung = self.encmode.currentData()

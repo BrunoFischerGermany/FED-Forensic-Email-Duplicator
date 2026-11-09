@@ -108,7 +108,8 @@ def main(argv: list[str] | None = None) -> int:
 
         cfg = cfgmod.load(args.config) if args.config else cfgmod.Config()
         examiner = args.examiner or cfg.examiner_name
-        case = Case.create(args.target, CaseInfo(args.case, examiner, args.notes))
+        case = Case.create(args.target, CaseInfo(args.case, examiner, args.notes),
+                           replace_spaces=cfg.programm.leerzeichen_ersetzen)
         info = syscheck.collect(args.target, cfg.programm.ntp_server if cfg.programm.ntp else None, cfg.proxy_url)
         case.record_system_check(info.as_dict())
         case.store_config_snapshot(cfg.raw_text, cfg.logo_path())

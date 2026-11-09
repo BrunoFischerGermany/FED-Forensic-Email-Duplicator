@@ -117,6 +117,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         dns_rows = [r for r in dns_rows if r["name"] in used]
     return {
         "info": info,
+        "replace_spaces": case.replace_spaces,
         "agency": agency,
         "logo": snap[0] if snap else {},
         "system": _q(case, "SELECT * FROM system_check ORDER BY id DESC LIMIT 1"),
@@ -433,9 +434,9 @@ def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "au
 
 
 def _encrypted_name(d: dict) -> str:
-    from fed.core.naming import sanitize_component
+    from fed.core.naming import file_name
 
-    return f"{sanitize_component(d['info']['case_number'])}_encrypted.zip"
+    return f"{file_name(d['info']['case_number'], d.get('replace_spaces', False))}_encrypted.zip"
 
 
 # ---------------------------------------------------------------- PDF
@@ -656,11 +657,11 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.output(str(path))
 
 
-def account_report_name(evidence: str, email: str, suffix: str) -> str:
+def account_report_name(evidence: str, email: str, suffix: str, replace_spaces: bool = False) -> str:
     """Dateiname des Einzelberichts, z. B. ``report_A-01.pdf``."""
-    from fed.core.naming import sanitize_component
+    from fed.core.naming import file_name
 
-    return f"report_{sanitize_component(evidence or email)}{suffix}"
+    return f"report_{file_name(evidence or email, replace_spaces)}{suffix}"
 
 
 @_time_language
@@ -674,9 +675,9 @@ def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
     accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
     if len(accounts) > 1:
         for acc_id, evidence, email in accounts:
-            write_txt(case, case.root / account_report_name(evidence, email, ".txt"), language, mail_list,
+            write_txt(case, case.root / account_report_name(evidence, email, ".txt", case.replace_spaces), language, mail_list,
                       mail_list_max, acc_id, encrypted_planned)
-            write_pdf(case, case.root / account_report_name(evidence, email, ".pdf"), language, mail_list,
+            write_pdf(case, case.root / account_report_name(evidence, email, ".pdf", case.replace_spaces), language, mail_list,
                       mail_list_max, acc_id, encrypted_planned)
     return txt, pdfp
 

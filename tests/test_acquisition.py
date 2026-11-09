@@ -301,3 +301,52 @@ def test_content_filter_partial_acquisition(tmp_path, connect, imap_server, cfg)
     txt = render_txt(case, "de")
     assert "Inhaltsfilter" in txt and "Betreff enthält: Rechnung" in txt and "Absender enthält: j.beispiel" in txt
     case.close()
+
+
+def test_same_account_never_twice_and_interrupted_attempts_recovered(tmp_path, imap_server, test_mails):
+    import threading
+
+    from fed.core.acquisition import AlreadyRunning
+    from fed.core.case import Case, CaseInfo
+    from fed.core.imap_reader import ReadOnlyImap
+
+    def connect():
+        c = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+        c.connect()
+        c.login_password(imap_server.user, imap_server.password)
+        return c
+
+    case = Case.create(tmp_path, CaseInfo("PAR-1", "Max Mustermann"))
+    imap = connect()
+    acc = register_account(case, AccountSpec(imap_server.user, "A-01", imap_server.host, imap_server.port), imap)
+    scan(case, acc, imap)
+    imap.logout()
+    gate, inside = threading.Event(), threading.Event()
+
+    def slow_connect():  # erster Versuch hängt, bis der zweite geprüft ist
+        inside.set()
+        gate.wait(10)
+        return connect()
+
+    out = {}
+    th = threading.Thread(target=lambda: out.setdefault("r", run_attempt(case, acc, slow_connect)))
+    th.start()
+    assert inside.wait(10)
+    with pytest.raises(AlreadyRunning):
+        run_attempt(case, acc, connect)
+    gate.set()
+    th.join(30)
+    assert out["r"].status == "done"
+
+    # Absturz simulieren: Versuch bleibt 'running' in der Datenbank, ohne dass er läuft
+    with case.conn:
+        case.conn.execute("INSERT INTO attempt (account_id, nr, mode, reason, started_utc, status, phase) "
+                          "VALUES (?, 99, 'resume', '', '2026-01-01T00:00:00Z', 'running', 'download')", (acc,))
+    root = case.root
+    case.close()
+    case = Case.open(root)
+    st = case.conn.execute("SELECT status, phase FROM attempt WHERE nr = 99").fetchone()
+    assert tuple(st) == ("failed", "interrupted")
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'attempt_interrupted'").fetchone()[0] == 1
+    assert run_attempt(case, acc, connect).status == "done"  # danach normal fortsetzbar
+    case.close()
