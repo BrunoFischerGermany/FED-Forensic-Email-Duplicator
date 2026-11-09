@@ -408,3 +408,16 @@ def test_closing_note_dialog_before_finish(acquired, monkeypatch):
     assert called[0]["closing_note_html"] == "<p>Übergabe an <b>KHK Muster</b></p>"
     page.deleteLater()
     app.processEvents()
+
+
+def test_workers_are_released_in_gui_thread():
+    """Hintergrund-Threads werden nach dem Ende im GUI-Thread geordnet freigegeben (kein Liegenbleiben)."""
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.gui import widgets
+
+    results = []
+    workers = [widgets.run_async(lambda cancel, report, i=i: (report(i), i * 2)[1], results.append) for i in range(5)]
+    _pump(app, lambda: len(results) == 5)
+    assert sorted(results) == [0, 2, 4, 6, 8]
+    _pump(app, lambda: not any(w in widgets._running for w in workers), 5)
+    assert all(not w.thread.isRunning() and w.relay is None for w in workers)

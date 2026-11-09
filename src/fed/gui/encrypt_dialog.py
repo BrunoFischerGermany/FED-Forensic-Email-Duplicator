@@ -33,7 +33,7 @@ class EncryptDialog(QDialog):
         grp.addButton(self.own)
         self.generated = QLineEdit(generate_password())
         self.generated.setReadOnly(True)
-        self.generated.setStyleSheet("font-family: monospace;")
+        self.generated.setObjectName("Mono")  # Festbreitenschrift des Systems (Design)
         copy = QPushButton(self.tr("Kopieren"))
         copy.clicked.connect(lambda: QGuiApplication.clipboard().setText(self.generated.text()))
         regen = QPushButton(self.tr("Neu"))

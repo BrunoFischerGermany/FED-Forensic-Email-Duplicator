@@ -296,7 +296,7 @@ class MailViewer(QDialog):
         self.hex = QPlainTextEdit()
         self.hex.setReadOnly(True)
         self.hex.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.hex.setStyleSheet("font-family: monospace;")
+        self.hex.setObjectName("Mono")  # Festbreitenschrift des Systems (Design)
         self.side = QTabWidget()
         self.side.addTab(self.preview, self.tr("Vorschau"))
         self.side.addTab(chk_scroll, self.tr("Prüfung"))
@@ -447,7 +447,7 @@ class MailViewer(QDialog):
         t.setReadOnly(True)
         t.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         t.setPlainText("\n".join(f"{k}: {val}" for k, val in self.view.headers))
-        t.setStyleSheet("font-family: monospace;")
+        t.setObjectName("Mono")
         return t
 
     def _route_tab(self) -> QWidget:

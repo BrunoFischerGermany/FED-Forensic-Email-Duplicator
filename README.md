@@ -149,6 +149,7 @@ tests/
 ## License
 
 GPL-3.0-only, see [LICENSE](LICENSE). The code in `legacy/` remains under MIT ([legacy/LICENSE-MIT](legacy/LICENSE-MIT)).
+Fonts for the PDF report in `src/fed/resources/fonts/`: DejaVu Sans ([LICENSE-DejaVu.txt](src/fed/resources/fonts/LICENSE-DejaVu.txt)) and Noto Emoji, © Google LLC, SIL Open Font License 1.1 ([LICENSE-NotoEmoji-OFL.txt](src/fed/resources/fonts/LICENSE-NotoEmoji-OFL.txt)).
 
 ## Authors
 

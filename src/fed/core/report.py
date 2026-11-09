@@ -546,6 +546,10 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.add_font("DejaVu", "I", str(fonts / "DejaVuSans-Oblique.ttf"))
     pdf.add_font("DejaVu", "BI", str(fonts / "DejaVuSans-BoldOblique.ttf"))
     pdf.add_font("Mono", "", str(fonts / "DejaVuSansMono.ttf"))
+    # Emojis in Betreffs und Notizen: Ersatzschrift (Noto Emoji, schwarz-weiß, OFL) für Zeichen,
+    # die DejaVu nicht hat – sonst stünden im PDF leere Kästchen
+    pdf.add_font("NotoEmoji", "", str(fonts / "NotoEmoji-Regular.ttf"))
+    pdf.set_fallback_fonts(["NotoEmoji"], exact_match=False)
     pdf.set_title(f"{_title(d, L)} – {info['case_number']}")
     pdf.set_creator(f"{APP_NAME} {__version__}")
     pdf.add_page()

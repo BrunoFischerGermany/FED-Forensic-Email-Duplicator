@@ -145,6 +145,14 @@
 - Abschluss fehlgeschlagen: „Erneut versuchen“ und „Zurück zu den Konten“ (der Case bleibt offen);
   „Case abschließen …“ jetzt auch auf der Kontoseite – nach einem Neustart von FED war ein
   geöffneter Case sonst nur über eine neue Sicherung abschließbar
+- PDF-Bericht: Emojis in Betreffs und Notizen werden dargestellt statt leerer Kästchen
+  (Ersatzschrift Noto Emoji, schwarz-weiß, SIL OFL 1.1; Warnung „missing the following glyphs“
+  entfällt)
+- Qt-Warnung „missing font family Monospace“ (macOS) behoben: Festbreite über die
+  Systemschrift des Designs statt über den Namen „monospace“
+- Hintergrund-Threads werden im GUI-Thread geordnet freigegeben: Das Aufräumen hing an einer
+  Funktion ohne Bezugsobjekt am Thread-Ende und lief im endenden Thread – selten stürzte danach die
+  Speicherbereinigung ab
 - Abschlussvermerk: vor dem Abschluss optional ein formatierbarer Vermerk für den Bericht
   (Abschnitt „Abschlussvermerk“ vor der Bestätigung; gespeichert und protokolliert, CLI
   `fed finish --closing-note`). Abbrechen lässt den Case offen
