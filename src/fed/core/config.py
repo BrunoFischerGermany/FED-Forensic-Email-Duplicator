@@ -41,6 +41,7 @@ class Programm:
     verbindungen: int = 3  # gleichzeitige IMAP-Verbindungen beim Download (1–10)
     wach_halten: bool = True
     dkim_pruefen: bool = True  # DKIM-Signaturen bei der Sicherung prüfen (braucht DNS)
+    leerzeichen_ersetzen: bool = True  # Leerzeichen in Case-Ordner- und Dateinamen durch _ ersetzen
     verschluesselung: str = "fragen"  # verschlüsselte Weitergabe-Kopie beim Abschluss: fragen | aus
     zip_aufteilung: str = "fragen"  # bei mehreren Konten: fragen | gesamt | je_konto
     arbeitsordner_loeschen: str = "fragen"  # nach verifiziertem ZIP: fragen | ja | nein  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern

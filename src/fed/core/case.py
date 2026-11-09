@@ -23,7 +23,7 @@ from importlib import resources
 from pathlib import Path
 
 from fed import __version__
-from fed.core.naming import sanitize_component
+from fed.core.naming import file_name
 from fed.core.msg import t
 
 SCHEMA_VERSION = "1"
@@ -71,12 +71,13 @@ class Case:
 
     # ------------------------------------------------------------ anlegen/öffnen
     @classmethod
-    def create(cls, base_dir: Path, info: CaseInfo, tool_sha256: str | None = None) -> Case:
+    def create(cls, base_dir: Path, info: CaseInfo, tool_sha256: str | None = None,
+               replace_spaces: bool = True) -> Case:
         if not info.case_number.strip():
             raise ValueError(t("Casenumber fehlt"))
         if not info.examiner.strip():
             raise ValueError(t("Examiner fehlt"))
-        root = base_dir / sanitize_component(info.case_number.strip())
+        root = base_dir / file_name(info.case_number.strip(), replace_spaces)
         if (root / CASE_DB).exists():
             raise FileExistsError(f"Case existiert bereits: {root}")
         (root / "work").mkdir(parents=True, exist_ok=True)
@@ -104,7 +105,11 @@ class Case:
                 ),
             )
         case = cls(root, conn)
-        case.log("INFO", "case_created", {"case_number": info.case_number, "path": str(root)})
+        with case.conn:  # Schreibweise der Dateinamen gilt für den ganzen Case
+            case.conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('name_spaces', ?)",
+                              ("underscore" if replace_spaces else "keep",))
+        case.log("INFO", "case_created", {"case_number": info.case_number, "path": str(root),
+                                          "name_spaces": "underscore" if replace_spaces else "keep"})
         return case
 
     @classmethod
@@ -158,6 +163,16 @@ class Case:
         self._local = threading.local()
 
     # ------------------------------------------------------------ Einstellungen des Case
+    @property
+    def replace_spaces(self) -> bool:
+        """Leerzeichen in Dateinamen durch _ ersetzen – beim Anlegen festgelegt (ältere Cases: nein)."""
+        row = self.conn.execute("SELECT value FROM meta WHERE key = 'name_spaces'").fetchone()
+        return bool(row) and row[0] == "underscore"
+
+    def file_name(self, text: str) -> str:
+        """Datei-/Ordnername aus Casenumber oder Evidence-Nummer nach der Regel dieses Case."""
+        return file_name(text, self.replace_spaces)
+
     ZIP_MODES = ("gesamt", "je_konto")
 
     def zip_mode(self) -> str | None:

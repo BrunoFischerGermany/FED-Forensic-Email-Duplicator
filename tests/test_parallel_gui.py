@@ -229,9 +229,44 @@ def test_case_folder_name_replaces_slash(tmp_path):
     from fed.core.case import Case, CaseInfo
     from fed.core.naming import sanitize_component
 
+    from fed.core.naming import file_name
+
     assert sanitize_component("VG-1234/26, EV-1") == "VG-1234_26, EV-1"
     assert sanitize_component(" a\\b:c ") == "a_b_c"
+    assert file_name("VG-1234/26, EV-1") == "VG-1234_26,_EV-1"
+    assert file_name("VG-1234/26,  EV-1", spaces_to_underscore=False) == "VG-1234_26,  EV-1"
+    # Standard: Leerzeichen -> _, gilt für alle Dateien des Case
     case = Case.create(tmp_path, CaseInfo("VG-1234/26, EV-1", "ZAI+Z Fischer"))
-    assert case.root == tmp_path / "VG-1234_26, EV-1" and case.root.parent == tmp_path
+    assert case.root == tmp_path / "VG-1234_26,_EV-1" and case.root.parent == tmp_path
     assert case.info()["case_number"] == "VG-1234/26, EV-1"  # Original bleibt erhalten
+    assert case.replace_spaces and case.file_name("EV 2") == "EV_2"
     case.close()
+    case = Case.open(tmp_path / "VG-1234_26,_EV-1")
+    assert case.replace_spaces  # Regel bleibt beim erneuten Öffnen erhalten
+    case.close()
+    # abgeschaltet: Leerzeichen bleiben
+    keep = Case.create(tmp_path, CaseInfo("AZ 7/26", "X"), replace_spaces=False)
+    assert keep.root.name == "AZ 7_26" and keep.file_name("EV 2") == "EV 2"
+    keep.close()
+
+
+def test_finish_reachable_after_restart_and_retry_after_failure(acquired):
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core.config import Config
+    from fed.gui.assistant import AccountPage, FinishPage, State
+
+    st = State(Config(), case=acquired)
+    p = AccountPage(st)
+    p.prepare()
+    assert p.finish_btn.isVisibleTo(p)  # Case mit Konto: direkt abschließen möglich
+    fired = []
+    p.finish.connect(lambda: fired.append(1))
+    p.finish_btn.click()
+    assert fired
+    f = FinishPage(st)
+    assert not f.retry_btn.isVisibleTo(f)
+    f._failed("[Errno 2] No such file or directory", "")
+    assert f.retry_btn.isVisibleTo(f) and f.back_btn.isVisibleTo(f) and "noch offen" in f.sub.text()
+    for w in (p, f):
+        w.deleteLater()
+    app.processEvents()

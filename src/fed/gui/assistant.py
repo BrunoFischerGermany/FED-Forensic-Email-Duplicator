@@ -188,17 +188,20 @@ class CasePage(QWidget):
             self.check_system()
 
     def _update_hint(self) -> None:
-        from fed.core.naming import sanitize_component
+        from fed.core.naming import file_name
 
         raw = self.case_no.text().strip()
-        safe = sanitize_component(raw or "…")
+        safe = file_name(raw or "…", self.st.cfg.programm.leerzeichen_ersetzen)
         self.target_hint.setText(self.tr("Case-Ordner wird angelegt: ") + str(Path(self.target.text()) / safe))
         changed = bool(raw) and safe != raw
         self.name_hint.setVisible(changed)
         if changed:
-            self.name_hint.setText(self.tr("Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind "
-                                           "(z. B. / \\ : *), werden durch „_“ ersetzt. Die Casenumber selbst bleibt "
-                                           "unverändert in Bericht und Log.").format(safe))
+            text = (self.tr("Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \\ : *) und Leerzeichen werden durch "
+                            "„_“ ersetzt (Einstellungen). Die Casenumber selbst bleibt unverändert in Bericht und Log.")
+                    if self.st.cfg.programm.leerzeichen_ersetzen else
+                    self.tr("Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \\ : *), werden "
+                            "durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log."))
+            self.name_hint.setText(text.format(safe))
 
     def check_system(self) -> None:
         target = Path(self.target.text() or ".")
@@ -251,7 +254,8 @@ class CasePage(QWidget):
             return
         try:
             case = Case.create(Path(self.target.text()), CaseInfo(self.case_no.text(), self.examiner.text(),
-                                                                   self.notes.toPlainText()))
+                                                                   self.notes.toPlainText()),
+                               replace_spaces=self.st.cfg.programm.leerzeichen_ersetzen)
         except (FileExistsError, ValueError, OSError) as e:
             self.error.setText(str(e))
             return
@@ -282,6 +286,7 @@ class CasePage(QWidget):
 class AccountPage(QWidget):
     next = Signal()
     back = Signal()
+    finish = Signal()
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -381,8 +386,14 @@ class AccountPage(QWidget):
         self.go.setObjectName("Primary")
         self.go.setEnabled(False)
         self.go.clicked.connect(self._go)
+        # ohne neues Konto direkt zum Abschluss (z. B. nach einem Neustart von FED)
+        self.finish_btn = QPushButton(self.tr("Case abschließen …"))
+        self.finish_btn.setToolTip(self.tr("Kein weiteres Konto – den Case mit den gesicherten Konten abschließen"))
+        self.finish_btn.clicked.connect(self.finish.emit)
+        self.finish_btn.setVisible(False)
         b = QHBoxLayout()
         b.addWidget(back)
+        b.addWidget(self.finish_btn)
         b.addStretch(1)
         b.addWidget(self.test_btn)
         b.addWidget(self.go)
@@ -416,6 +427,7 @@ class AccountPage(QWidget):
         """Vor dem Einrichten eines (weiteren) Kontos: Übersicht zeigen, Evidence-Nummer vorschlagen."""
         rows = self.accounts.refresh(self.st.case)
         self.accounts_card.setVisible(bool(rows))
+        self.finish_btn.setVisible(bool(rows) and not self.st.case.closed)
         suggestion = next_evidence([o["evidence"] for o in rows])
         if suggestion and not self.evidence.text().strip():
             self.evidence.setText(suggestion)
@@ -1210,6 +1222,8 @@ class AcquirePage(QWidget):
 # ====================================================================== Schritt 7
 class FinishPage(QWidget):
     new_case = Signal()
+    retry = Signal()
+    back = Signal()
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -1241,13 +1255,22 @@ class FinishPage(QWidget):
         cols.addWidget(rep, 2)
         lay.addLayout(cols)
         lay.addStretch(1)
+        self.retry_btn = QPushButton(self.tr("Erneut versuchen"))
+        self.retry_btn.setObjectName("Primary")
+        self.retry_btn.clicked.connect(self.retry.emit)
+        self.retry_btn.setVisible(False)
+        self.back_btn = QPushButton(self.tr("Zurück zu den Konten"))
+        self.back_btn.clicked.connect(self.back.emit)
+        self.back_btn.setVisible(False)
         nb = QPushButton(self.tr("Neuen Case anlegen"))
         nb.clicked.connect(self.new_case.emit)
         self.quit_btn = QPushButton(self.tr("FED beenden"))
         self.quit_btn.setObjectName("Primary")
         self.quit_btn.clicked.connect(lambda: self.window().close())
         nr = QHBoxLayout()
+        nr.addWidget(self.back_btn)
         nr.addStretch(1)
+        nr.addWidget(self.retry_btn)
         nr.addWidget(nb)
         nr.addWidget(self.quit_btn)
         lay.addLayout(nr)
@@ -1261,6 +1284,8 @@ class FinishPage(QWidget):
 
     def run(self) -> None:
         st = self.st
+        self.retry_btn.setVisible(False)
+        self.back_btn.setVisible(False)
         mode = st.cfg.programm.arbeitsordner_loeschen
         delete = mode == "ja"
         if mode == "fragen":
@@ -1284,6 +1309,7 @@ class FinishPage(QWidget):
         self._password = password
         self.title.setText(self.tr("Case wird abgeschlossen …"))
         self.sub.setText(self.tr("ZIP packen, prüfen, Hashes und Berichte erzeugen"))
+        restyle(self.sub, "Muted")
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
@@ -1351,8 +1377,11 @@ class FinishPage(QWidget):
     def _failed(self, err, tb) -> None:
         allow_sleep(self.st)
         self.title.setText(self.tr("Abschluss fehlgeschlagen"))
-        self.sub.setText(err)
+        self.sub.setText(err + "\n" + self.tr("Der Case ist noch offen – die gesicherten Mails sind unverändert. "
+                                               "Ursache beheben und erneut versuchen."))
         restyle(self.sub, "Error")
+        self.retry_btn.setVisible(True)
+        self.back_btn.setVisible(True)
 
 
 def ask_zip_mode(parent, case, cfg, force: bool = False) -> str | None:
@@ -1461,6 +1490,9 @@ class Assistant(QWidget):
         self.p_acq.finish.connect(self._finish)
         self.p_acq.finished.connect(lambda _: self.case_changed.emit())
         self.p_fin.new_case.connect(self._new_case)
+        self.p_fin.retry.connect(self._finish)
+        self.p_fin.back.connect(self._another)
+        self.p_acc.finish.connect(self._finish)
         self._show(0, 0)
 
     def _show(self, page_index: int, step: int) -> None:

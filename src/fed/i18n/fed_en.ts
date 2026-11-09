@@ -103,6 +103,14 @@
         <translation>Scan mailbox</translation>
     </message>
     <message>
+        <source>Case abschließen …</source>
+        <translation>Close case …</translation>
+    </message>
+    <message>
+        <source>Kein weiteres Konto – den Case mit den gesicherten Konten abschließen</source>
+        <translation>No further account – close the case with the acquired accounts</translation>
+    </message>
+    <message>
         <source>Evidence-Nummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
         <translation>Evidence number suggested (after {0}) – please check.</translation>
     </message>
@@ -647,6 +655,10 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Case folder will be created: </translation>
     </message>
     <message>
+        <source>Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \ : *) und Leerzeichen werden durch „_“ ersetzt (Einstellungen). Die Casenumber selbst bleibt unverändert in Bericht und Log.</source>
+        <translation>Folder name: “{0}” – characters that are not allowed (e.g. / \ : *) and spaces are replaced by “_” (Settings). The case number itself stays unchanged in report and log.</translation>
+    </message>
+    <message>
         <source>Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \ : *), werden durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log.</source>
         <translation>Folder name: “{0}” – characters not allowed in folder names (e.g. / \ : *) are replaced by “_”. The case number itself stays unchanged in report and log.</translation>
     </message>
@@ -807,6 +819,14 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Open case folder</translation>
     </message>
     <message>
+        <source>Erneut versuchen</source>
+        <translation>Try again</translation>
+    </message>
+    <message>
+        <source>Zurück zu den Konten</source>
+        <translation>Back to the accounts</translation>
+    </message>
+    <message>
         <source>Neuen Case anlegen</source>
         <translation>Create new case</translation>
     </message>
@@ -917,6 +937,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Abschluss fehlgeschlagen</source>
         <translation>Finishing failed</translation>
+    </message>
+    <message>
+        <source>Der Case ist noch offen – die gesicherten Mails sind unverändert. Ursache beheben und erneut versuchen.</source>
+        <translation>The case is still open – the acquired messages are unchanged. Fix the cause and try again.</translation>
     </message>
 </context>
 <context>
@@ -2149,6 +2173,10 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>DKIM-Signaturen bei der Sicherung prüfen und DNS-Schlüssel aufbewahren</source>
         <translation>Check DKIM signatures during acquisition and preserve the DNS keys</translation>
+    </message>
+    <message>
+        <source>Leerzeichen in Case-Ordner- und Dateinamen durch „_“ ersetzen (gilt für neue Cases)</source>
+        <translation>Replace spaces in case folder and file names with “_” (applies to new cases)</translation>
     </message>
     <message>
         <source>Netzwerk und Zeit</source>

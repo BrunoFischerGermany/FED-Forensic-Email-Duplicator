@@ -94,6 +94,14 @@ def sanitize_component(name: str) -> str:
     return cleaned
 
 
+def file_name(text: str, spaces_to_underscore: bool = True) -> str:
+    """Name für Case-Ordner und Ausgabedateien (aus Casenumber/Evidence-Nummer): wie
+    :func:`sanitize_component`, auf Wunsch zusätzlich Leerzeichen -> ``_``
+    (``VG-1234/26, EV-1`` -> ``VG-1234_26,_EV-1``). Mail-Ordner im ZIP bleiben unberührt."""
+    name = sanitize_component(text)
+    return re.sub(r"\s+", "_", name) if spaces_to_underscore else name
+
+
 def folder_to_zip_path(folder: str, delimiter: str | None) -> str:
     """IMAP-Ordnerpfad (dekodiert) in ZIP-Pfad mit ``/`` umwandeln."""
     parts = folder.split(delimiter) if delimiter else [folder]

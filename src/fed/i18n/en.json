@@ -517,5 +517,12 @@
   "Dieses Konto wird gerade gesichert – hier ist der Fortschritt.": "This account is being acquired right now – here is the progress.",
   "Es laufen noch {0} Sicherungen:\n\n{1}\n\nDer Case kann erst abgeschlossen werden, wenn alle beendet sind.": "{0} acquisitions are still running:\n\n{1}\n\nThe case can only be closed once all of them have ended.",
   "Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \\ : *), werden durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log.": "Folder name: “{0}” – characters not allowed in folder names (e.g. / \\ : *) are replaced by “_”. The case number itself stays unchanged in report and log.",
-  "Es laufen noch {0} Sicherungen:\n\n{1}\n\nAbbrechen und beenden? Abgebrochene Konten lassen sich später fortsetzen.": "{0} acquisitions are still running:\n\n{1}\n\nCancel and quit? Cancelled accounts can be resumed later."
+  "Es laufen noch {0} Sicherungen:\n\n{1}\n\nAbbrechen und beenden? Abgebrochene Konten lassen sich später fortsetzen.": "{0} acquisitions are still running:\n\n{1}\n\nCancel and quit? Cancelled accounts can be resumed later.",
+  "Case abschließen …": "Close case …",
+  "Kein weiteres Konto – den Case mit den gesicherten Konten abschließen": "No further account – close the case with the acquired accounts",
+  "Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \\ : *) und Leerzeichen werden durch „_“ ersetzt (Einstellungen). Die Casenumber selbst bleibt unverändert in Bericht und Log.": "Folder name: “{0}” – characters that are not allowed (e.g. / \\ : *) and spaces are replaced by “_” (Settings). The case number itself stays unchanged in report and log.",
+  "Erneut versuchen": "Try again",
+  "Zurück zu den Konten": "Back to the accounts",
+  "Der Case ist noch offen – die gesicherten Mails sind unverändert. Ursache beheben und erneut versuchen.": "The case is still open – the acquired messages are unchanged. Fix the cause and try again.",
+  "Leerzeichen in Case-Ordner- und Dateinamen durch „_“ ersetzen (gilt für neue Cases)": "Replace spaces in case folder and file names with “_” (applies to new cases)"
 }

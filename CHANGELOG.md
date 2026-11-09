@@ -136,6 +136,15 @@
 - Beenden während einer Sicherung wartete immer 15 s – jetzt sofort
 - Ordnernamen: `/` und `\` werden durch `_` ersetzt (eine Casenumber wie `VG-1234/26` legte
   einen Unterordner an); Hinweis im Case-Formular, die Casenumber selbst bleibt unverändert
+- Abschluss schlug fehl, wenn die Casenumber ein `/` enthielt (ZIP-Name zeigte in einen nicht
+  vorhandenen Unterordner) – behoben durch die Ersetzung oben; Test mit `VG-122234/23, EV-1`
+- Leerzeichen in Case-Ordner- und Dateinamen werden standardmäßig durch `_` ersetzt
+  (Einstellung `leerzeichen_ersetzen`); die Regel wird beim Anlegen im Case gespeichert und gilt
+  für alle seine Dateien, ältere Cases behalten ihre Schreibweise. Mail-Ordner im ZIP bleiben
+  unverändert
+- Abschluss fehlgeschlagen: „Erneut versuchen“ und „Zurück zu den Konten“ (der Case bleibt offen);
+  „Case abschließen …“ jetzt auch auf der Kontoseite – nach einem Neustart von FED war ein
+  geöffneter Case sonst nur über eine neue Sicherung abschließbar
 - Verbindung testen: leere Pflichtfelder (auch das Passwort) werden rot markiert, der Test
   startet erst, wenn alles ausgefüllt ist
 - Ordnerseite scrollt auf kleinen Bildschirmen, „Zurück“/„Sicherung starten“ bleiben fest

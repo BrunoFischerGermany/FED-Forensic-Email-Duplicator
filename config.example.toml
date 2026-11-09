@@ -29,6 +29,7 @@ socket_timeout_s = 30
 chunk_mb         = 10           # große Mails stückweise laden ab dieser Größe
 verbindungen     = 3            # gleichzeitige IMAP-Verbindungen beim Download (1–10; Anbieter begrenzen das)
 dkim_pruefen = true               # DKIM-Signaturen bei der Sicherung prüfen, DNS-Schlüssel aufbewahren
+leerzeichen_ersetzen = true       # Leerzeichen in Case-Ordner- und Dateinamen durch _ ersetzen (neue Cases)
 verschluesselung = "fragen"       # verschlüsselte Kopie (AES-256) für die Weitergabe beim Abschluss: fragen | aus
 zip_aufteilung = "fragen"         # mehrere Konten: fragen (beim 2. Konto) | gesamt (ein ZIP) | je_konto
 arbeitsordner_loeschen = "fragen"  # nach verifiziertem ZIP work/ löschen: fragen | ja | nein
