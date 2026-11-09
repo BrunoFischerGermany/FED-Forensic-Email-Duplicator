@@ -502,5 +502,20 @@
   "… (gekürzt)": "… (truncated)",
   "Keine Vorschau für {0}. Siehe „Prüfung“ und „Hex“.": "No preview for {0}. See “Check” and “Hex”.",
   "Diese Anlage ist auffällig:\n\n{0}\n\nTrotzdem speichern? Die Datei nicht auf diesem Rechner öffnen.": "This attachment is suspicious:\n\n{0}\n\nSave anyway? Do not open the file on this computer.",
-  "Quelle: {0}": "Source: {0}"
+  "Quelle: {0}": "Source: {0}",
+  "E-Mail-Adresse": "Email address",
+  "Evidence-Nummer": "Evidence number",
+  "Bitte ausfüllen: {0}": "Please fill in: {0}",
+  "wird abgebrochen …": "cancelling …",
+  "wird vorbereitet …": "preparing …",
+  "Echtheitsprüfung …": "authenticity check …",
+  "{0} % · {1} von {2} Mails · {3} MB/s": "{0} % · {1} of {2} messages · {3} MB/s",
+  "Klicken: Fortschritt ansehen": "Click: view progress",
+  "Ordner werden vorbereitet …": "Preparing folders …",
+  "Weiteres Konto sichern – diese Sicherung läuft weiter": "Acquire another account – this acquisition keeps running",
+  "Erst möglich, wenn alle laufenden Sicherungen beendet sind": "Only possible once all running acquisitions have ended",
+  "Dieses Konto wird gerade gesichert – hier ist der Fortschritt.": "This account is being acquired right now – here is the progress.",
+  "Es laufen noch {0} Sicherungen:\n\n{1}\n\nDer Case kann erst abgeschlossen werden, wenn alle beendet sind.": "{0} acquisitions are still running:\n\n{1}\n\nThe case can only be closed once all of them have ended.",
+  "Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \\ : *), werden durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log.": "Folder name: “{0}” – characters not allowed in folder names (e.g. / \\ : *) are replaced by “_”. The case number itself stays unchanged in report and log.",
+  "Es laufen noch {0} Sicherungen:\n\n{1}\n\nAbbrechen und beenden? Abgebrochene Konten lassen sich später fortsetzen.": "{0} acquisitions are still running:\n\n{1}\n\nCancel and quit? Cancelled accounts can be resumed later."
 }

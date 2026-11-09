@@ -159,6 +159,18 @@ class KeyValues(QWidget):
         self.values.clear()
 
 
+def mark_invalid(edit: QLineEdit, on: bool = True) -> None:
+    """Pflichtfeld rot umranden; die Markierung verschwindet, sobald etwas eingegeben wird."""
+    if bool(edit.property("invalid")) == on:
+        return
+    edit.setProperty("invalid", on)
+    edit.style().unpolish(edit)
+    edit.style().polish(edit)
+    if on and not edit.property("_invalid_hooked"):
+        edit.setProperty("_invalid_hooked", True)
+        edit.textChanged.connect(lambda *_: mark_invalid(edit, False))
+
+
 class PasswordField(QLineEdit):
     """Passwortfeld mit Augen-Symbol; wird beim Verlassen wieder verborgen (``hide_text``)."""
 
@@ -236,7 +248,9 @@ class Worker(QObject):
         self.thread = QThread()
         self.moveToThread(self.thread)
         self.thread.started.connect(self._run)
-        self.finished.connect(self.thread.quit)
+        # direkt im Worker-Thread beenden (QThread.quit ist threadsicher) – sonst wartet ein
+        # thread.wait() im GUI-Thread vergeblich, weil das quit erst in dessen Ereignisschleife käme
+        self.finished.connect(self.thread.quit, Qt.ConnectionType.DirectConnection)
 
     def _run(self) -> None:
         try:

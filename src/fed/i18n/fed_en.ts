@@ -143,8 +143,16 @@
         <translation>Nothing found – please enter the server manually.</translation>
     </message>
     <message>
-        <source>E-Mail-Adresse, Evidence-Nummer und Server sind Pflicht.</source>
-        <translation>Email address, evidence number and server are required.</translation>
+        <source>E-Mail-Adresse</source>
+        <translation>Email address</translation>
+    </message>
+    <message>
+        <source>Evidence-Nummer</source>
+        <translation>Evidence number</translation>
+    </message>
+    <message>
+        <source>Bitte ausfüllen: {0}</source>
+        <translation>Please fill in: {0}</translation>
     </message>
     <message>
         <source>Die Evidence-Nummer {0} ist im Case schon für {1} vergeben.</source>
@@ -274,16 +282,36 @@
         <translation>{0} accounts · {1} completely acquired · {2} open · {3} messages · {4}</translation>
     </message>
     <message>
+        <source>wird abgebrochen …</source>
+        <translation>cancelling …</translation>
+    </message>
+    <message>
+        <source>wird vorbereitet …</source>
+        <translation>preparing …</translation>
+    </message>
+    <message>
+        <source>Echtheitsprüfung …</source>
+        <translation>authenticity check …</translation>
+    </message>
+    <message>
+        <source>{0} % · {1} von {2} Mails · {3} MB/s</source>
+        <translation>{0} % · {1} of {2} messages · {3} MB/s</translation>
+    </message>
+    <message>
         <source>KONTEN IM CASE</source>
         <translation>ACCOUNTS IN CASE</translation>
     </message>
     <message>
-        <source>{0} von {1} Mails · {2} Versuche</source>
-        <translation>{0} of {1} messages · {2} attempts</translation>
+        <source>Klicken: Fortschritt ansehen</source>
+        <translation>Click: view progress</translation>
     </message>
     <message>
         <source>Klicken: Konto übernehmen</source>
         <translation>Click: take over account</translation>
+    </message>
+    <message>
+        <source>{0} von {1} Mails · {2} Versuche</source>
+        <translation>{0} of {1} messages · {2} attempts</translation>
     </message>
 </context>
 <context>
@@ -345,6 +373,18 @@
         <translation>Close case</translation>
     </message>
     <message>
+        <source>Ordner werden vorbereitet …</source>
+        <translation>Preparing folders …</translation>
+    </message>
+    <message>
+        <source>Weiteres Konto sichern – diese Sicherung läuft weiter</source>
+        <translation>Acquire another account – this acquisition keeps running</translation>
+    </message>
+    <message>
+        <source>Wird abgebrochen …</source>
+        <translation>Cancelling …</translation>
+    </message>
+    <message>
         <source>Modus {0} · gestartet {1} UTC ({2}) · {3} Verbindungen · nur lesend (EXAMINE, BODY.PEEK)</source>
         <translation>Mode {0} · started {1} UTC ({2}) · {3} connections · read-only (EXAMINE, BODY.PEEK)</translation>
     </message>
@@ -377,10 +417,6 @@
         <translation>{0} warnings · {1} errors</translation>
     </message>
     <message>
-        <source>Wird abgebrochen …</source>
-        <translation>Cancelling …</translation>
-    </message>
-    <message>
         <source>Sicherung abgeschlossen</source>
         <translation>Acquisition finished</translation>
     </message>
@@ -395,6 +431,10 @@
     <message>
         <source>Versuch {0}: {1} gesichert · {2} bereits vorhanden · erwartet {3}</source>
         <translation>Attempt {0}: {1} saved · {2} already present · {3} expected</translation>
+    </message>
+    <message>
+        <source>Erst möglich, wenn alle laufenden Sicherungen beendet sind</source>
+        <translation>Only possible once all running acquisitions have ended</translation>
     </message>
     <message>
         <source>ZIP-Archive am Ende: {0}</source>
@@ -508,12 +548,24 @@ The choice can be changed until the case is closed.</translation>
         <translation>WORKFLOW</translation>
     </message>
     <message>
-        <source>Während einer laufenden Sicherung kann kein anderes Konto gewählt werden.</source>
-        <translation>Another account cannot be selected while an acquisition is running.</translation>
+        <source>Dieses Konto wird gerade gesichert – hier ist der Fortschritt.</source>
+        <translation>This account is being acquired right now – here is the progress.</translation>
     </message>
     <message>
         <source>Case abschließen</source>
         <translation>Close case</translation>
+    </message>
+    <message>
+        <source>Es laufen noch {0} Sicherungen:
+
+{1}
+
+Der Case kann erst abgeschlossen werden, wenn alle beendet sind.</source>
+        <translation>{0} acquisitions are still running:
+
+{1}
+
+The case can only be closed once all of them have ended.</translation>
     </message>
     <message>
         <source>Nicht alle Konten sind vollständig gesichert:
@@ -593,6 +645,10 @@ After closing, the case cannot be extended. Close anyway?</translation>
     <message>
         <source>Case-Ordner wird angelegt: </source>
         <translation>Case folder will be created: </translation>
+    </message>
+    <message>
+        <source>Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \ : *), werden durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log.</source>
+        <translation>Folder name: “{0}” – characters not allowed in folder names (e.g. / \ : *) are replaced by “_”. The case number itself stays unchanged in report and log.</translation>
     </message>
     <message>
         <source>Status</source>
@@ -1889,8 +1945,16 @@ Save anyway? Do not open the file on this computer.</translation>
         <translation>Settings saved</translation>
     </message>
     <message>
-        <source>Eine Sicherung läuft. Abbrechen und beenden?</source>
-        <translation>An acquisition is running. Cancel and quit?</translation>
+        <source>Es laufen noch {0} Sicherungen:
+
+{1}
+
+Abbrechen und beenden? Abgebrochene Konten lassen sich später fortsetzen.</source>
+        <translation>{0} acquisitions are still running:
+
+{1}
+
+Cancel and quit? Cancelled accounts can be resumed later.</translation>
     </message>
 </context>
 <context>

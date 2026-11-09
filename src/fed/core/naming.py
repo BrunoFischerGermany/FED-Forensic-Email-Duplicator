@@ -14,8 +14,8 @@ import unicodedata
 from datetime import UTC, datetime
 from fed.core.msg import t
 
-# In Windows ungültige Zeichen und Steuerzeichen
-_INVALID = re.compile(r'[<>:"|?*\\\x00-\x1f]')
+# Nicht erlaubt in Datei-/Ordnernamen (Windows, macOS, Linux, ZIP); „/“ und „\“ trennen Ordner
+_INVALID = re.compile(r'[<>:"|?*/\\\x00-\x1f\x7f]')
 _RESERVED = {
     "CON", "PRN", "AUX", "NUL",
     *(f"COM{i}" for i in range(1, 10)),
@@ -83,8 +83,10 @@ def eml_filename(internaldate: datetime, uid: int) -> str:
 
 
 def sanitize_component(name: str) -> str:
-    """Macht einen Ordnernamen für Windows/ZIP sicher (Original bleibt im Log)."""
-    cleaned = _INVALID.sub("_", name).rstrip(" .")
+    """Macht einen Namen als *einen* Ordner- oder Dateinamen sicher (Windows, macOS, Linux, ZIP):
+    ``/`` und ``\\`` würden sonst Unterordner erzeugen, z. B. Aktenzeichen ``VG-1234/26`` ->
+    ``VG-1234_26``. Das Original bleibt in Case-Datei, Log und Bericht erhalten."""
+    cleaned = _INVALID.sub("_", name.strip()).rstrip(" .")
     if not cleaned:
         cleaned = "_"
     if cleaned.split(".")[0].upper() in _RESERVED:

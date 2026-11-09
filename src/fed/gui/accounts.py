@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, Signal
-from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QLabel, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (QAbstractItemView, QFrame, QHeaderView, QLabel, QProgressBar, QTableWidget,
+                               QTableWidgetItem, QVBoxLayout, QWidget)
 
 from fed.core import timefmt as tf
 from fed.core.acquisition import accounts_overview
@@ -120,12 +121,53 @@ class AccountsTable(QWidget):
         return self.rows
 
 
-class _RailItem(ElidedLabel):
+class _RailItem(QFrame):
+    """Ein Konto in der linken Leiste; bei laufender Sicherung mit Ladebalken und Tempo."""
+
     clicked = Signal()
 
     def __init__(self, text: str, name: str) -> None:
-        super().__init__(text, name, Qt.TextElideMode.ElideRight)
+        super().__init__()
+        self.setObjectName("RailItem")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(4, 3, 4, 3)
+        lay.setSpacing(3)
+        self.label = ElidedLabel(text, name, Qt.TextElideMode.ElideRight)
+        self.label.max_hint = 200
+        self.bar = QProgressBar()
+        self.bar.setFixedHeight(6)
+        self.bar.setTextVisible(False)
+        self.info = ElidedLabel("", "Hint", Qt.TextElideMode.ElideRight)
+        self.info.max_hint = 200
+        lay.addWidget(self.label)
+        lay.addWidget(self.bar)
+        lay.addWidget(self.info)
+        self.show_progress(None)
+
+    def full_text(self) -> str:
+        return self.label.full_text()
+
+    def show_progress(self, job) -> None:
+        """Ladebalken nur, solange eine Sicherung dieses Kontos läuft."""
+        on = job is not None and job.running
+        self.bar.setVisible(on)
+        self.info.setVisible(on)
+        if not on:
+            return
+        p = job.last
+        self.bar.setValue(job.percent)
+        if job.cancelling:
+            self.info.setText(QCoreApplication.translate("AccountsTable", "wird abgebrochen …"))
+        elif p is None:
+            self.info.setText(QCoreApplication.translate("AccountsTable", "wird vorbereitet …"))
+        elif p.phase == "auth_check":
+            self.info.setText(QCoreApplication.translate("AccountsTable", "Echtheitsprüfung …"))
+        else:
+            bps, _ = p.speed()
+            self.info.setText(QCoreApplication.translate("AccountsTable", "{0} % · {1} von {2} Mails · {3} MB/s").format(
+                job.percent, f"{p.mails_done:,}".replace(",", "."), f"{p.mails_total:,}".replace(",", "."),
+                f"{bps / 1e6:.1f}"))
 
     def mouseReleaseEvent(self, e) -> None:
         if e.button() == Qt.MouseButton.LeftButton:
@@ -134,7 +176,8 @@ class _RailItem(ElidedLabel):
 
 
 class AccountsRail(QWidget):
-    """Kurzliste in der linken Leiste: ein Eintrag je Konto mit Status-Symbol; Klick übernimmt das Konto."""
+    """Kurzliste in der linken Leiste: ein Eintrag je Konto mit Status-Symbol; Klick übernimmt das Konto.
+    Laufende Sicherungen zeigen einen Ladebalken – Klick öffnet ihre Live-Ansicht."""
 
     picked = Signal(dict)
 
@@ -146,28 +189,48 @@ class AccountsRail(QWidget):
         self.title = QLabel(QCoreApplication.translate("AccountsTable", "KONTEN IM CASE"))
         self.title.setObjectName("RailTitle")
         self.lay.addWidget(self.title)
-        self.items: list[ElidedLabel] = []
+        self.items: list[_RailItem] = []
+        self.by_id: dict[int, _RailItem] = {}
         self._last: list | None = None
+        self.jobs = None  # JobManager
 
     def refresh(self, case: Case | None) -> None:
         rows = accounts_overview(case) if case else []
-        key = [(o["email"], o["state"], o["saved"], o["attempts"]) for o in rows]
+        jobs = self.jobs
+        live = {j.account_id for j in jobs.running()} if jobs else set()
+        key = [(o["email"], o["state"], o["saved"], o["attempts"], o["id"] in live) for o in rows]
         if key == self._last:
+            self.update_progress()
             return
         self._last = key
         for it in self.items:
             it.deleteLater()
-        self.items = []
+        self.items, self.by_id = [], {}
         self.setVisible(bool(rows))
         for o in rows:
+            running = o["id"] in live
             sym, text, style = state_text(o)
-            lab = _RailItem(f"{sym}  {o['evidence']} · {o['email']}", style)
-            lab.max_hint = 200
-            lab.setToolTip(f"{o['email']}\n{o['evidence']} · {text}\n"
-                           + QCoreApplication.translate("AccountsTable", "{0} von {1} Mails · {2} Versuche").format(
-                               o["saved"], o["expected"], o["attempts"])
-                           + "\n" + QCoreApplication.translate("AccountsTable", "Klicken: Konto übernehmen"))
-            lab.clicked.connect(lambda o=o: self.picked.emit(o))
-            restyle(lab, style)
-            self.lay.addWidget(lab)
-            self.items.append(lab)
+            if running:
+                sym, text, style = "⟳", _tr("Sicherung läuft"), "Accent"
+            item = _RailItem(f"{sym}  {o['evidence']} · {o['email']}", style)
+            hint = (QCoreApplication.translate("AccountsTable", "Klicken: Fortschritt ansehen") if running else
+                    QCoreApplication.translate("AccountsTable", "Klicken: Konto übernehmen"))
+            item.setToolTip(f"{o['email']}\n{o['evidence']} · {text}\n"
+                            + QCoreApplication.translate("AccountsTable", "{0} von {1} Mails · {2} Versuche").format(
+                                o["saved"], o["expected"], o["attempts"]) + "\n" + hint)
+            item.clicked.connect(lambda o=o: self.picked.emit(o))
+            restyle(item.label, style)
+            self.lay.addWidget(item)
+            self.items.append(item)
+            self.by_id[o["id"]] = item
+        self.update_progress()
+
+    def update_progress(self, job=None) -> None:
+        """Nur die Ladebalken aktualisieren (bei jedem Fortschritts-Signal, ohne Neuaufbau)."""
+        if self.jobs is None:
+            return
+        targets = [job] if job is not None else list(self.jobs.jobs.values())
+        for j in targets:
+            item = self.by_id.get(j.account_id)
+            if item is not None:
+                item.show_progress(j)

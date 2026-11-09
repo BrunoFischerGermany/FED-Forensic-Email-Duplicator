@@ -355,6 +355,7 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         problem = check_password(encrypt_password)
         if problem:
             raise ValueError(_t("Passwort für die verschlüsselte Kopie ungeeignet: {problem}", problem=problem))
+    case.recover_interrupted()
     running = case.conn.execute("SELECT COUNT(*) FROM attempt WHERE status = 'running'").fetchone()[0]
     if running:
         raise ValueError(_t("Es läuft noch ein Versuch"))

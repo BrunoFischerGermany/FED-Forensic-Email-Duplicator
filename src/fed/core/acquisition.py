@@ -29,7 +29,7 @@ from pathlib import Path
 
 from fed.core import mailmeta
 from fed.core.cancel import Cancelled, CancelToken, Progress, ProgressCallback
-from fed.core.case import Case, utc_now
+from fed.core.case import LIVE_LOCK, Case, utc_now
 from fed.core.config import Config
 from fed.core.hashing import hash_bytes, hash_file
 from fed.core.imap_reader import FolderInfo, ImapError, ReadOnlyImap
@@ -43,6 +43,10 @@ NETWORK_ERRORS = (OSError, socket.timeout, ssl.SSLError, IMAP4.abort)
 class Mode(StrEnum):
     RESUME = "resume"
     RESTART = "restart"
+
+
+class AlreadyRunning(RuntimeError):
+    """Für dieses Konto läuft in diesem Programm bereits ein Versuch."""
 
 
 class ResumeNotPossible(RuntimeError):
@@ -244,15 +248,21 @@ def run_attempt(
     content_filter = json.loads(filters_json) if filters_json else None
     account_dir = case.work_dir / sanitize_component(email)
 
-    prev_nr = conn.execute("SELECT COALESCE(MAX(nr), 0) FROM attempt WHERE account_id = ?", (account_id,)).fetchone()[0]
-    nr = prev_nr + 1
     if mode is Mode.RESTART and not reason.strip():
         raise ValueError(_t("Für einen Neubeginn ist ein Grund Pflicht"))
-    with conn:
-        attempt_id = conn.execute(
-            "INSERT INTO attempt (account_id, nr, mode, reason, started_utc, status, phase) VALUES (?,?,?,?,?,?,?)",
-            (account_id, nr, mode.value, reason, utc_now(), "running", "start"),
-        ).lastrowid
+    case.recover_interrupted(account_id)
+    with LIVE_LOCK:  # dasselbe Konto nie zweimal gleichzeitig
+        if conn.execute("SELECT 1 FROM attempt WHERE account_id = ? AND status = 'running'", (account_id,)).fetchone():
+            raise AlreadyRunning(_t("Das Konto {email} wird bereits gesichert", email=email))
+        prev_nr = conn.execute("SELECT COALESCE(MAX(nr), 0) FROM attempt WHERE account_id = ?",
+                               (account_id,)).fetchone()[0]
+        nr = prev_nr + 1
+        with conn:
+            attempt_id = conn.execute(
+                "INSERT INTO attempt (account_id, nr, mode, reason, started_utc, status, phase) VALUES (?,?,?,?,?,?,?)",
+                (account_id, nr, mode.value, reason, utc_now(), "running", "start"),
+            ).lastrowid
+        case.mark_live(attempt_id)
     case.log("INFO", "attempt_started", {"nr": nr, "mode": mode.value, "reason": reason}, attempt_id)
     result = AttemptResult(attempt_id, nr, "running")
     prog = Progress(phase="download")
@@ -324,7 +334,8 @@ def run_attempt(
                 conn.execute("UPDATE folder SET status_after = ?, count_saved = ? WHERE id = ?",
                              (json.dumps(st), saved, row["id"]))
             if before and before != st:
-                msg_ = f"{f.name}: Status vorher {before} != nachher {st}"
+                msg_ = _t("{folder}: Status vorher {before} != nachher {after}", folder=f.name, before=before,
+                          after=st)
                 result.warnings.append(msg_)
                 case.log("WARNING", "status_changed", {"folder": f.name, "before": before, "after": st}, attempt_id)
         result.status = "done"
@@ -349,6 +360,7 @@ def run_attempt(
         with conn:
             conn.execute("UPDATE attempt SET ended_utc = ?, status = ?, avg_bytes_s = ? WHERE id = ?",
                          (utc_now(), result.status, prog.bytes_done / elapsed, attempt_id))
+        case.unmark_live(attempt_id)
         _cleanup_part_files(account_dir)
         case.log("INFO", "attempt_ended", {"status": result.status, "saved": result.saved,
                                            "expected": result.expected}, attempt_id)

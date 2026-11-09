@@ -28,6 +28,10 @@ from fed.core.msg import t
 
 SCHEMA_VERSION = "1"
 _LOG_LOCK = threading.Lock()
+# Versuche, die in diesem Prozess gerade laufen: (Case-Pfad, attempt.id). Alles andere mit
+# status = 'running' stammt aus einem abgebrochenen Programmlauf (Absturz, Stromausfall).
+_LIVE: set[tuple[str, int]] = set()
+LIVE_LOCK = threading.Lock()
 GENESIS_HASH = "0" * 64
 CASE_DB = "case.sqlite"
 
@@ -111,7 +115,37 @@ class Case:
         case = cls(root, _connect(db))
         _migrate(case)
         case.log("INFO", "case_opened", {"tool_version": __version__})
+        case.recover_interrupted()
         return case
+
+    # ------------------------------------------------------------ laufende Versuche
+    def _key(self, attempt_id: int) -> tuple[str, int]:
+        return (str(self.root.resolve()), attempt_id)
+
+    def mark_live(self, attempt_id: int) -> None:
+        _LIVE.add(self._key(attempt_id))
+
+    def unmark_live(self, attempt_id: int) -> None:
+        _LIVE.discard(self._key(attempt_id))
+
+    def is_live(self, attempt_id: int) -> bool:
+        return self._key(attempt_id) in _LIVE
+
+    def recover_interrupted(self, account_id: int | None = None) -> int:
+        """Versuche mit status 'running', die in keinem laufenden Vorgang stecken, als abgebrochen
+        ('failed', phase 'interrupted') abschließen und protokollieren. Rückgabe: Anzahl."""
+        with LIVE_LOCK:
+            sql = "SELECT id, account_id FROM attempt WHERE status = 'running'"
+            rows = self.conn.execute(sql + (" AND account_id = ?" if account_id else ""),
+                                     (account_id,) if account_id else ()).fetchall()
+            stale = [(i, a) for i, a in rows if not self.is_live(i)]
+            for attempt_id, _acc in stale:
+                with self.conn:
+                    self.conn.execute("UPDATE attempt SET status = 'failed', phase = 'interrupted', "
+                                      "ended_utc = COALESCE(ended_utc, ?) WHERE id = ?", (utc_now(), attempt_id))
+        for attempt_id, acc in stale:
+            self.log("WARNING", "attempt_interrupted", {"account_id": acc}, attempt_id)
+        return len(stale)
 
     def close(self) -> None:
         with self._lock:
