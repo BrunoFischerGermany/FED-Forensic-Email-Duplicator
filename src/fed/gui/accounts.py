@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, Signal
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QFrame, QHeaderView, QLabel,
-                               QPlainTextEdit, QProgressBar, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+                               QProgressBar, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from fed.core import timefmt as tf
 from fed.core.acquisition import accounts_overview, set_account_notes
@@ -55,13 +55,16 @@ NOTE_COL = 8
 class NoteDialog(QDialog):
     """Notiz zu einem Konto bearbeiten (mehrzeilig; Änderung wird mit altem und neuem Text protokolliert)."""
 
-    def __init__(self, evidence: str, email: str, text: str, parent=None) -> None:
+    def __init__(self, evidence: str, email: str, text: str, parent=None, html_value: str | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(QCoreApplication.translate("AccountsTable", "Notiz zum Konto"))
         self.setMinimumSize(520, 300)
         head = QLabel(f"{evidence} · {email}")
         head.setObjectName("H2")
-        self.edit = QPlainTextEdit(text)
+        from fed.gui.richedit import RichNoteEdit
+
+        self.edit = RichNoteEdit()
+        self.edit.set_value(text, html_value)
         self.edit.setPlaceholderText(QCoreApplication.translate(
             "AccountsTable", "z. B. Anlass, Einwilligung, Besonderheiten beim Zugriff"))
         hint = QLabel(QCoreApplication.translate(
@@ -77,12 +80,15 @@ class NoteDialog(QDialog):
         lay.addWidget(hint)
         lay.addWidget(buttons)
         self.edit.setFocus()
-        cur = self.edit.textCursor()
+        cur = self.edit.edit.textCursor()
         cur.movePosition(cur.MoveOperation.End)
-        self.edit.setTextCursor(cur)
+        self.edit.edit.setTextCursor(cur)
 
     def text(self) -> str:
         return self.edit.toPlainText()
+
+    def html(self) -> str:
+        return self.edit.html()
 
 
 class AccountsTable(QWidget):
@@ -142,10 +148,10 @@ class AccountsTable(QWidget):
 
     def edit_note(self, r: int) -> bool:
         o = self.rows[r]
-        dlg = NoteDialog(o["evidence"], o["email"], o["notes"], self)
+        dlg = NoteDialog(o["evidence"], o["email"], o["notes"], self, o.get("notes_html"))
         if not dlg.exec():
             return False
-        if set_account_notes(self.case, o["id"], dlg.text()):
+        if set_account_notes(self.case, o["id"], dlg.text(), dlg.html() or None):
             self.notes_changed.emit(o["id"], dlg.text().strip())
         self.refresh(self.case, self._current)
         return True
@@ -179,9 +185,9 @@ class AccountsTable(QWidget):
                     it.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
                     if self.editable:
                         if not v:
-                            it.setText(_tr("✎ Notiz hinzufügen"))
+                            it.setText(QCoreApplication.translate("AccountsTable", "✎ Notiz hinzufügen"))
                             it.setForeground(QColor(t["muted"]))
-                        it.setToolTip(_tr("Klicken: Notiz bearbeiten"))
+                        it.setToolTip(QCoreApplication.translate("AccountsTable", "Klicken: Notiz bearbeiten"))
                 if c in (3, 4, 5, 6):
                     it.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 if c == 7 and o["last_utc"]:

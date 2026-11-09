@@ -66,6 +66,7 @@ class AccountSpec:
     date_from: datetime | None = None
     date_to: datetime | None = None  # einschließlich
     notes: str = ""  # Notiz des Examiners zum Konto
+    notes_html: str | None = None  # formatierte Fassung (fed.core.richtext)
 
     def __post_init__(self) -> None:
         from fed.core.naming import normalize_email
@@ -91,38 +92,49 @@ Connector = Callable[[], ReadOnlyImap]
 
 # ---------------------------------------------------------------- Konto und Scan
 def register_account(case: Case, spec: AccountSpec, imap: ReadOnlyImap) -> int:
+    from fed.core.richtext import normalize
+
     tls = imap.tls_info()
     info = imap.server_info()
+    notes, notes_html = normalize(spec.notes_html, spec.notes)
     with case.conn:
         cur = case.conn.execute(
             "INSERT INTO account (email, evidence_number, server, port, security, auth_method, username, "
             "autoconfig_source, tls_cert_sha256, capabilities, server_id, namespaces, quota, date_from, date_to, "
-            "notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "notes, notes_html) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (spec.email, spec.evidence_number, spec.server, spec.port, spec.security, spec.auth_method,
              spec.username or spec.email, spec.autoconfig_source, tls["sha256"], json.dumps(info["capabilities"]),
              info.get("id"), info.get("namespace"), json.dumps(info.get("quota")),
              spec.date_from.date().isoformat() if spec.date_from else None,
-             spec.date_to.date().isoformat() if spec.date_to else None, spec.notes.strip() or None),
+             spec.date_to.date().isoformat() if spec.date_to else None, notes.strip() or None, notes_html),
         )
     account_id = cur.lastrowid
     case.log("INFO", "account_registered", {"email": spec.email, "evidence": spec.evidence_number,
                                              "server": f"{spec.server}:{spec.port}", "tls": tls,
-                                             "notes": spec.notes.strip()})
+                                             "notes": notes.strip(), **({"notes_html": notes_html} if notes_html else {})})
     return account_id
 
 
-def set_account_notes(case: Case, account_id: int, notes: str) -> bool:
-    """Notiz eines Kontos ändern (alter und neuer Text werden protokolliert). True, wenn geändert."""
+def set_account_notes(case: Case, account_id: int, notes: str, notes_html: str | None = None) -> bool:
+    """Notiz eines Kontos ändern (alter und neuer Text werden protokolliert). True, wenn geändert.
+
+    ``notes_html``: formatierte Fassung (wird bereinigt, siehe :mod:`fed.core.richtext`); der reine
+    Text wird dann daraus abgeleitet."""
+    from fed.core.richtext import normalize
+
     if case.closed:
         raise RuntimeError(_t("Case ist abgeschlossen"))
-    new = notes.strip() or None
-    row = case.conn.execute("SELECT notes, email FROM account WHERE id = ?", (account_id,)).fetchone()
-    if row is None or row[0] == new:
+    plain, html_ = normalize(notes_html, notes)
+    new = plain.strip() or None
+    row = case.conn.execute("SELECT notes, email, notes_html FROM account WHERE id = ?", (account_id,)).fetchone()
+    if row is None or (row[0] == new and row[2] == html_):
         return False
     with case.conn:
-        case.conn.execute("UPDATE account SET notes = ? WHERE id = ?", (new, account_id))
-    case.log("INFO", "account_notes_changed", {"account_id": account_id, "email": row[1], "old": row[0] or "",
-                                                "new": new or ""})
+        case.conn.execute("UPDATE account SET notes = ?, notes_html = ? WHERE id = ?", (new, html_, account_id))
+    details = {"account_id": account_id, "email": row[1], "old": row[0] or "", "new": new or ""}
+    if html_ or row[2]:  # Formatierung mitprotokollieren
+        details.update(old_html=row[2] or "", new_html=html_ or "")
+    case.log("INFO", "account_notes_changed", details)
     return True
 
 
@@ -701,9 +713,9 @@ def accounts_overview(case: Case) -> list[dict]:
     (fertig, aber weniger gesichert als auf dem Server) | ``cancelled`` | ``failed``.
     """
     out = []
-    for acc_id, email, evidence, server, auth, dfrom, dto, notes, filters in case.conn.execute(
-            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes, filters FROM account "
-            "ORDER BY id"):
+    for acc_id, email, evidence, server, auth, dfrom, dto, notes, filters, notes_html in case.conn.execute(
+            "SELECT id, email, evidence_number, server, auth_method, date_from, date_to, notes, filters, notes_html "
+            "FROM account ORDER BY id"):
         attempts = case.conn.execute("SELECT nr, status, started_utc, ended_utc FROM attempt WHERE account_id = ? "
                                      "ORDER BY nr", (acc_id,)).fetchall()
         folders = case.conn.execute("SELECT selected, count_server, status_after FROM folder WHERE account_id = ?",
@@ -724,7 +736,7 @@ def accounts_overview(case: Case) -> list[dict]:
                     "attempts": len(attempts), "state": state, "saved": saved, "expected": expected,
                     "bytes": size, "folders_selected": sel, "folders_total": total,
                     "date_filter": bool(dfrom or dto or filters), "last_utc": (last[3] or last[2]) if last else None,
-                    "notes": notes or ""})
+                    "notes": notes or "", "notes_html": notes_html or ""})
     return out
 
 

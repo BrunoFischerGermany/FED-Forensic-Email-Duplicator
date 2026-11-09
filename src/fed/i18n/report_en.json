@@ -132,5 +132,9 @@
   "flt_text": "Text (header and body) contains",
   "flt_note": "Several values of a field = or, fields combined = and. Matches are determined by the server's search (IMAP SEARCH); precision and handling of encodings differ between providers.",
   "enc_title": "Encrypted copy for transfer",
-  "enc_text": "After this report, {file} is created (AES-256, WinZip AES). It contains the original ZIP(s) with hash and timestamp files, log.csv and the reports. The SHA-256 of the copy is in {file}.sha256 and in the log of the case file. The password is not stored and is transmitted separately."
+  "enc_text": "After this report, {file} is created (AES-256, WinZip AES). It contains the original ZIP(s) with hash and timestamp files, log.csv and the reports. The SHA-256 of the copy is in {file}.sha256 and in the log of the case file. The password is not stored and is transmitted separately.",
+  "title_multi": "Acquisition Report for {n} Email Mailboxes",
+  "sign_title": "Confirmation",
+  "sign_text": "The acquisition was carried out with FED as described in this report. The hash values given were calculated and verified at closing.",
+  "sign_created": "Report created"
 }

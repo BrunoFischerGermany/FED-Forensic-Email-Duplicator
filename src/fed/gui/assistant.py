@@ -25,6 +25,7 @@ from fed.core.finalize import finish_case
 from fed.core.naming import next_evidence, normalize_email
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
+from fed.gui.richedit import RichNoteEdit
 from fed.gui.widgets import (Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
                             run_async, vbox)
 from fed.core.msg import describe
@@ -115,9 +116,9 @@ class CasePage(QWidget):
         f.setVerticalSpacing(6)
         self.case_no = QLineEdit(self._suggest())
         self.examiner = QLineEdit(st.cfg.examiner_name)
-        self.notes = QPlainTextEdit()
+        self.notes = RichNoteEdit()
         self.notes.setPlaceholderText(self.tr("z. B. Auftrag, Aktenzeichen, Beschluss"))
-        self.notes.setFixedHeight(90)
+        self.notes.setFixedHeight(130)
         self.target = QLineEdit(st.cfg.programm.zielpfad or str(Path.cwd()))
         browse = QPushButton(self.tr("Durchsuchen …"))
         browse.clicked.connect(self._browse)
@@ -254,7 +255,7 @@ class CasePage(QWidget):
             return
         try:
             case = Case.create(Path(self.target.text()), CaseInfo(self.case_no.text(), self.examiner.text(),
-                                                                   self.notes.toPlainText()),
+                                                                   self.notes.toPlainText(), self.notes.html() or None),
                                replace_spaces=self.st.cfg.programm.leerzeichen_ersetzen)
         except (FileExistsError, ValueError, OSError) as e:
             self.error.setText(str(e))
@@ -360,10 +361,10 @@ class AccountPage(QWidget):
             c2.add(x)
         left.addWidget(c2)
         cn = Card(self.tr("Notiz zum Konto"))
-        self.acc_notes = QPlainTextEdit()
+        self.acc_notes = RichNoteEdit()
         self.acc_notes.setPlaceholderText(self.tr("z. B. Herkunft der Zugangsdaten, Kontoinhaber, Einwilligung/Beschluss, "
                                                   "Besonderheiten – erscheint im Bericht"))
-        self.acc_notes.setFixedHeight(80)
+        self.acc_notes.setFixedHeight(120)
         cn.add(self.acc_notes)
         left.addWidget(cn)
         cols.addLayout(left, 3)
@@ -441,9 +442,10 @@ class AccountPage(QWidget):
 
     def _notes_changed(self, account_id: int, text: str) -> None:
         """Notiz in der Übersicht geändert: Formular nachziehen, wenn es dasselbe Konto zeigt."""
-        row = self.st.case.conn.execute("SELECT email FROM account WHERE id = ?", (account_id,)).fetchone()
+        row = self.st.case.conn.execute("SELECT email, notes, notes_html FROM account WHERE id = ?",
+                                        (account_id,)).fetchone()
         if row and normalize_email(self.email.text()) == row[0]:
-            self.acc_notes.setPlainText(text)
+            self.acc_notes.set_value(row[1], row[2])
 
     def _pick(self, o: dict) -> None:
         """Konto aus der Übersicht übernehmen (Server, Port, Benutzer aus der Case-Datei)."""
@@ -459,7 +461,7 @@ class AccountPage(QWidget):
         self.method.set_value(m)
         self._method_changed(m)
         self.found = None
-        self.acc_notes.setPlainText(o.get("notes", ""))
+        self.acc_notes.set_value(o.get("notes", ""), o.get("notes_html"))
         self._check_known()
         self.password.setFocus()
 
@@ -676,9 +678,11 @@ class AccountPage(QWidget):
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
             {"password": "password", "google_app": "app_password_google", "google": "oauth_google",
              "microsoft": "oauth_microsoft"}[self.method.value()],
-            self.found.source if self.found else "manual", notes=self.acc_notes.toPlainText())
+            self.found.source if self.found else "manual", notes=self.acc_notes.toPlainText(),
+            notes_html=self.acc_notes.html() or None)
         if self.st.account_id is not None:
-            acq.set_account_notes(case, self.st.account_id, self.acc_notes.toPlainText())
+            acq.set_account_notes(case, self.st.account_id, self.acc_notes.toPlainText(),
+                                  self.acc_notes.html() or None)
         self.next.emit()
 
 

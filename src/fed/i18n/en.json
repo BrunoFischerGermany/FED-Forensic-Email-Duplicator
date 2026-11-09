@@ -528,5 +528,20 @@
   "z. B. Anlass, Einwilligung, Besonderheiten beim Zugriff": "e.g. reason, consent, particulars of access",
   "Erscheint im Bericht. Jede Änderung wird mit altem und neuem Text protokolliert.": "Appears in the report. Every change is logged with the old and new text.",
   "✎ Notiz hinzufügen": "✎ Add note",
-  "Klicken: Notiz bearbeiten": "Click: edit note"
+  "Klicken: Notiz bearbeiten": "Click: edit note",
+  "Rot": "Red",
+  "Orange": "Orange",
+  "Grün": "Green",
+  "Blau": "Blue",
+  "Fett": "Bold",
+  "Kursiv": "Italic",
+  "Unterstrichen": "Underline",
+  "Schriftfarbe": "Text colour",
+  "Standard": "Default",
+  "Marker": "Highlighter",
+  "Hervorheben (Marker)": "Highlight (marker)",
+  "Liste": "List",
+  "Aufzählung ein/aus": "Bullet list on/off",
+  "Format": "Format",
+  "Formatierung der Auswahl entfernen": "Remove formatting from the selection"
 }

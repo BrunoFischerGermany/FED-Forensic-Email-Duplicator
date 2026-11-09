@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS case_info (
     case_number  TEXT NOT NULL,
     examiner     TEXT NOT NULL,
     notes        TEXT NOT NULL DEFAULT '',
+    notes_html   TEXT,                       -- formatierte Fassung (fed.core.richtext), NULL = nur Text
     created_utc  TEXT NOT NULL,
     created_local TEXT NOT NULL,
     tool_version TEXT NOT NULL,
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS account (
     date_from         TEXT,                   -- optionaler Zeitraum-Filter
     date_to           TEXT,
     notes             TEXT,                   -- Notiz des Examiners zum Konto (Änderungen im Log)
+    notes_html        TEXT,                   -- formatierte Fassung (fed.core.richtext), NULL = nur Text
     filters           TEXT                    -- JSON: Inhaltsfilter der Teilsicherung {from, to, subject, text}
 );
 

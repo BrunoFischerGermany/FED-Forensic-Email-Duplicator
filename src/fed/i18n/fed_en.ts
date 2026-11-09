@@ -298,6 +298,14 @@
         <translation>Note</translation>
     </message>
     <message>
+        <source>✎ Notiz hinzufügen</source>
+        <translation>✎ Add note</translation>
+    </message>
+    <message>
+        <source>Klicken: Notiz bearbeiten</source>
+        <translation>Click: edit note</translation>
+    </message>
+    <message>
         <source>{0} Konten · {1} vollständig gesichert · {2} offen · {3} Mails · {4}</source>
         <translation>{0} accounts · {1} completely acquired · {2} open · {3} messages · {4}</translation>
     </message>
@@ -1998,6 +2006,69 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Passwort ein-/ausblenden</source>
         <translation>Show / hide password</translation>
+    </message>
+</context>
+<context>
+    <name>RichNoteEdit</name>
+    <message>
+        <source>Rot</source>
+        <translation>Red</translation>
+    </message>
+    <message>
+        <source>Orange</source>
+        <translation>Orange</translation>
+    </message>
+    <message>
+        <source>Grün</source>
+        <translation>Green</translation>
+    </message>
+    <message>
+        <source>Blau</source>
+        <translation>Blue</translation>
+    </message>
+    <message>
+        <source>Fett</source>
+        <translation>Bold</translation>
+    </message>
+    <message>
+        <source>Kursiv</source>
+        <translation>Italic</translation>
+    </message>
+    <message>
+        <source>Unterstrichen</source>
+        <translation>Underline</translation>
+    </message>
+    <message>
+        <source>Schriftfarbe</source>
+        <translation>Text colour</translation>
+    </message>
+    <message>
+        <source>Standard</source>
+        <translation>Default</translation>
+    </message>
+    <message>
+        <source>Marker</source>
+        <translation>Highlighter</translation>
+    </message>
+    <message>
+        <source>Hervorheben (Marker)</source>
+        <translation>Highlight (marker)</translation>
+    </message>
+    <message>
+        <source>Liste</source>
+        <translation>List</translation>
+    </message>
+    <message>
+        <source>Aufzählung ein/aus</source>
+        <translation>Bullet list on/off</translation>
+    </message>
+    <message>
+        <source>Format</source>
+        <translation>Format</translation>
+    </message>
+    <message>
+        <source>Formatierung der Auswahl entfernen</source>
+        <translation>Remove formatting from the selection</translation>
     </message>
 </context>
 <context>

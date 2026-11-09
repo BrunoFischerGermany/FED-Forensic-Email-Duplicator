@@ -16,7 +16,7 @@ from fed import APP_NAME, __version__
 from fed.core import timefmt as tf
 from fed.core.msg import describe
 from fed.core.msg import language as msg_language
-from fed.core.case import Case
+from fed.core.case import Case, utc_now
 
 def _load_labels() -> dict[str, dict[str, str]]:
     """Berichtstexte je Sprache aus ``fed/i18n/report_<sprache>.json``."""
@@ -331,7 +331,7 @@ def _dns_rows(d: dict, L: dict) -> list[list[str]]:
 
 def _title(d: dict, L: dict) -> str:
     if d["account_id"] is None:
-        return L["title"]
+        return L["title_multi"].format(n=d["all_accounts"]) if d["all_accounts"] > 1 else L["title"]
     a = d["accounts"][0]
     return f"{L['title_account']} {a['evidence_number']} · {a['email']}"
 
@@ -411,6 +411,10 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
     if encrypted_planned:
         name = _encrypted_name(d)
         out += ["", f"{L['enc_title']}: {L['enc_text'].format(file=name)}"]
+    i = d["info"]
+    out += ["", L["sign_title"], "-" * len(L["sign_title"]), L["sign_text"],
+            *_kv_txt([(L["examiner"], i["examiner"]),
+                      (L["sign_created"], tf.both(i["closed_utc"] or utc_now()))])]
     out += ["", f"{L['mails']} ({len(d['messages'])})", "-" * 20]
     if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
         out.append(L["list_omitted"].format(n=len(d["messages"])))
@@ -467,7 +471,9 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
             sub = f"{L['case_number']} {info['case_number']}"
             if account_id is not None:
                 sub += f" · {L['evidence']} {d['accounts'][0]['evidence_number']}"
-            self.cell(85, 4, sub, align="R")
+            self.cell(85, 4, sub, align="R", new_x="LMARGIN", new_y="NEXT")
+            self.set_x(110)
+            self.cell(85, 4, f"{L['examiner']} {info['examiner']}", align="R")
             self.set_draw_color(200, 205, 214)
             self.line(15, 29, 195, 29)
             self.set_y(33)
@@ -486,6 +492,8 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.set_auto_page_break(True, 18)
     pdf.add_font("DejaVu", "", str(fonts / "DejaVuSans.ttf"))
     pdf.add_font("DejaVu", "B", str(fonts / "DejaVuSans-Bold.ttf"))
+    pdf.add_font("DejaVu", "I", str(fonts / "DejaVuSans-Oblique.ttf"))
+    pdf.add_font("DejaVu", "BI", str(fonts / "DejaVuSans-BoldOblique.ttf"))
     pdf.add_font("Mono", "", str(fonts / "DejaVuSansMono.ttf"))
     pdf.set_title(f"{_title(d, L)} – {info['case_number']}")
     pdf.set_creator(f"{APP_NAME} {__version__}")
@@ -518,10 +526,9 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                 r.cell(k)
                 r.cell(str(v))
 
-    def note(text):
-        pdf.set_font("DejaVu", "", 9)
-        pdf.set_fill_color(*note_bg)
-        pdf.multi_cell(0, 5, text.strip(), fill=True, padding=2, new_x="LMARGIN", new_y="NEXT")
+    def note(text, html_value=None):
+        """Notiz im grauen Kasten – formatiert (fett, kursiv, Farbe, Marker, Aufzählung), wenn vorhanden."""
+        _rich_note(pdf, html_value or text, note_bg)
         pdf.set_font("DejaVu", "", 8.5)
 
     if account_id is not None:
@@ -530,7 +537,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                        new_x="LMARGIN", new_y="NEXT")
     if info["notes"]:
         h2(L["case_notes"])
-        note(info["notes"])
+        note(info["notes"], info.get("notes_html"))
 
     for title, items in _head_sections(d, L):
         h2(title)
@@ -559,7 +566,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         kv(_account_items(a, L, d["dkim_counts"]) + _gmail_items(a, d, L))
         if a.get("notes"):
             h3(L["account_notes"])
-            note(a["notes"])
+            note(a["notes"], a.get("notes_html"))
         h3(L["attempts"])
         with pdf.table(col_widths=(10, 20, 18, 44, 44, 44), headings_style=head, line_height=4.4) as t:
             t.row([L["nr"], L["mode"], L["status"], L["start"], L["end"], L["reason"]])
@@ -631,6 +638,14 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         pdf.set_font("DejaVu", "", 8.5)
         pdf.multi_cell(0, 4.6, L["enc_text"].format(file=_encrypted_name(d)), new_x="LMARGIN", new_y="NEXT")
 
+    # Bestätigung: wer die Sicherung durchgeführt hat (Ende des Berichts; die Mail-Liste folgt als Anhang)
+    if pdf.get_y() + 30 > pdf.page_break_trigger:
+        pdf.add_page()
+    h2(L["sign_title"])
+    pdf.set_font("DejaVu", "", 8.5)
+    pdf.multi_cell(0, 4.6, L["sign_text"], new_x="LMARGIN", new_y="NEXT")
+    kv([(L["examiner"], info["examiner"]), (L["sign_created"], tf.both(info["closed_utc"] or utc_now()))])
+
     h2(f"{L['mails']} ({len(d['messages'])})")
     if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
         pdf.set_font("DejaVu", "", 8.5)
@@ -655,6 +670,82 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                    + (f" · Labels: {m['Gmail_Labels']}" if m["Gmail_Labels"] else "")
                    + f"\n{m['File']}\n{m['SHA256']}"])
     pdf.output(str(path))
+
+
+def _rich_note(pdf, value: str, bg: tuple, size: float = 9, lh: float = 5, pad: float = 2) -> None:
+    """Formatierte Notiz Wort für Wort setzen: Umbruch, Seitenwechsel, grauer Hintergrund je Zeile
+    (wirkt als durchgehender Kasten), Marker als farbiges Feld hinter dem Wort."""
+    import re as _re
+
+    from fed.core.richtext import hex_rgb, parse
+
+    x0, width = pdf.l_margin, pdf.w - pdf.l_margin - pdf.r_margin
+    inner = width - 2 * pad
+    old_margin, pdf.c_margin = pdf.c_margin, 0  # Text exakt an der gemessenen Position
+    lines: list[tuple[bool, float, list]] = []  # (Aufzählungspunkt?, Einzug, [(x, text, style, breite)])
+
+    def font(st):
+        pdf.set_font("DejaVu", ("B" if st.bold else "") + ("I" if st.italic else "") + ("U" if st.underline else ""),
+                     size)
+
+    for b in parse(value):
+        indent = 5.0 if b.kind == "li" else 0.0
+        cur, x, first = [], indent, True
+        for text, st in b.runs:
+            font(st)
+            for tok in _re.findall(r"\S+\s*|\s+", text):
+                if not cur and not tok.strip():
+                    continue  # kein Leerraum am Zeilenanfang
+                word = pdf.get_string_width(tok.rstrip())
+                if cur and x + word > inner:
+                    lines.append((first and b.kind == "li", indent, cur))
+                    cur, x, first = [], indent, False
+                    tok = tok.lstrip()
+                    if not tok:
+                        continue
+                while pdf.get_string_width(tok.rstrip()) > inner - indent:  # überlanges Wort teilen
+                    n = len(tok)
+                    while n > 1 and pdf.get_string_width(tok[:n]) > inner - indent:
+                        n -= 1
+                    lines.append((first and b.kind == "li", indent, [*cur, (x, tok[:n], st, 0)]))
+                    cur, x, first, tok = [], indent, False, tok[n:]
+                tw = pdf.get_string_width(tok)
+                cur.append((x, tok, st, tw))
+                x += tw
+        lines.append((first and b.kind == "li", indent, cur))
+
+    def band(h):
+        pdf.set_fill_color(*bg)
+        pdf.rect(x0, pdf.get_y(), width, h, "F")
+
+    if pdf.get_y() + pad + lh > pdf.page_break_trigger:
+        pdf.add_page()
+    band(pad)
+    pdf.set_y(pdf.get_y() + pad)
+    for bullet, _indent, segs in lines:
+        if pdf.get_y() + lh > pdf.page_break_trigger:
+            pdf.add_page()
+        y = pdf.get_y()
+        band(lh)
+        if bullet:
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("DejaVu", "", size)
+            pdf.set_xy(x0 + pad + 1, y)
+            pdf.cell(4, lh, "•")
+        for k, (x, tok, st, _tw) in enumerate(segs):
+            font(st)
+            if st.background:  # Marker: Leerraum zum nächsten Wort mit markieren, außer am Zeilenende
+                last = k == len(segs) - 1 or not segs[k + 1][2].background
+                pdf.set_fill_color(*hex_rgb(st.background))
+                pdf.rect(x0 + pad + x, y + 0.5, pdf.get_string_width(tok.rstrip() if last else tok), lh - 1, "F")
+            pdf.set_text_color(*(hex_rgb(st.color) if st.color else (0, 0, 0)))
+            pdf.set_xy(x0 + pad + x, y)
+            pdf.cell(pdf.get_string_width(tok), lh, tok)
+        pdf.set_xy(x0, y + lh)
+    band(pad)
+    pdf.set_xy(x0, pdf.get_y() + pad)
+    pdf.set_text_color(0, 0, 0)
+    pdf.c_margin = old_margin
 
 
 def account_report_name(evidence: str, email: str, suffix: str, replace_spaces: bool = False) -> str:
