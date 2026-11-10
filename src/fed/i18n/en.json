@@ -565,5 +565,9 @@
   "Logo (PNG/JPG/SVG, max. 2 MB)": "Logo (PNG/JPG/SVG, max. 2 MB)",
   "Platzhalter: {jahr} = 2026 · {jahr:2} = 26 · {monat} · {tag} · {lfd:04} = 0001": "Placeholders: {jahr} (year) = 2026 · {jahr:2} = 26 · {monat} (month) · {tag} (day) · {lfd:04} (sequence) = 0001",
   "Muster ungültig.": "Invalid pattern.",
-  "Beispiel: {0}": "Example: {0}"
+  "Beispiel: {0}": "Example: {0}",
+  "Einstellungen werden neben FED.app gespeichert:\n{0}": "Settings are saved next to FED.app:\n{0}",
+  "Der Ablageort von FED.app ist nicht ermittelbar – Einstellungen werden hier gespeichert:\n{0}": "The location of FED.app cannot be determined – settings are saved here:\n{0}",
+  "macOS führt FED aus einer schreibgeschützten Kopie aus („App Translocation“), weil das Programm aus dem Internet geladen und nicht von Apple notarisiert ist.": "macOS runs FED from a read-only copy (“App Translocation”) because the program was downloaded from the internet and is not notarized by Apple.",
+  "Dauerhaft beheben (danach startet FED direkt am Ablageort):\n• FED.app im Finder in einen anderen Ordner ziehen, z. B. „Programme“, oder\n• im Terminal: xattr -dr com.apple.quarantine <Pfad>/FED.app": "Permanent fix (FED then starts directly from its location):\n• drag FED.app to another folder in Finder, e.g. “Applications”, or\n• in Terminal: xattr -dr com.apple.quarantine <path>/FED.app"
 }

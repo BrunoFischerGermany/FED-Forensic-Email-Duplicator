@@ -518,6 +518,33 @@ No = delete permanently.</translation>
     </message>
 </context>
 <context>
+    <name>App</name>
+    <message>
+        <source>Einstellungen werden neben FED.app gespeichert:
+{0}</source>
+        <translation>Settings are saved next to FED.app:
+{0}</translation>
+    </message>
+    <message>
+        <source>Der Ablageort von FED.app ist nicht ermittelbar – Einstellungen werden hier gespeichert:
+{0}</source>
+        <translation>The location of FED.app cannot be determined – settings are saved here:
+{0}</translation>
+    </message>
+    <message>
+        <source>macOS führt FED aus einer schreibgeschützten Kopie aus („App Translocation“), weil das Programm aus dem Internet geladen und nicht von Apple notarisiert ist.</source>
+        <translation>macOS runs FED from a read-only copy (“App Translocation”) because the program was downloaded from the internet and is not notarized by Apple.</translation>
+    </message>
+    <message>
+        <source>Dauerhaft beheben (danach startet FED direkt am Ablageort):
+• FED.app im Finder in einen anderen Ordner ziehen, z. B. „Programme“, oder
+• im Terminal: xattr -dr com.apple.quarantine &lt;Pfad&gt;/FED.app</source>
+        <translation>Permanent fix (FED then starts directly from its location):
+• drag FED.app to another folder in Finder, e.g. “Applications”, or
+• in Terminal: xattr -dr com.apple.quarantine &lt;path&gt;/FED.app</translation>
+    </message>
+</context>
+<context>
     <name>Assistant</name>
     <message>
         <source>ZIP-Archive bei mehreren Konten</source>

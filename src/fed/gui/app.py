@@ -14,16 +14,66 @@ def program_file() -> Path | None:
     return None
 
 
+# Gesetzt, wenn macOS FED aus einer verschobenen Kopie startet (App Translocation):
+# {"running": Kopie, "original": Ablageort des FED.app oder None, "config_dir": genutzter Ordner}
+TRANSLOCATION: dict | None = None
+
+
+def _writable(d: Path) -> bool:
+    import os
+
+    return d.is_dir() and os.access(d, os.W_OK)
+
+
+def resolve_program_dir(exe: Path | None) -> Path:
+    """Ordner für config.toml und FED.ini zu einer Programmdatei (siehe ``program_dir``)."""
+    global TRANSLOCATION
+    if exe is None:
+        return Path.cwd()
+    exe_dir = exe.parent
+    # macOS: FED.app/Contents/MacOS/fed -> Ordner, in dem FED.app liegt
+    if exe_dir.name == "MacOS" and exe_dir.parent.name == "Contents" and exe_dir.parent.parent.suffix == ".app":
+        from fed.core import macos
+
+        bundle = exe_dir.parent.parent
+        if macos.is_translocated(bundle):
+            orig = macos.original_bundle(bundle)
+            target = orig.parent if orig and _writable(orig.parent) else macos.user_data_dir()
+            target.mkdir(parents=True, exist_ok=True)
+            TRANSLOCATION = {"running": bundle, "original": orig, "config_dir": target}
+            return target
+        return bundle.parent
+    return exe_dir
+
+
+_PROGRAM_DIR: Path | None = None
+
+
 def program_dir() -> Path:
-    """Ordner des Programms (auch im Nuitka-Build; dort liegen config.toml und FED.ini)."""
-    exe = program_file()
-    if exe is not None:
-        exe_dir = exe.parent
-        # macOS: FED.app/Contents/MacOS/fed -> Ordner, in dem FED.app liegt
-        if exe_dir.name == "MacOS" and exe_dir.parent.name == "Contents" and exe_dir.parent.parent.suffix == ".app":
-            return exe_dir.parent.parent.parent
-        return exe_dir
-    return Path.cwd()
+    """Ordner des Programms (auch im Nuitka-Build; dort liegen config.toml und FED.ini).
+
+    Startet macOS FED aus einer schreibgeschützten Kopie (App Translocation), ist das der Ordner, in
+    dem FED.app wirklich liegt – oder, falls der nicht ermittelbar ist, ~/Library/Application Support/FED.
+    """
+    global _PROGRAM_DIR
+    if _PROGRAM_DIR is None:
+        _PROGRAM_DIR = resolve_program_dir(program_file())
+    return _PROGRAM_DIR
+
+
+def translocation_text(info: dict) -> str:
+    from PySide6.QtCore import QCoreApplication
+
+    where = (QCoreApplication.translate("App", "Einstellungen werden neben FED.app gespeichert:\n{0}").format(info["config_dir"])
+             if info["original"] else
+             QCoreApplication.translate("App", "Der Ablageort von FED.app ist nicht ermittelbar – Einstellungen werden hier gespeichert:\n{0}")
+             .format(info["config_dir"]))
+    return (QCoreApplication.translate("App", "macOS führt FED aus einer schreibgeschützten Kopie aus („App Translocation“), weil das "
+                      "Programm aus dem Internet geladen und nicht von Apple notarisiert ist.")
+            + "\n\n" + where + "\n\n"
+            + QCoreApplication.translate("App", "Dauerhaft beheben (danach startet FED direkt am Ablageort):\n"
+                        "• FED.app im Finder in einen anderen Ordner ziehen, z. B. „Programme“, oder\n"
+                        "• im Terminal: xattr -dr com.apple.quarantine <Pfad>/FED.app"))
 
 
 def selftest(out: Path) -> int:
@@ -51,6 +101,7 @@ def selftest(out: Path) -> int:
         QLabel("FED").grab()
         exe = program_file()
         res.update(version=__version__, program_file=str(exe) if exe else None, program_dir=str(program_dir()),
+                   translocated=bool(TRANSLOCATION),
                    tool_sha256=tool_fingerprint(), ui_languages=ui_languages(), report_languages=report_languages(),
                    translation_en=en)
         with tempfile.TemporaryDirectory() as tmp:
@@ -131,6 +182,10 @@ def main() -> int:
         i18n.install(cfg.programm.sprache)  # in der Ersteinrichtung gewählte Sprache
     win = MainWindow(cfg, program_dir())
     win.show()
+    if TRANSLOCATION:  # macOS startet eine verschobene Kopie – erklären, wo gespeichert wird
+        from PySide6.QtWidgets import QMessageBox
+
+        QMessageBox.information(win, APP_NAME, translocation_text(TRANSLOCATION))
     return app.exec()
 
 

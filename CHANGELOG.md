@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3 (in Entwicklung)
+
+- macOS: Startet FED aus einer von macOS verschobenen Kopie („App Translocation“, z. B. direkt aus
+  „Downloads“), werden config.toml und FED.ini neben dem echten FED.app gespeichert (sonst in
+  ~/Library/Application Support/FED) statt im schreibgeschützten Temp-Ordner; Hinweis zur dauerhaften Lösung
+
 ## 1.0.2
 
 - Microsoft: Warnung, wenn bei einem Microsoft-Server Passwort/App-Passwort gewählt ist (dort nur OAuth);

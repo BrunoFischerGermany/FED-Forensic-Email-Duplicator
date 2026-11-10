@@ -88,6 +88,12 @@ liegen danach im Lauf unter *Artifacts*
   `config.toml` und `FED.ini` liegen neben der `.exe`.
 - **macOS**: nicht notarisiert. Erststart per Rechtsklick → **Öffnen**, oder
   `xattr -cr FED.app` im Terminal. `config.toml` gehört neben `FED.app`.
+  Startet man FED direkt aus „Downloads“, führt macOS eine schreibgeschützte Kopie unter
+  `/private/var/folders/…/AppTranslocation/…` aus („App Translocation“). FED erkennt das, speichert
+  die Einstellungen trotzdem neben dem echten `FED.app` (sonst in
+  `~/Library/Application Support/FED`) und zeigt einen Hinweis. Dauerhaft beheben: `FED.app` im
+  Finder in einen anderen Ordner ziehen (z. B. „Programme“) oder
+  `xattr -dr com.apple.quarantine FED.app`.
 - **Linux**: `tar xzf FED-…-linux-x64.tar.gz && ./FED/FED`.
 - Prüfsumme kontrollieren: Windows `certutil -hashfile FED-…exe SHA256`, macOS/Linux
   `shasum -a 256 <datei>` – Vergleich mit `SHA256SUMS.txt`.
