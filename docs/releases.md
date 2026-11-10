@@ -4,9 +4,27 @@ Releases entstehen automatisch: Du schreibst auf GitHub die Release-Notizen und 
 „Publish“ – der Workflow **Build** baut danach alle Programme, prüft sie und hängt sie an.
 (Vorbild: [crush-forensics](https://github.com/kalink0/crush-forensics/releases).)
 
-## Ein Release veröffentlichen
+## Release per Klick (empfohlen)
 
-1. Auf `main` ist alles drin, die CI ist grün.
+1. Auf `main` ist alles drin.
+2. GitHub → **Actions → Build → Run workflow**
+   - **Branch**: `main`
+   - **Version**: z. B. `1.0.1` (der Tag wird `v1.0.1`; Vorabversion z. B. `1.1.0-rc1`)
+   - **Release erstellen**: Haken gesetzt lassen
+   - **als Vorabversion**: nur für Test-/RC-Versionen
+3. **Run workflow** klicken.
+
+Zuerst prüft der Schritt *Release prüfen*, ob die Version gültig ist und der Tag noch nicht
+existiert – sonst bricht der Lauf sofort ab, bevor gebaut wird. Danach wird gebaut, getestet und
+validiert. **Erst wenn alles grün ist**, legt der Workflow Tag und Release an, hängt alle
+Programme, `SHA256SUMS.txt` und das Validierungsprotokoll an und prüft zum Schluss, dass keine
+Datei fehlt. Ein Release ohne Programme entsteht so nicht. Die Release-Notizen bestehen aus der
+automatisch erzeugten PR-Liste und der Validierungstabelle; sie lassen sich danach auf GitHub
+bearbeiten.
+
+## Ein Release auf GitHub veröffentlichen
+
+1. Auf `main` ist alles drin, die CI ist grün. **Den Tag neu anlegen** – ein alter Tag baut den alten Stand.
 2. Optional: Versionsnummer in `src/fed/__init__.py` und Eintrag in `CHANGELOG.md` anpassen.
    (Nicht zwingend – der Build setzt die Version aus dem Tag.)
 3. GitHub → **Releases** → **Draft a new release**
@@ -58,7 +76,8 @@ Nightlies sind zum Testen gedacht und als „Pre-release“ markiert.
 
 ## Programme nur bauen (ohne Release)
 
-**Actions → Build → Run workflow** – die Dateien liegen danach im Lauf unter *Artifacts*
+**Actions → Build → Run workflow** mit **entferntem** Haken „Release erstellen“ – die Dateien
+liegen danach im Lauf unter *Artifacts*
 (90 Tage). Lokal für das eigene System: `pip install -e .[build]` und `python packaging/build.py`.
 
 ## Hinweise für Nutzer der Programme

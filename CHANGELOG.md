@@ -204,6 +204,8 @@
   verständliche Hinweise zu typischen Microsoft-Anmeldefehlern (AADSTS…), auch in der Kommandozeile
 - Anleitung zur Google-/Microsoft-Anmeldung im Programm (DE/EN): Einstellungen → „Anleitung Microsoft/Google“,
   verlinkt im Assistenten bei fehlender Client-ID, Microsoft-Passwortwarnung und Anmeldefehlern
+- Release per Klick: Actions → Build → „Run workflow“ mit Version und Haken „Release erstellen“ legt
+  Tag und Release erst nach erfolgreichem Build/Validierung an und prüft, dass alle Programme angehängt sind
 
 ## 0.4-beta
 

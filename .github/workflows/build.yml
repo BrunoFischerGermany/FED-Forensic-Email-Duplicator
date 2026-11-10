@@ -5,7 +5,9 @@
 #               und "Publish release" klicken → dieser Workflow baut alles und hängt die Programme,
 #               SHA256SUMS.txt und das Validierungsprotokoll an das Release; die Ergebnistabelle der
 #               Validierung wird an die Release-Notizen angefügt.
-#  - Per Klick: Actions → "Build" → "Run workflow"  (Ergebnis unter "Artifacts" des Laufs)
+#  - Per Klick: Actions → "Build" → "Run workflow", Version eintragen (z. B. 1.0.1), Häkchen
+#               "Release erstellen" gesetzt lassen → Tag v1.0.1 auf dem gewählten Branch, Release mit
+#               allen Programmen. Ohne Häkchen: nur Test-Build, Ergebnis unter "Artifacts" des Laufs.
 #  - Nightly:   .github/workflows/nightly.yml ruft diesen Workflow auf
 name: Build
 
@@ -15,9 +17,17 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versionsbezeichnung (leer = aus fed/__init__.py)"
+        description: "Version, z. B. 1.0.1 (Tag wird v1.0.1; für ein Release Pflicht)"
         required: false
         default: ""
+      release:
+        description: "Release erstellen (Tag + Release mit allen Programmen)"
+        type: boolean
+        default: true
+      prerelease:
+        description: "als Vorabversion (Pre-release) kennzeichnen"
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       version:
@@ -34,8 +44,50 @@ env:
   FED_VERSION: ${{ github.event.release.tag_name || inputs.version }}
 
 jobs:
+  # Prüft vor dem (langen) Bauen, ob ein Release angelegt werden kann.
+  check:
+    name: Release prüfen
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Tag bestimmen
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          WANT_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.release == true }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$EVENT" = "release" ]; then
+            echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          [ "$WANT_RELEASE" = "true" ] || { echo "Nur Test-Build, kein Release."; exit 0; }
+          v="${VERSION#v}"; v="${v#V}"
+          if [ -z "$v" ]; then
+            echo "::error::Für ein Release bitte eine Version eintragen (z. B. 1.0.1) – oder das Häkchen 'Release erstellen' entfernen."
+            exit 1
+          fi
+          if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Ungültige Version '$v' – erwartet z. B. 1.0.1 oder 1.1.0-rc1."
+            exit 1
+          fi
+          tag="v$v"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            echo "::error::Den Tag $tag gibt es schon. Bitte eine neue Version wählen oder den Tag vorher löschen."
+            exit 1
+          fi
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Das Release $tag gibt es schon."
+            exit 1
+          fi
+          echo "Release $tag wird nach erfolgreichem Build und Validierung angelegt (Commit ${GITHUB_SHA::7})."
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   build:
     name: ${{ matrix.name }}
+    needs: check
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -94,6 +146,7 @@ jobs:
 
   validate:
     name: Validierung
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -112,8 +165,9 @@ jobs:
       - name: Validierung gegen das Testpostfach
         run: |
           v="$(python -c 'import fed; print(fed.__version__)')"
-          url="${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/FED-$v-validation-report-en.pdf"
-          [ "${{ github.event_name }}" = "release" ] || url=""
+          tag="${{ needs.check.outputs.tag }}"
+          url="${{ github.server_url }}/${{ github.repository }}/releases/download/$tag/FED-$v-validation-report-en.pdf"
+          [ -n "$tag" ] || url=""
           python -m validation.run --out validation-report --lang de,en --notes validation-notes.md --report-url "$url"
       - name: Dateien benennen
         if: always()
@@ -129,11 +183,12 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
-  # Nur bei einem veröffentlichten Release: Dateien anhängen, Validierung in die Notizen.
-  # Schlägt Build, Selbsttest oder Validierung fehl, wird nichts angehängt.
+  # Bei einem veröffentlichten Release oder "Run workflow" mit Häkchen: Programme anhängen,
+  # Validierung in die Notizen. Schlägt Build, Selbsttest oder Validierung fehl, wird nichts
+  # angehängt bzw. kein Release angelegt – ein Release ohne Programme gibt es so nicht.
   publish:
-    if: github.event_name == 'release'
-    needs: [build, validate]
+    if: needs.check.outputs.tag != ''
+    needs: [check, build, validate]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -151,7 +206,23 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ needs.check.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ github.event.release.name || format('FED {0}', needs.check.outputs.tag) }}
+          prerelease: ${{ github.event.release.prerelease || inputs.prerelease == true }}
+          generate_release_notes: ${{ github.event_name != 'release' }}
           files: dist/*
           body_path: notes.md
           append_body: true
+          fail_on_unmatched_files: true
+
+      - name: Alle Programme angehängt?
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          names="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          echo "$names"
+          for p in windows-x64 macos-arm64 macos-x64 linux-x64 SHA256SUMS validation-report; do
+            echo "$names" | grep -qi -- "$p" || { echo "::error::Im Release fehlt: $p"; exit 1; }
+          done
