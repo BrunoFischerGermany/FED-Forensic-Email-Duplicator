@@ -9,6 +9,7 @@
   verlinkt im Assistenten bei fehlender Client-ID, Microsoft-Passwortwarnung und Anmeldefehlern
 - Release per Klick: Actions → Build → „Run workflow“ mit Version und Haken „Release erstellen“ legt
   Tag und Release erst nach erfolgreichem Build/Validierung an und prüft, dass alle Programme angehängt sind
+  (Release über die GitHub-CLI; ohne PR-Liste, falls deren Erzeugung scheitert)
 - Deutsche Begriffe: „Fall“ statt „Case“, „Aktenzeichen“ statt „Casenumber“, „Asservat“/„Asservatennummer“
   statt „Evidence“ – in Oberfläche, Kommandozeile, Bericht und Validierungsprotokoll (englisch unverändert)
 - Logo: auch SVG – wird beim Anlegen eines Falls in ein PNG umgewandelt (Hash des Original-SVG im Log)
