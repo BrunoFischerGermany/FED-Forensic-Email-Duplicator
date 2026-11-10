@@ -123,7 +123,7 @@ def set_account_notes(case: Case, account_id: int, notes: str, notes_html: str |
     from fed.core.richtext import normalize
 
     if case.closed:
-        raise RuntimeError(_t("Case ist abgeschlossen"))
+        raise RuntimeError(_t("Fall ist abgeschlossen"))
     plain, html_ = normalize(notes_html, notes)
     new = plain.strip() or None
     row = case.conn.execute("SELECT notes, email, notes_html FROM account WHERE id = ?", (account_id,)).fetchone()
@@ -251,7 +251,7 @@ def run_attempt(
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
     if case.closed:
-        raise ValueError(_t("Case ist abgeschlossen – keine weiteren Versuche möglich"))
+        raise ValueError(_t("Fall ist abgeschlossen – keine weiteren Versuche möglich"))
     conn = case.conn
     acc = conn.execute("SELECT email, date_from, date_to, filters FROM account WHERE id = ?", (account_id,)).fetchone()
     if not acc:

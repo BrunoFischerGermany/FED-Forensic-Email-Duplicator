@@ -206,6 +206,8 @@
   verlinkt im Assistenten bei fehlender Client-ID, Microsoft-Passwortwarnung und Anmeldefehlern
 - Release per Klick: Actions → Build → „Run workflow“ mit Version und Haken „Release erstellen“ legt
   Tag und Release erst nach erfolgreichem Build/Validierung an und prüft, dass alle Programme angehängt sind
+- Deutsche Begriffe: „Fall“ statt „Case“, „Fall-Nummer“ statt „Casenumber“, „Asservat“/„Asservatennummer“
+  statt „Evidence“ – in Oberfläche, Kommandozeile, Bericht und Validierungsprotokoll (englisch unverändert)
 
 ## 0.4-beta
 

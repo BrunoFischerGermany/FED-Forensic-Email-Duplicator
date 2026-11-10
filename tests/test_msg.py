@@ -16,10 +16,10 @@ def test_translate_and_language_blocks():
     with msg.language("en"):
         assert msg.t("Konto {id} unbekannt", id=3) == "Account 3 unknown"
         with msg.language("de"):  # verschachtelt, z. B. deutscher Bericht aus englischer Oberfläche
-            assert msg.t("Case ist abgeschlossen") == "Case ist abgeschlossen"
-        assert msg.t("Case ist abgeschlossen") == "Case is closed"
+            assert msg.t("Fall ist abgeschlossen") == "Fall ist abgeschlossen"
+        assert msg.t("Fall ist abgeschlossen") == "Case is closed"
     with msg.language("fr"):  # unvollständige Sprache: lieber Englisch als Deutsch
-        assert msg.t("Case ist abgeschlossen") == "Case is closed"
+        assert msg.t("Fall ist abgeschlossen") == "Case is closed"
 
 
 def test_codes_and_legacy_values():

@@ -85,7 +85,7 @@ CODES = {
     "missing_in_zip": N_("fehlt im ZIP: {0}"),
     "unexpected_in_zip": N_("unerwartet im ZIP: {0}"),
     "hash_mismatch": N_("Hash abweichend: {0}"),
-    "not_in_case": N_("nicht in der Case-Datei, nicht übernommen: {0}"),
+    "not_in_case": N_("nicht in der Fall-Datei, nicht übernommen: {0}"),
 }
 # Werte älterer Case-Dateien (vor den Codes, deutsch gespeichert)
 LEGACY = {

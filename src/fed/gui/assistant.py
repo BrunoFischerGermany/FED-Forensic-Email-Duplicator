@@ -110,8 +110,8 @@ class CasePage(QWidget):
     def __init__(self, st: State) -> None:
         super().__init__()
         self.st = st
-        w, lay = page(self.tr("Case anlegen"),
-                      self.tr("Ohne Case startet keine Sicherung. Examiner und Agentur kommen aus der config.toml."))
+        w, lay = page(self.tr("Fall anlegen"),
+                      self.tr("Ohne Fall startet keine Sicherung. Examiner und Agentur kommen aus der config.toml."))
         cols = QHBoxLayout()
         cols.setSpacing(24)
         form_card = Card()
@@ -126,7 +126,7 @@ class CasePage(QWidget):
         self.target = QLineEdit(st.cfg.programm.zielpfad or str(Path.cwd()))
         browse = QPushButton(self.tr("Durchsuchen …"))
         browse.clicked.connect(self._browse)
-        f.addWidget(label(self.tr("Casenumber *"), "H2"), 0, 0)
+        f.addWidget(label(self.tr("Fall-Nummer *"), "H2"), 0, 0)
         f.addWidget(label(self.tr("Examiner *"), "H2"), 0, 1)
         f.addWidget(self.case_no, 1, 0)
         f.addWidget(self.examiner, 1, 1)
@@ -163,9 +163,9 @@ class CasePage(QWidget):
         lay.addStretch(1)
         self.error = label("", "Error", wrap=True)
         lay.addWidget(self.error)
-        open_btn = QPushButton(self.tr("Vorhandenen Case öffnen …"))
+        open_btn = QPushButton(self.tr("Vorhandenen Fall öffnen …"))
         open_btn.clicked.connect(self._open_existing)
-        self.go = QPushButton(self.tr("Case anlegen und weiter"))
+        self.go = QPushButton(self.tr("Fall anlegen und weiter"))
         self.go.setObjectName("Primary")
         self.go.clicked.connect(self._create)
         btns = QHBoxLayout()
@@ -197,15 +197,15 @@ class CasePage(QWidget):
 
         raw = self.case_no.text().strip()
         safe = file_name(raw or "…", self.st.cfg.programm.leerzeichen_ersetzen)
-        self.target_hint.setText(self.tr("Case-Ordner wird angelegt: ") + str(Path(self.target.text()) / safe))
+        self.target_hint.setText(self.tr("Fall-Ordner wird angelegt: ") + str(Path(self.target.text()) / safe))
         changed = bool(raw) and safe != raw
         self.name_hint.setVisible(changed)
         if changed:
             text = (self.tr("Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \\ : *) und Leerzeichen werden durch "
-                            "„_“ ersetzt (Einstellungen). Die Casenumber selbst bleibt unverändert in Bericht und Log.")
+                            "„_“ ersetzt (Einstellungen). Die Fall-Nummer selbst bleibt unverändert in Bericht und Log.")
                     if self.st.cfg.programm.leerzeichen_ersetzen else
                     self.tr("Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \\ : *), werden "
-                            "durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log."))
+                            "durch „_“ ersetzt. Die Fall-Nummer selbst bleibt unverändert in Bericht und Log."))
             self.name_hint.setText(text.format(safe))
 
     def check_system(self) -> None:
@@ -239,7 +239,7 @@ class CasePage(QWidget):
     def _validate(self) -> bool:
         self.error.setText("")
         if not self.case_no.text().strip() or not self.examiner.text().strip():
-            self.error.setText(self.tr("Casenumber und Examiner sind Pflicht."))
+            self.error.setText(self.tr("Fall-Nummer und Examiner sind Pflicht."))
             return False
         info = self.st.system
         if info and not info.online:
@@ -276,7 +276,7 @@ class CasePage(QWidget):
         self.next.emit()
 
     def _open_existing(self) -> None:
-        d = QFileDialog.getExistingDirectory(self, self.tr("Case-Ordner wählen"), self.target.text())
+        d = QFileDialog.getExistingDirectory(self, self.tr("Fall-Ordner wählen"), self.target.text())
         if not d:
             return
         try:
@@ -300,7 +300,7 @@ class AccountPage(QWidget):
         w, lay = page(self.tr("Konto einrichten"),
                       self.tr("Adresse eingeben – Server, Port und Verschlüsselung werden wie bei Thunderbird "
                               "automatisch ermittelt."))
-        self.accounts_card = Card(self.tr("Bereits in diesem Case"))
+        self.accounts_card = Card(self.tr("Bereits in diesem Fall"))
         self.accounts = AccountsTable()
         self.accounts_card.add(self.accounts)
         self.accounts_card.add(label(self.tr("Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues "
@@ -322,7 +322,7 @@ class AccountPage(QWidget):
         self.evidence = QLineEdit()
         self.evidence.setPlaceholderText("A-01")
         g.addWidget(label(self.tr("E-Mail-Adresse *"), "H2"), 0, 0)
-        g.addWidget(label(self.tr("Evidence-Nummer *"), "H2"), 0, 1)
+        g.addWidget(label(self.tr("Asservatennummer *"), "H2"), 0, 1)
         g.addWidget(self.email, 1, 0)
         g.addWidget(self.evidence, 1, 1)
         c1.add(g)
@@ -411,8 +411,8 @@ class AccountPage(QWidget):
         self.go.setEnabled(False)
         self.go.clicked.connect(self._go)
         # ohne neues Konto direkt zum Abschluss (z. B. nach einem Neustart von FED)
-        self.finish_btn = QPushButton(self.tr("Case abschließen …"))
-        self.finish_btn.setToolTip(self.tr("Kein weiteres Konto – den Case mit den gesicherten Konten abschließen"))
+        self.finish_btn = QPushButton(self.tr("Fall abschließen …"))
+        self.finish_btn.setToolTip(self.tr("Kein weiteres Konto – den Fall mit den gesicherten Konten abschließen"))
         self.finish_btn.clicked.connect(self.finish.emit)
         self.finish_btn.setVisible(False)
         b = QHBoxLayout()
@@ -457,7 +457,7 @@ class AccountPage(QWidget):
         if suggestion and not self.evidence.text().strip():
             self.evidence.setText(suggestion)
             self.evidence.selectAll()
-            self.evidence_hint.setText(self.tr("Evidence-Nummer vorgeschlagen (nach {0}) – bitte prüfen.")
+            self.evidence_hint.setText(self.tr("Asservatennummer vorgeschlagen (nach {0}) – bitte prüfen.")
                                        .format(rows[-1]["evidence"]))
         else:
             self.evidence_hint.setText("")
@@ -495,8 +495,8 @@ class AccountPage(QWidget):
         o = self._known(normalize_email(self.email.text()))
         if o:
             sym, text, _ = state_text(o)
-            self.evidence_hint.setText(self.tr("Dieses Konto ist schon im Case ({0}, {1} {2}) – es wird fortgesetzt, "
-                                               "die Evidence-Nummer bleibt {0}.").format(o["evidence"], sym, text))
+            self.evidence_hint.setText(self.tr("Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, "
+                                               "die Asservatennummer bleibt {0}.").format(o["evidence"], sym, text))
             self.evidence.setText(o["evidence"])
             self.evidence_hint.setVisible(True)
         self._recall()
@@ -648,7 +648,7 @@ class AccountPage(QWidget):
             mark_invalid(w, w in missing)
         problems = []
         if missing:  # nicht testen – sonst meldet der Server nur „authentication failed“
-            names = {self.email: self.tr("E-Mail-Adresse"), self.evidence: self.tr("Evidence-Nummer"),
+            names = {self.email: self.tr("E-Mail-Adresse"), self.evidence: self.tr("Asservatennummer"),
                      self.server: self.tr("Server"), self.password: self.tr("Passwort")}
             problems.append(self.tr("Bitte ausfüllen: {0}").format(", ".join(names[w] for w in missing)))
         ev, email = self.evidence.text().strip(), normalize_email(self.email.text())
@@ -656,7 +656,7 @@ class AccountPage(QWidget):
                       and o["email"].casefold() != email.casefold()), None)
         if other:
             mark_invalid(self.evidence)
-            problems.append(self.tr("Die Evidence-Nummer {0} ist im Case schon für {1} vergeben.")
+            problems.append(self.tr("Die Asservatennummer {0} ist im Fall schon für {1} vergeben.")
                             .format(ev, other["email"]))
         if problems:
             self.error.setText("\n".join(problems))
@@ -817,7 +817,7 @@ class FolderPage(QWidget):
         self.gmail_lbl = label(self.tr(
             "Gmail erkannt: Ordner sind bei Gmail Labels – eine Mail mit mehreren Labels stünde mehrfach im ZIP. "
             "Empfohlen und vorausgewählt: „Alle Nachrichten“, „Spam“ und „Papierkorb“ (jede Mail genau einmal); "
-            "die Labels jeder Mail werden dokumentiert (Case-Datei, log.csv, Bericht)."), "Hint", wrap=True)
+            "die Labels jeder Mail werden dokumentiert (Fall-Datei, log.csv, Bericht)."), "Hint", wrap=True)
         gb = QHBoxLayout()
         b1 = QPushButton(self.tr("Gmail-Empfehlung"))
         b1.clicked.connect(self._gmail_recommended)
@@ -1085,7 +1085,7 @@ class AcquirePage(QWidget):
         self.log.setMinimumHeight(160)
         lc.add(self.log)
         cols.addWidget(lc, 2)
-        self.accounts_card = Card(self.tr("Konten in diesem Case"))
+        self.accounts_card = Card(self.tr("Konten in diesem Fall"))
         self.accounts = AccountsTable()
         self.accounts_card.add(self.accounts)
         zr = QHBoxLayout()
@@ -1103,8 +1103,8 @@ class AcquirePage(QWidget):
         b.addStretch(1)
         self.resume_btn = QPushButton(self.tr("Fortsetzen"))
         self.restart_btn = QPushButton(self.tr("Neubeginn …"))
-        self.another_btn = QPushButton(self.tr("Weiteres Konto im Case sichern"))
-        self.finish_btn = QPushButton(self.tr("Case abschließen"))
+        self.another_btn = QPushButton(self.tr("Weiteres Konto im Fall sichern"))
+        self.finish_btn = QPushButton(self.tr("Fall abschließen"))
         self.finish_btn.setObjectName("Primary")
         self.resume_btn.clicked.connect(lambda: self._restart_job(acq.Mode.RESUME))
         self.restart_btn.clicked.connect(self._restart)
@@ -1280,7 +1280,7 @@ class AcquirePage(QWidget):
         others = [j for j in self.st.jobs.running() if j is not self.job]
         self.resume_btn.setVisible(res.status != "done")
         self.restart_btn.setVisible(True)
-        self.another_btn.setText(self.tr("Weiteres Konto im Case sichern"))
+        self.another_btn.setText(self.tr("Weiteres Konto im Fall sichern"))
         self.another_btn.setVisible(res.status == "done" or bool(others))
         self.finish_btn.setVisible(res.status == "done")
         self.finish_btn.setEnabled(not others)
@@ -1318,7 +1318,7 @@ class AcquirePage(QWidget):
         self._show_accounts()
         self.resume_btn.setVisible(True)
         self.restart_btn.setVisible(True)
-        self.another_btn.setText(self.tr("Weiteres Konto im Case sichern"))
+        self.another_btn.setText(self.tr("Weiteres Konto im Fall sichern"))
         self.another_btn.setVisible(bool(self.st.jobs.running()))
 
     def _restart(self) -> None:
@@ -1348,7 +1348,7 @@ class FinishPage(QWidget):
     def __init__(self, st: State) -> None:
         super().__init__()
         self.st = st
-        w, lay = page(self.tr("Case abschließen"))
+        w, lay = page(self.tr("Fall abschließen"))
         self.title = lay.itemAt(0).widget()
         self.sub = w.subtitle
         cols = QHBoxLayout()
@@ -1366,7 +1366,7 @@ class FinishPage(QWidget):
         rep.add(self.report_lbl)
         self.open_pdf = QPushButton(self.tr("Bericht öffnen"))
         self.open_pdf.setObjectName("Primary")
-        self.open_dir = QPushButton(self.tr("Case-Ordner öffnen"))
+        self.open_dir = QPushButton(self.tr("Fall-Ordner öffnen"))
         self.open_pdf.clicked.connect(lambda: self._open(self.st.finish.report_pdf))
         self.open_dir.clicked.connect(lambda: self._open(self.st.case.root))
         rep.add(self.open_pdf)
@@ -1382,7 +1382,7 @@ class FinishPage(QWidget):
         self.back_btn = QPushButton(self.tr("Zurück zu den Konten"))
         self.back_btn.clicked.connect(self.back.emit)
         self.back_btn.setVisible(False)
-        nb = QPushButton(self.tr("Neuen Case anlegen"))
+        nb = QPushButton(self.tr("Neuen Fall anlegen"))
         nb.clicked.connect(self.new_case.emit)
         self.quit_btn = QPushButton(self.tr("FED beenden"))
         self.quit_btn.setObjectName("Primary")
@@ -1405,7 +1405,7 @@ class FinishPage(QWidget):
     def _aborted(self) -> None:
         """Rückfrage abgebrochen: nichts abgeschlossen, Case bleibt offen."""
         self.title.setText(self.tr("Abschluss abgebrochen"))
-        self.sub.setText(self.tr("Der Case ist noch offen – nichts wurde verändert."))
+        self.sub.setText(self.tr("Der Fall ist noch offen – nichts wurde verändert."))
         restyle(self.sub, "Muted")
         self.sub.setVisible(True)
         self.retry_btn.setVisible(True)
@@ -1455,7 +1455,7 @@ class FinishPage(QWidget):
             password = dlg.password
             dlg.deleteLater()
         self._password = password
-        self.title.setText(self.tr("Case wird abgeschlossen …"))
+        self.title.setText(self.tr("Fall wird abgeschlossen …"))
         self.sub.setText(self.tr("ZIP packen, prüfen, Hashes und Berichte erzeugen"))
         restyle(self.sub, "Muted")
         self.sub.setVisible(True)
@@ -1477,7 +1477,7 @@ class FinishPage(QWidget):
         self.st.finish = res
         z = res.zip
         total = sum(r for (r,) in self.st.case.conn.execute("SELECT COUNT(*) FROM message WHERE status='valid'"))
-        self.title.setText(self.tr("Case abgeschlossen"))
+        self.title.setText(self.tr("Fall abgeschlossen"))
         self.sub.setText(self.tr("{0} Mails gesichert und verifiziert · ab jetzt nur noch lesend").format(total))
         k = self.check_kv
         k.clear()
@@ -1525,7 +1525,7 @@ class FinishPage(QWidget):
     def _failed(self, err, tb) -> None:
         allow_sleep(self.st)
         self.title.setText(self.tr("Abschluss fehlgeschlagen"))
-        self.sub.setText(err + "\n" + self.tr("Der Case ist noch offen – die gesicherten Mails sind unverändert. "
+        self.sub.setText(err + "\n" + self.tr("Der Fall ist noch offen – die gesicherten Mails sind unverändert. "
                                                "Ursache beheben und erneut versuchen."))
         restyle(self.sub, "Error")
         self.retry_btn.setVisible(True)
@@ -1545,11 +1545,11 @@ def ask_zip_mode(parent, case, cfg, force: bool = False) -> str | None:
     box = QMessageBox(parent)
     box.setWindowTitle(QCoreApplication.translate("Assistant", "ZIP-Archive bei mehreren Konten"))
     box.setIcon(QMessageBox.Icon.Question)
-    box.setText(QCoreApplication.translate("Assistant", "Dieser Case enthält mehrere Konten. Wie sollen die ZIP-Archive "
+    box.setText(QCoreApplication.translate("Assistant", "Dieser Fall enthält mehrere Konten. Wie sollen die ZIP-Archive "
                                                         "am Ende erstellt werden?"))
     box.setInformativeText(QCoreApplication.translate(
         "Assistant", "Ein ZIP für alle Konten: ein Archiv, ein Hash, je Konto ein Ordner darin.\n\n"
-                     "Ein ZIP je Konto: je Evidence-Nummer ein eigenes Archiv mit eigenem Hash (und Zeitstempel) – "
+                     "Ein ZIP je Konto: je Asservatennummer ein eigenes Archiv mit eigenem Hash (und Zeitstempel) – "
                      "lässt sich einzeln weitergeben.\n\nDie Wahl kann bis zum Abschluss geändert werden."))
     one = box.addButton(QCoreApplication.translate("Assistant", "Ein ZIP für alle Konten"),
                         QMessageBox.ButtonRole.AcceptRole)
@@ -1574,7 +1574,7 @@ def zip_mode_text(mode: str | None) -> str:
 
 
 # ====================================================================== Assistent
-STEPS = [QT_TRANSLATE_NOOP("Assistant", "Case anlegen"), QT_TRANSLATE_NOOP("Assistant", "Systemprüfung"),
+STEPS = [QT_TRANSLATE_NOOP("Assistant", "Fall anlegen"), QT_TRANSLATE_NOOP("Assistant", "Systemprüfung"),
          QT_TRANSLATE_NOOP("Assistant", "Konto"), QT_TRANSLATE_NOOP("Assistant", "Postfach scannen"),
          QT_TRANSLATE_NOOP("Assistant", "Ordner wählen"), QT_TRANSLATE_NOOP("Assistant", "Sicherung"),
          QT_TRANSLATE_NOOP("Assistant", "Abschluss")]
@@ -1691,16 +1691,16 @@ class Assistant(QWidget):
     def _finish(self) -> None:
         running = self.jobs.running()
         if running:
-            QMessageBox.information(self, self.tr("Case abschließen"), self.tr(
-                "Es laufen noch {0} Sicherungen:\n\n{1}\n\nDer Case kann erst abgeschlossen werden, wenn alle "
+            QMessageBox.information(self, self.tr("Fall abschließen"), self.tr(
+                "Es laufen noch {0} Sicherungen:\n\n{1}\n\nDer Fall kann erst abgeschlossen werden, wenn alle "
                 "beendet sind.").format(len(running), "\n".join(f"⟳  {j.evidence} · {j.email} – {j.percent} %"
                                                                  for j in running)))
             return
         open_ = incomplete(self.st.case) if self.st.case else []
         if open_:
             lines = "\n".join(f"{state_text(o)[0]}  {o['evidence']} · {o['email']} – {state_text(o)[1]}" for o in open_)
-            r = QMessageBox.question(self, self.tr("Case abschließen"), self.tr(
-                "Nicht alle Konten sind vollständig gesichert:\n\n{0}\n\nNach dem Abschluss kann der Case nicht mehr "
+            r = QMessageBox.question(self, self.tr("Fall abschließen"), self.tr(
+                "Nicht alle Konten sind vollständig gesichert:\n\n{0}\n\nNach dem Abschluss kann der Fall nicht mehr "
                 "ergänzt werden. Trotzdem abschließen?").format(lines))
             if r != QMessageBox.StandardButton.Yes:
                 return
@@ -1717,8 +1717,8 @@ class Assistant(QWidget):
         self.refresh_accounts()
         self.p_acc.prepare()
         if self.st.case.closed:
-            QMessageBox.information(self, self.tr("Case abgeschlossen"),
-                                    self.tr("Dieser Case ist abgeschlossen und kann nur noch in der Historie angesehen werden."))
+            QMessageBox.information(self, self.tr("Fall abgeschlossen"),
+                                    self.tr("Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden."))
             return
         self._show(1, 2)
 

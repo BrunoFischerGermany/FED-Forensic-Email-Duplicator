@@ -46,7 +46,7 @@ class SetupDialog(QDialog):
         i18n.fill_combo(self.lang, ui_languages())
         self.lang.setCurrentIndex(max(0, self.lang.findData(cfg.programm.sprache)))
         self.target = QLineEdit(cfg.programm.zielpfad)
-        self.target.setPlaceholderText(self.tr("Standard-Zielordner für Cases (optional)"))
+        self.target.setPlaceholderText(self.tr("Standard-Zielordner für Fälle (optional)"))
         browse = QPushButton(self.tr("Wählen…"))
         browse.clicked.connect(self._pick_target)
         trow = QHBoxLayout()

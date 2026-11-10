@@ -179,13 +179,13 @@ def test_report_overview_per_account_and_notes(tmp_path, imap_server, test_mails
 
     res = finish_case(case, Config(), language="de")
     txt = res.report_txt.read_text(encoding="utf-8")
-    assert "Anmerkungen zum Case" in txt and "12 Gs 34/26" in txt
+    assert "Anmerkungen zum Fall" in txt and "12 Gs 34/26" in txt
     assert "Kontenübersicht" in txt and "2 Konten · 2 vollständig gesichert" in txt
     assert "Zugangsdaten vom Beschuldigten" in txt and "Postfach der Praxis" in txt
     names = sorted(p.name for p in res.account_reports)
     assert names == ["report_A-01.pdf", "report_A-01.txt", "report_A-02.pdf", "report_A-02.txt"]
     one = (case.root / "report_A-02.txt").read_text(encoding="utf-8")
-    assert testmailbox.UMLAUT_USER in one and "Postfach der Praxis" in one and "Teil des Case 2026-0099" in one
+    assert testmailbox.UMLAUT_USER in one and "Postfach der Praxis" in one and "Teil des Falls 2026-0099" in one
     assert "Zugangsdaten vom Beschuldigten" not in one and f"({len(test_mails)})" in one
     assert imap_server.user + "/" not in one  # nur Mails dieses Kontos
     for p in res.account_reports:

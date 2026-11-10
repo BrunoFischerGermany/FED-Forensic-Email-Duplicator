@@ -75,12 +75,12 @@ class Case:
     def create(cls, base_dir: Path, info: CaseInfo, tool_sha256: str | None = None,
                replace_spaces: bool = True) -> Case:
         if not info.case_number.strip():
-            raise ValueError(t("Casenumber fehlt"))
+            raise ValueError(t("Fall-Nummer fehlt"))
         if not info.examiner.strip():
             raise ValueError(t("Examiner fehlt"))
         root = base_dir / file_name(info.case_number.strip(), replace_spaces)
         if (root / CASE_DB).exists():
-            raise FileExistsError(f"Case existiert bereits: {root}")
+            raise FileExistsError(f"Fall existiert bereits: {root}")
         (root / "work").mkdir(parents=True, exist_ok=True)
         (root / "discarded").mkdir(exist_ok=True)
         if tool_sha256 is None:
@@ -172,7 +172,7 @@ class Case:
         from fed.core.richtext import normalize
 
         if self.closed:
-            raise RuntimeError(t("Case ist abgeschlossen"))
+            raise RuntimeError(t("Fall ist abgeschlossen"))
         plain, html_ = normalize(html_value, text)
         plain = plain.strip() or None
         old = self.conn.execute("SELECT closing_note, closing_note_html FROM case_info WHERE id = 1").fetchone()
@@ -210,7 +210,7 @@ class Case:
         if mode not in self.ZIP_MODES:
             raise ValueError(t("ZIP-Aufteilung unbekannt: {mode}", mode=mode))
         if self.closed:
-            raise RuntimeError(t("Case ist abgeschlossen"))
+            raise RuntimeError(t("Fall ist abgeschlossen"))
         old = self.zip_mode()
         if old == mode:
             return

@@ -171,7 +171,7 @@ class HistoryTab(QWidget):
         self.tabs.addTab(self.log, self.tr("Log"))
         self.tabs.addTab(self.folders, self.tr("Ordner Soll/Ist + Vorher/Nachher"))
         lay.addWidget(self.tabs, 1)
-        self.empty = label(self.tr("Kein Case geöffnet – unter „Sicherung“ einen Case anlegen oder öffnen."), "Muted")
+        self.empty = label(self.tr("Kein Fall geöffnet – unter „Sicherung“ einen Fall anlegen oder öffnen."), "Muted")
         lay.addWidget(self.empty)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)

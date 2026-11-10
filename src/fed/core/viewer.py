@@ -71,7 +71,7 @@ def _row(case: Case, message_id: int) -> dict:
         (message_id,))
     r = cur.fetchone()
     if r is None:
-        raise KeyError(_t("Mail {id} nicht in der Case-Datei", id=message_id))
+        raise KeyError(_t("Mail {id} nicht in der Fall-Datei", id=message_id))
     return dict(zip([c[0] for c in cur.description], r, strict=True))
 
 

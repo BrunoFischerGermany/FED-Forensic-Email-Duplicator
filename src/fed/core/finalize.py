@@ -350,7 +350,7 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
 
     cfg = cfg or Config()
     if case.closed:
-        raise ValueError(_t("Case ist bereits abgeschlossen"))
+        raise ValueError(_t("Fall ist bereits abgeschlossen"))
     if encrypt_password is not None:
         from fed.core.encrypt import check_password
 

@@ -177,8 +177,8 @@ class MailViewer(QDialog):
                                                      f"UID {v.db['uid']}")
         integrity = ElidedLabel("", "Ok" if v.sha256_ok else "Error")
         src = self.tr("Arbeitsordner") if v.source == "work" else v.source
-        integrity.setText((self.tr("✓ SHA-256 stimmt mit der Case-Datei überein") if v.sha256_ok
-                           else self.tr("✗ SHA-256 weicht von der Case-Datei ab – Datei verändert!"))
+        integrity.setText((self.tr("✓ SHA-256 stimmt mit der Fall-Datei überein") if v.sha256_ok
+                           else self.tr("✗ SHA-256 weicht von der Fall-Datei ab – Datei verändert!"))
                           + " · " + self.tr("Quelle: {0}").format(src) + f" · {v.db['zip_path']}")
         restyle(integrity, "Ok" if v.sha256_ok else "Error")
         note = QLabel(self.tr("Nur lesend – die Datei wird nicht verändert. Ansehen und Speichern werden protokolliert."))
