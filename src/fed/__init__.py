@@ -7,5 +7,5 @@ Copyright (C) 2023-2026 Bruno Fischer
 Lizenz: GPL-3.0-only (siehe LICENSE)
 """
 
-__version__ = "1.0.0.dev0"
+__version__ = "1.0"
 APP_NAME = "FED - Forensic Email Duplicator"
