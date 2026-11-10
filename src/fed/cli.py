@@ -43,16 +43,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lang", choices=["de", "en"], help=t("Sprache der Ausgabe (Standard: FED_LANG oder config.toml)"))
     sub = p.add_subparsers(dest="command", required=True)
 
-    new = sub.add_parser("new-case", help=t("Case anlegen"))
+    new = sub.add_parser("new-case", help=t("Fall anlegen"))
     new.add_argument("--target", type=Path, required=True, help=t("Zielordner (Datenträger)"))
-    new.add_argument("--case", required=True, help="Casenumber")
+    new.add_argument("--case", required=True, help=t("Aktenzeichen"))
     new.add_argument("--examiner", help=t("Examiner (Standard aus Config)"))
     new.add_argument("--notes", default="")
 
     acq = sub.add_parser("acquire", help=t("Konto sichern"))
     acq.add_argument("--case-dir", type=Path, required=True)
     acq.add_argument("--account", required=True, help=t("E-Mail-Adresse"))
-    acq.add_argument("--evidence", required=True, help=t("Evidence-/Asservatennummer"))
+    acq.add_argument("--evidence", required=True, help=t("Asservatennummer"))
     acq.add_argument("--account-notes", default=None, help=t("Notiz zum Konto (erscheint im Bericht)"))
     acq.add_argument("--from", dest="date_from", help=t("Zeitraum ab (JJJJ-MM-TT)"))
     acq.add_argument("--to", dest="date_to", help=t("Zeitraum bis einschließlich (JJJJ-MM-TT)"))
@@ -80,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
     acq.add_argument("--device-code", action="store_true", help=t("Microsoft: Anmeldung per Gerätecode"))
     acq.add_argument("--login-as", help=t("OAuth: Konto, mit dem angemeldet wird (z. B. bei geteiltem Postfach)"))
 
-    fin = sub.add_parser("finish", help=t("Case abschließen: ZIP, Hashes, Berichte"))
+    fin = sub.add_parser("finish", help=t("Fall abschließen: ZIP, Hashes, Berichte"))
     fin.add_argument("--case-dir", type=Path, required=True)
     wd = fin.add_mutually_exclusive_group()
     wd.add_argument("--delete-work", action="store_true", help=t("work/ nach verifiziertem ZIP löschen"))
@@ -93,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     fin.add_argument("--closing-note", metavar=t("TEXT"),
                      help=t("Abschlussvermerk für den Bericht (z. B. Übergabe, Besonderheiten)"))
     fin.add_argument("--zip", choices=["gesamt", "je-konto"], default=None,
-                     help=t("mehrere Konten: ein ZIP für alle oder eines je Konto (Standard: Wahl im Case, sonst config)"))
+                     help=t("mehrere Konten: ein ZIP für alle oder eines je Konto (Standard: Wahl im Fall, sonst config)"))
 
     ver = sub.add_parser("verify", help=t("Hash-Kette und Dateien prüfen"))
     ver.add_argument("--case-dir", type=Path, required=True)
@@ -115,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         info = syscheck.collect(args.target, cfg.programm.ntp_server if cfg.programm.ntp else None, cfg.proxy_url)
         case.record_system_check(info.as_dict())
         case.store_config_snapshot(cfg.raw_text, cfg.logo_path())
-        print(t("Case angelegt: {path}", path=case.root))
+        print(t("Fall angelegt: {path}", path=case.root))
         print(t("System: {user} @ {host} · online={online} · extern={removable} · frei {free:.1f} GB · "
                 "NTP-Abweichung {ntp}", user=info.user, host=info.hostname, online=info.online,
                 removable=info.target_removable, free=info.free_bytes / 1e9, ntp=info.ntp_offset_s))

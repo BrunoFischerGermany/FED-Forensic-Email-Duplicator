@@ -11,7 +11,7 @@
         <translation>Enter the address – server, port and encryption are detected automatically, like in Thunderbird.</translation>
     </message>
     <message>
-        <source>Bereits in diesem Case</source>
+        <source>Bereits in diesem Fall</source>
         <translation>Already in this case</translation>
     </message>
     <message>
@@ -23,7 +23,7 @@
         <translation>Email address *</translation>
     </message>
     <message>
-        <source>Asservaten-Nummer *</source>
+        <source>Asservatennummer *</source>
         <translation>Evidence number *</translation>
     </message>
     <message>
@@ -111,19 +111,19 @@
         <translation>Scan mailbox</translation>
     </message>
     <message>
-        <source>Case abschließen …</source>
+        <source>Fall abschließen …</source>
         <translation>Close case …</translation>
     </message>
     <message>
-        <source>Kein weiteres Konto – den Case mit den gesicherten Konten abschließen</source>
+        <source>Kein weiteres Konto – den Fall mit den gesicherten Konten abschließen</source>
         <translation>No further account – close the case with the acquired accounts</translation>
     </message>
     <message>
-        <source>Asservaten-Nummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
+        <source>Asservatennummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
         <translation>Evidence number suggested (after {0}) – please check.</translation>
     </message>
     <message>
-        <source>Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Asservaten-Nummer bleibt {0}.</source>
+        <source>Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Asservatennummer bleibt {0}.</source>
         <translation>This account is already in the case ({0}, {1} {2}) – it will be resumed, the evidence number stays {0}.</translation>
     </message>
     <message>
@@ -175,7 +175,7 @@
         <translation>Email address</translation>
     </message>
     <message>
-        <source>Asservaten-Nummer</source>
+        <source>Asservatennummer</source>
         <translation>Evidence number</translation>
     </message>
     <message>
@@ -183,7 +183,7 @@
         <translation>Please fill in: {0}</translation>
     </message>
     <message>
-        <source>Die Asservaten-Nummer {0} ist im Fall schon für {1} vergeben.</source>
+        <source>Die Asservatennummer {0} ist im Fall schon für {1} vergeben.</source>
         <translation>Evidence number {0} is already used for {1} in this case.</translation>
     </message>
     <message>
@@ -282,7 +282,7 @@
         <translation>Appears in the report. Every change is logged with the old and new text.</translation>
     </message>
     <message>
-        <source>Asservaten</source>
+        <source>Asservat</source>
         <translation>Evidence</translation>
     </message>
     <message>
@@ -346,7 +346,7 @@
         <translation>{0} % · {1} of {2} messages · {3} MB/s</translation>
     </message>
     <message>
-        <source>KONTEN IM CASE</source>
+        <source>KONTEN IM FALL</source>
         <translation>ACCOUNTS IN CASE</translation>
     </message>
     <message>
@@ -397,7 +397,7 @@
         <translation>Log</translation>
     </message>
     <message>
-        <source>Konten in diesem Case</source>
+        <source>Konten in diesem Fall</source>
         <translation>Accounts in this case</translation>
     </message>
     <message>
@@ -413,11 +413,11 @@
         <translation>Restart …</translation>
     </message>
     <message>
-        <source>Weiteres Konto im Case sichern</source>
+        <source>Weiteres Konto im Fall sichern</source>
         <translation>Acquire another account in this case</translation>
     </message>
     <message>
-        <source>Case abschließen</source>
+        <source>Fall abschließen</source>
         <translation>Close case</translation>
     </message>
     <message>
@@ -524,13 +524,13 @@ No = delete permanently.</translation>
         <translation>ZIP archives with several accounts</translation>
     </message>
     <message>
-        <source>Dieser Case enthält mehrere Konten. Wie sollen die ZIP-Archive am Ende erstellt werden?</source>
+        <source>Dieser Fall enthält mehrere Konten. Wie sollen die ZIP-Archive am Ende erstellt werden?</source>
         <translation>This case contains several accounts. How should the ZIP archives be created at the end?</translation>
     </message>
     <message>
         <source>Ein ZIP für alle Konten: ein Archiv, ein Hash, je Konto ein Ordner darin.
 
-Ein ZIP je Konto: je Asservaten-Nummer ein eigenes Archiv mit eigenem Hash (und Zeitstempel) – lässt sich einzeln weitergeben.
+Ein ZIP je Konto: je Asservatennummer ein eigenes Archiv mit eigenem Hash (und Zeitstempel) – lässt sich einzeln weitergeben.
 
 Die Wahl kann bis zum Abschluss geändert werden.</source>
         <translation>One ZIP for all accounts: one archive, one hash, one folder per account inside.
@@ -564,7 +564,7 @@ The choice can be changed until the case is closed.</translation>
         <translation>not decided yet – will be asked when closing</translation>
     </message>
     <message>
-        <source>Case anlegen</source>
+        <source>Fall anlegen</source>
         <translation>Create case</translation>
     </message>
     <message>
@@ -600,7 +600,7 @@ The choice can be changed until the case is closed.</translation>
         <translation>This account is being acquired right now – here is the progress.</translation>
     </message>
     <message>
-        <source>Case abschließen</source>
+        <source>Fall abschließen</source>
         <translation>Close case</translation>
     </message>
     <message>
@@ -608,7 +608,7 @@ The choice can be changed until the case is closed.</translation>
 
 {1}
 
-Der Case kann erst abgeschlossen werden, wenn alle beendet sind.</source>
+Der Fall kann erst abgeschlossen werden, wenn alle beendet sind.</source>
         <translation>{0} acquisitions are still running:
 
 {1}
@@ -620,7 +620,7 @@ The case can only be closed once all of them have ended.</translation>
 
 {0}
 
-Nach dem Abschluss kann der Case nicht mehr ergänzt werden. Trotzdem abschließen?</source>
+Nach dem Abschluss kann der Fall nicht mehr ergänzt werden. Trotzdem abschließen?</source>
         <translation>Not all accounts are completely acquired:
 
 {0}
@@ -628,22 +628,22 @@ Nach dem Abschluss kann der Case nicht mehr ergänzt werden. Trotzdem abschließ
 After closing, the case cannot be extended. Close anyway?</translation>
     </message>
     <message>
-        <source>Case abgeschlossen</source>
+        <source>Fall abgeschlossen</source>
         <translation>Case closed</translation>
     </message>
     <message>
-        <source>Dieser Case ist abgeschlossen und kann nur noch in der Historie angesehen werden.</source>
+        <source>Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden.</source>
         <translation>This case is closed and can only be viewed in the history.</translation>
     </message>
 </context>
 <context>
     <name>CasePage</name>
     <message>
-        <source>Case anlegen</source>
+        <source>Fall anlegen</source>
         <translation>Create case</translation>
     </message>
     <message>
-        <source>Ohne Case startet keine Sicherung. Examiner und Agentur kommen aus der config.toml.</source>
+        <source>Ohne Fall startet keine Sicherung. Examiner und Agentur kommen aus der config.toml.</source>
         <translation>No acquisition starts without a case. Examiner and agency come from config.toml.</translation>
     </message>
     <message>
@@ -655,7 +655,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Browse …</translation>
     </message>
     <message>
-        <source>Casenumber *</source>
+        <source>Aktenzeichen *</source>
         <translation>Case number *</translation>
     </message>
     <message>
@@ -679,11 +679,11 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Check again</translation>
     </message>
     <message>
-        <source>Vorhandenen Case öffnen …</source>
+        <source>Vorhandenen Fall öffnen …</source>
         <translation>Open existing case …</translation>
     </message>
     <message>
-        <source>Case anlegen und weiter</source>
+        <source>Fall anlegen und weiter</source>
         <translation>Create case and continue</translation>
     </message>
     <message>
@@ -691,15 +691,15 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Choose target folder</translation>
     </message>
     <message>
-        <source>Case-Ordner wird angelegt: </source>
+        <source>Fall-Ordner wird angelegt: </source>
         <translation>Case folder will be created: </translation>
     </message>
     <message>
-        <source>Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \ : *) und Leerzeichen werden durch „_“ ersetzt (Einstellungen). Die Casenumber selbst bleibt unverändert in Bericht und Log.</source>
+        <source>Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \ : *) und Leerzeichen werden durch „_“ ersetzt (Einstellungen). Das Aktenzeichen selbst bleibt unverändert in Bericht und Log.</source>
         <translation>Folder name: “{0}” – characters that are not allowed (e.g. / \ : *) and spaces are replaced by “_” (Settings). The case number itself stays unchanged in report and log.</translation>
     </message>
     <message>
-        <source>Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \ : *), werden durch „_“ ersetzt. Die Casenumber selbst bleibt unverändert in Bericht und Log.</source>
+        <source>Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \ : *), werden durch „_“ ersetzt. Das Aktenzeichen selbst bleibt unverändert in Bericht und Log.</source>
         <translation>Folder name: “{0}” – characters not allowed in folder names (e.g. / \ : *) are replaced by “_”. The case number itself stays unchanged in report and log.</translation>
     </message>
     <message>
@@ -747,7 +747,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Free space</translation>
     </message>
     <message>
-        <source>Casenumber und Examiner sind Pflicht.</source>
+        <source>Aktenzeichen und Examiner sind Pflicht.</source>
         <translation>Case number and examiner are required.</translation>
     </message>
     <message>
@@ -763,7 +763,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>The target folder is not (recognisably) on an external drive. Continue anyway? The confirmation is logged.</translation>
     </message>
     <message>
-        <source>Case-Ordner wählen</source>
+        <source>Fall-Ordner wählen</source>
         <translation>Choose case folder</translation>
     </message>
 </context>
@@ -843,7 +843,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
 <context>
     <name>FinishPage</name>
     <message>
-        <source>Case abschließen</source>
+        <source>Fall abschließen</source>
         <translation>Close case</translation>
     </message>
     <message>
@@ -855,7 +855,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Open report</translation>
     </message>
     <message>
-        <source>Case-Ordner öffnen</source>
+        <source>Fall-Ordner öffnen</source>
         <translation>Open case folder</translation>
     </message>
     <message>
@@ -867,7 +867,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Back to the accounts</translation>
     </message>
     <message>
-        <source>Neuen Case anlegen</source>
+        <source>Neuen Fall anlegen</source>
         <translation>Create new case</translation>
     </message>
     <message>
@@ -879,7 +879,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Closing cancelled</translation>
     </message>
     <message>
-        <source>Der Case ist noch offen – nichts wurde verändert.</source>
+        <source>Der Fall ist noch offen – nichts wurde verändert.</source>
         <translation>The case is still open – nothing was changed.</translation>
     </message>
     <message>
@@ -915,7 +915,7 @@ Alle Mails sind dann nur noch im geprüften ZIP enthalten; das spart den doppelt
 All messages will then only be contained in the verified ZIP; this saves the duplicate storage space. Deletion only happens if every message in the ZIP has the same hash. The deletion is logged and noted in the report.</translation>
     </message>
     <message>
-        <source>Case wird abgeschlossen …</source>
+        <source>Fall wird abgeschlossen …</source>
         <translation>Closing case …</translation>
     </message>
     <message>
@@ -927,7 +927,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Progress</translation>
     </message>
     <message>
-        <source>Case abgeschlossen</source>
+        <source>Fall abgeschlossen</source>
         <translation>Case closed</translation>
     </message>
     <message>
@@ -1007,7 +1007,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Finishing failed</translation>
     </message>
     <message>
-        <source>Der Case ist noch offen – die gesicherten Mails sind unverändert. Ursache beheben und erneut versuchen.</source>
+        <source>Der Fall ist noch offen – die gesicherten Mails sind unverändert. Ursache beheben und erneut versuchen.</source>
         <translation>The case is still open – the acquired messages are unchanged. Fix the cause and try again.</translation>
     </message>
 </context>
@@ -1030,7 +1030,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Rescan</translation>
     </message>
     <message>
-        <source>Gmail erkannt: Ordner sind bei Gmail Labels – eine Mail mit mehreren Labels stünde mehrfach im ZIP. Empfohlen und vorausgewählt: „Alle Nachrichten“, „Spam“ und „Papierkorb“ (jede Mail genau einmal); die Labels jeder Mail werden dokumentiert (Case-Datei, log.csv, Bericht).</source>
+        <source>Gmail erkannt: Ordner sind bei Gmail Labels – eine Mail mit mehreren Labels stünde mehrfach im ZIP. Empfohlen und vorausgewählt: „Alle Nachrichten“, „Spam“ und „Papierkorb“ (jede Mail genau einmal); die Labels jeder Mail werden dokumentiert (Fall-Datei, log.csv, Bericht).</source>
         <translation>Gmail detected: in Gmail, folders are labels – a message with several labels would appear several times in the ZIP. Recommended and preselected: “All Mail”, “Spam” and “Trash” (every message exactly once); the labels of every message are documented (case file, log.csv, report).</translation>
     </message>
     <message>
@@ -1333,7 +1333,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Folders expected/actual + before/after</translation>
     </message>
     <message>
-        <source>Kein Case geöffnet – unter „Sicherung“ einen Case anlegen oder öffnen.</source>
+        <source>Kein Fall geöffnet – unter „Sicherung“ einen Fall anlegen oder öffnen.</source>
         <translation>No case open – create or open a case under “Acquisition”.</translation>
     </message>
     <message>
@@ -1385,6 +1385,25 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Ansicht als CSV speichern</source>
         <translation>Save view as CSV</translation>
+    </message>
+</context>
+<context>
+    <name>LogoPicker</name>
+    <message>
+        <source>Bilder ({0})</source>
+        <translation>Images ({0})</translation>
+    </message>
+    <message>
+        <source>Das Logo ist größer als 2 MB.</source>
+        <translation>The logo is larger than 2 MB.</translation>
+    </message>
+    <message>
+        <source>Das Logo muss eine PNG-, JPG- oder SVG-Datei sein.</source>
+        <translation>The logo must be a PNG, JPG or SVG file.</translation>
+    </message>
+    <message>
+        <source>Das SVG lässt sich nicht umwandeln: {0}</source>
+        <translation>The SVG cannot be converted: {0}</translation>
     </message>
 </context>
 <context>
@@ -1714,11 +1733,11 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Working folder</translation>
     </message>
     <message>
-        <source>✓ SHA-256 stimmt mit der Case-Datei überein</source>
+        <source>✓ SHA-256 stimmt mit der Fall-Datei überein</source>
         <translation>✓ SHA-256 matches the case file</translation>
     </message>
     <message>
-        <source>✗ SHA-256 weicht von der Case-Datei ab – Datei verändert!</source>
+        <source>✗ SHA-256 weicht von der Fall-Datei ab – Datei verändert!</source>
         <translation>✗ SHA-256 differs from the case file – file modified!</translation>
     </message>
     <message>
@@ -2021,11 +2040,11 @@ Save anyway? Do not open the file on this computer.</translation>
         <translation>Toggle light / dark</translation>
     </message>
     <message>
-        <source>Kein Case geöffnet</source>
+        <source>Kein Fall geöffnet</source>
         <translation>No case open</translation>
     </message>
     <message>
-        <source>Case {0}</source>
+        <source>Fall {0}</source>
         <translation>Case {0}</translation>
     </message>
     <message>
@@ -2134,7 +2153,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Save</translation>
     </message>
     <message>
-        <source>Gespeichert in {0} · gilt für neue Cases, bestehende behalten ihre Kopie</source>
+        <source>Gespeichert in {0} · gilt für neue Fälle, bestehende behalten ihre Kopie</source>
         <translation>Saved in {0} · applies to new cases, existing cases keep their copy</translation>
     </message>
     <message>
@@ -2158,7 +2177,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Remove</translation>
     </message>
     <message>
-        <source>Examiner und Case</source>
+        <source>Examiner und Fall</source>
         <translation>Examiner and case</translation>
     </message>
     <message>
@@ -2170,7 +2189,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Examiner (default)</translation>
     </message>
     <message>
-        <source>Muster Casenumber</source>
+        <source>Muster Aktenzeichen</source>
         <translation>Case number pattern</translation>
     </message>
     <message>
@@ -2306,7 +2325,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Check DKIM signatures during acquisition and preserve the DNS keys</translation>
     </message>
     <message>
-        <source>Leerzeichen in Case-Ordner- und Dateinamen durch „_“ ersetzen (gilt für neue Cases)</source>
+        <source>Leerzeichen in Fall-Ordner- und Dateinamen durch „_“ ersetzen (gilt für neue Fälle)</source>
         <translation>Replace spaces in case folder and file names with “_” (applies to new cases)</translation>
     </message>
     <message>
@@ -2366,28 +2385,32 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Google guide</translation>
     </message>
     <message>
-        <source>PNG oder JPG, max. 2 MB · wird beim Anlegen eines Case in die case.sqlite kopiert · SHA-256 </source>
-        <translation>PNG or JPG, max. 2 MB · copied into case.sqlite when a case is created · SHA-256 </translation>
+        <source>Neustart nötig: Die Oberfläche wechselt die Sprache erst, wenn FED neu gestartet wird. Bitte speichern und FED neu starten.</source>
+        <translation>Restart required: the interface only changes language when FED is restarted. Please save and restart FED.</translation>
+    </message>
+    <message>
+        <source>nicht lesbar</source>
+        <translation>not readable</translation>
+    </message>
+    <message>
+        <source>SVG, max. 2 MB · wird beim Anlegen eines Falls in ein PNG umgewandelt und in die case.sqlite kopiert (Hash des SVG wird protokolliert)</source>
+        <translation>SVG, max. 2 MB · converted to PNG and copied into case.sqlite when a case is created (hash of the SVG is logged)</translation>
+    </message>
+    <message>
+        <source>PNG oder JPG, max. 2 MB · wird beim Anlegen eines Falls in die case.sqlite kopiert</source>
+        <translation>PNG or JPG, max. 2 MB · copied into case.sqlite when a case is created</translation>
     </message>
     <message>
         <source>kein Logo</source>
         <translation>no logo</translation>
     </message>
     <message>
-        <source>PNG oder JPG, max. 2 MB · im PDF max. 40 × 20 mm</source>
-        <translation>PNG or JPG, max. 2 MB · max. 40 × 20 mm in the PDF</translation>
+        <source>PNG, JPG oder SVG, max. 2 MB · im PDF max. 40 × 20 mm</source>
+        <translation>PNG, JPG or SVG, max. 2 MB · max. 40 × 20 mm in the PDF</translation>
     </message>
     <message>
         <source>Logo wählen</source>
         <translation>Choose logo</translation>
-    </message>
-    <message>
-        <source>Bilder (*.png *.jpg *.jpeg)</source>
-        <translation>Images (*.png *.jpg *.jpeg)</translation>
-    </message>
-    <message>
-        <source>Das Logo ist größer als 2 MB.</source>
-        <translation>The logo is larger than 2 MB.</translation>
     </message>
 </context>
 <context>
@@ -2405,7 +2428,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>e.g. Sample City Police – Cybercrime Unit</translation>
     </message>
     <message>
-        <source>Standard-Zielordner für Cases (optional)</source>
+        <source>Standard-Zielordner für Fälle (optional)</source>
         <translation>Default target folder for cases (optional)</translation>
     </message>
     <message>
@@ -2429,8 +2452,8 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Address</translation>
     </message>
     <message>
-        <source>Logo (PNG/JPG, max. 2 MB)</source>
-        <translation>Logo (PNG/JPG, max. 2 MB)</translation>
+        <source>Logo (PNG/JPG/SVG, max. 2 MB)</source>
+        <translation>Logo (PNG/JPG/SVG, max. 2 MB)</translation>
     </message>
     <message>
         <source>Examiner *</source>
@@ -2459,14 +2482,6 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Logo wählen</source>
         <translation>Choose logo</translation>
-    </message>
-    <message>
-        <source>Bilder (*.png *.jpg *.jpeg)</source>
-        <translation>Images (*.png *.jpg *.jpeg)</translation>
-    </message>
-    <message>
-        <source>Das Logo ist größer als 2 MB.</source>
-        <translation>The logo is larger than 2 MB.</translation>
     </message>
     <message>
         <source>Zielordner wählen</source>

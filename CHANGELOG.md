@@ -1,6 +1,20 @@
 # Changelog
 
-## 1.0.0 (in Entwicklung)
+## 1.0.2
+
+- Microsoft: Warnung, wenn bei einem Microsoft-Server Passwort/App-Passwort gewählt ist (dort nur OAuth);
+  private Konten (outlook.*, hotmail.*, live.*, msn.com) melden sich automatisch am Endpunkt `consumers` an;
+  verständliche Hinweise zu typischen Microsoft-Anmeldefehlern (AADSTS…), auch in der Kommandozeile
+- Anleitung zur Google-/Microsoft-Anmeldung im Programm (DE/EN): Einstellungen → „Anleitung Microsoft/Google“,
+  verlinkt im Assistenten bei fehlender Client-ID, Microsoft-Passwortwarnung und Anmeldefehlern
+- Release per Klick: Actions → Build → „Run workflow“ mit Version und Haken „Release erstellen“ legt
+  Tag und Release erst nach erfolgreichem Build/Validierung an und prüft, dass alle Programme angehängt sind
+- Deutsche Begriffe: „Fall“ statt „Case“, „Aktenzeichen“ statt „Casenumber“, „Asservat“/„Asservatennummer“
+  statt „Evidence“ – in Oberfläche, Kommandozeile, Bericht und Validierungsprotokoll (englisch unverändert)
+- Logo: auch SVG – wird beim Anlegen eines Falls in ein PNG umgewandelt (Hash des Original-SVG im Log)
+- Einstellungen: Hinweis, dass ein Sprachwechsel der Oberfläche erst nach einem Neustart wirkt
+
+## 1.0.0
 
 - Neuer Name: **FED – Forensic Email Duplicator** (vorher „Forensic Email Downloader“)
 - Neuaufbau als Python-3.14-Paket mit PySide6-Oberfläche und Kommandozeile
@@ -199,13 +213,6 @@
 - **`log.csv` mit festen englischen Spaltennamen** (`Account`, `Folder`, `Received_UTC`, `Subject`,
   `File` …), unabhängig von der Sprache – wie die Namen im Case-Ordner
 - Historie „Dateien nachhashen“ prüft alle ZIPs des Case (auch je Konto), nicht nur das letzte
-- Microsoft: Warnung, wenn bei einem Microsoft-Server Passwort/App-Passwort gewählt ist (dort nur OAuth);
-  private Konten (outlook.*, hotmail.*, live.*, msn.com) melden sich automatisch am Endpunkt `consumers` an;
-  verständliche Hinweise zu typischen Microsoft-Anmeldefehlern (AADSTS…), auch in der Kommandozeile
-- Anleitung zur Google-/Microsoft-Anmeldung im Programm (DE/EN): Einstellungen → „Anleitung Microsoft/Google“,
-  verlinkt im Assistenten bei fehlender Client-ID, Microsoft-Passwortwarnung und Anmeldefehlern
-- Release per Klick: Actions → Build → „Run workflow“ mit Version und Haken „Release erstellen“ legt
-  Tag und Release erst nach erfolgreichem Build/Validierung an und prüft, dass alle Programme angehängt sind
 
 ## 0.4-beta
 

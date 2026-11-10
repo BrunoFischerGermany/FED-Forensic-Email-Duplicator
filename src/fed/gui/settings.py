@@ -6,15 +6,16 @@ import hashlib
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFileDialog, QFormLayout, QGridLayout,
                                QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QRadioButton, QScrollArea,
                                QSpinBox, QVBoxLayout, QWidget)
 
 from fed import APP_NAME, __version__
 from fed.core import config as cfgmod
+from fed.core import logo as logomod
 from fed.core.languages import report_languages, ui_languages
 from fed.gui import i18n
+from fed.gui import logo as logopick
 from fed.gui.help import show_help
 from fed.gui.widgets import Card, ElidedLabel, PasswordField, Segmented, label
 
@@ -43,7 +44,7 @@ class SettingsTab(QWidget):
         head.addWidget(self.discard)
         head.addWidget(self.save_btn)
         lay.addLayout(head)
-        lay.addWidget(ElidedLabel(self.tr("Gespeichert in {0} · gilt für neue Cases, bestehende behalten ihre Kopie")
+        lay.addWidget(ElidedLabel(self.tr("Gespeichert in {0} · gilt für neue Fälle, bestehende behalten ihre Kopie")
                                   .format(config_path), "Muted"))
         grid = QGridLayout()
         grid.setSpacing(20)
@@ -75,12 +76,12 @@ class SettingsTab(QWidget):
         a.add(self.logo_hint)
         grid.addWidget(a, 0, 0)
 
-        c = Card(self.tr("Examiner und Case"))
+        c = Card(self.tr("Examiner und Fall"))
         f = QFormLayout()
         self.examiner, self.pattern, self.target = QLineEdit(), QLineEdit(), QLineEdit()
         self.target.setPlaceholderText(self.tr("leer = Laufwerk des Programms"))
         f.addRow(self.tr("Examiner (Vorbelegung)"), self.examiner)
-        f.addRow(self.tr("Muster Casenumber"), self.pattern)
+        f.addRow(self.tr("Muster Aktenzeichen"), self.pattern)
         f.addRow(self.tr("Standard-Zielordner"), self.target)
         c.add(f)
         grid.addWidget(c, 0, 1)
@@ -104,6 +105,12 @@ class SettingsTab(QWidget):
         self.mlist_max.setSuffix(self.tr(" Mails"))
         self.mlist.currentIndexChanged.connect(lambda _: self.mlist_max.setEnabled(self.mlist.currentData() == "auto"))
         f.addRow(self.tr("Sprache Oberfläche"), self.lang)
+        # Die Oberfläche wird beim Start übersetzt – ein Wechsel wirkt erst nach einem Neustart
+        self._started_lang = cfg.programm.sprache
+        self.lang_hint = label("", "Warn", wrap=True)
+        self.lang_hint.hide()
+        f.addRow("", self.lang_hint)
+        self.lang.currentIndexChanged.connect(lambda _: self._update_lang_hint())
         f.addRow(self.tr("Sprache Bericht"), self.rlang)
         f.addRow(self.tr("Inhalt Bericht"), self.mlist)
         f.addRow(self.tr("Grenze"), self.mlist_max)
@@ -157,8 +164,8 @@ class SettingsTab(QWidget):
         s.add(self.awake)
         self.dkim = QCheckBox(self.tr("DKIM-Signaturen bei der Sicherung prüfen und DNS-Schlüssel aufbewahren"))
         s.add(self.dkim)
-        self.spaces = QCheckBox(self.tr("Leerzeichen in Case-Ordner- und Dateinamen durch „_“ ersetzen "
-                                        "(gilt für neue Cases)"))
+        self.spaces = QCheckBox(self.tr("Leerzeichen in Fall-Ordner- und Dateinamen durch „_“ ersetzen "
+                                        "(gilt für neue Fälle)"))
         s.add(self.spaces)
         grid.addWidget(s, 1, 1)
 
@@ -252,6 +259,14 @@ class SettingsTab(QWidget):
         self.m_id.setText(c.oauth_microsoft.client_id)
         self.m_tenant.setText(c.oauth_microsoft.tenant)
 
+    def _update_lang_hint(self) -> None:
+        changed = self.lang.currentData() not in (None, self._started_lang)
+        self.lang_hint.setText(self.tr("Neustart nötig: Die Oberfläche wechselt die Sprache erst, wenn FED neu "
+                                       "gestartet wird. Bitte speichern und FED neu starten.")
+                               + "\nRestart required: the interface language changes the next time FED is started."
+                               if changed else "")
+        self.lang_hint.setVisible(changed)
+
     def _logo_abs(self) -> Path | None:
         if not self._logo:
             return None
@@ -261,26 +276,35 @@ class SettingsTab(QWidget):
     def _show_logo(self) -> None:
         p = self._logo_abs()
         if p and p.exists():
-            pm = QPixmap(str(p)).scaled(150, 70, Qt.AspectRatioMode.KeepAspectRatio,
-                                        Qt.TransformationMode.SmoothTransformation)
-            self.logo_preview.setPixmap(pm)
-            self.logo_hint.setText(self.tr("PNG oder JPG, max. 2 MB · wird beim Anlegen eines Case in die case.sqlite "
-                                           "kopiert · SHA-256 ") + hashlib.sha256(p.read_bytes()).hexdigest()[:16] + "…")
+            data = p.read_bytes()
+            is_svg = logomod.detect(data) == "image/svg+xml"
+            pm = logopick.pixmap(p)
+            if pm.isNull():
+                self.logo_preview.clear()
+                self.logo_preview.setText(self.tr("nicht lesbar"))
+            else:
+                self.logo_preview.setPixmap(pm.scaled(150, 70, Qt.AspectRatioMode.KeepAspectRatio,
+                                                      Qt.TransformationMode.SmoothTransformation))
+            sha = " · SHA-256 " + hashlib.sha256(data).hexdigest()[:16] + "…"
+            self.logo_hint.setText(
+                (self.tr("SVG, max. 2 MB · wird beim Anlegen eines Falls in ein PNG umgewandelt und in die "
+                         "case.sqlite kopiert (Hash des SVG wird protokolliert)") if is_svg
+                 else self.tr("PNG oder JPG, max. 2 MB · wird beim Anlegen eines Falls in die case.sqlite kopiert"))
+                + sha)
         else:
             self.logo_preview.clear()
             self.logo_preview.setText(self.tr("kein Logo"))
-            self.logo_hint.setText(self.tr("PNG oder JPG, max. 2 MB · im PDF max. 40 × 20 mm"))
+            self.logo_hint.setText(self.tr("PNG, JPG oder SVG, max. 2 MB · im PDF max. 40 × 20 mm"))
 
     def _set_logo(self, path: str) -> None:
         self._logo = path
         self._show_logo()
 
     def pick_logo(self) -> None:
-        f, _ = QFileDialog.getOpenFileName(self, self.tr("Logo wählen"), str(self.path.parent), self.tr("Bilder (*.png *.jpg *.jpeg)"))
+        f, _ = QFileDialog.getOpenFileName(self, self.tr("Logo wählen"), str(self.path.parent), logopick.file_filter())
         if not f:
             return
-        if Path(f).stat().st_size > 2 * 1024 * 1024:
-            QMessageBox.warning(self, "FED", self.tr("Das Logo ist größer als 2 MB."))
+        if not logopick.accept(self, Path(f)):
             return
         try:
             f = str(Path(f).relative_to(self.path.parent))

@@ -23,6 +23,7 @@ from importlib import resources
 from pathlib import Path
 
 from fed import __version__
+from fed.core import logo
 from fed.core.naming import file_name
 from fed.core.msg import t
 
@@ -75,12 +76,12 @@ class Case:
     def create(cls, base_dir: Path, info: CaseInfo, tool_sha256: str | None = None,
                replace_spaces: bool = True) -> Case:
         if not info.case_number.strip():
-            raise ValueError(t("Casenumber fehlt"))
+            raise ValueError(t("Aktenzeichen fehlt"))
         if not info.examiner.strip():
             raise ValueError(t("Examiner fehlt"))
         root = base_dir / file_name(info.case_number.strip(), replace_spaces)
         if (root / CASE_DB).exists():
-            raise FileExistsError(f"Case existiert bereits: {root}")
+            raise FileExistsError(f"Fall existiert bereits: {root}")
         (root / "work").mkdir(parents=True, exist_ok=True)
         (root / "discarded").mkdir(exist_ok=True)
         if tool_sha256 is None:
@@ -172,7 +173,7 @@ class Case:
         from fed.core.richtext import normalize
 
         if self.closed:
-            raise RuntimeError(t("Case ist abgeschlossen"))
+            raise RuntimeError(t("Fall ist abgeschlossen"))
         plain, html_ = normalize(html_value, text)
         plain = plain.strip() or None
         old = self.conn.execute("SELECT closing_note, closing_note_html FROM case_info WHERE id = 1").fetchone()
@@ -210,7 +211,7 @@ class Case:
         if mode not in self.ZIP_MODES:
             raise ValueError(t("ZIP-Aufteilung unbekannt: {mode}", mode=mode))
         if self.closed:
-            raise RuntimeError(t("Case ist abgeschlossen"))
+            raise RuntimeError(t("Fall ist abgeschlossen"))
         old = self.zip_mode()
         if old == mode:
             return
@@ -257,14 +258,21 @@ class Case:
             blob = logo_path.read_bytes()
             if len(blob) > self.MAX_LOGO_BYTES:
                 raise ValueError(t("Logo größer als 2 MB"))
-            if blob[:8] == b"\x89PNG\r\n\x1a\n":
-                mime = "image/png"
-            elif blob[:3] == b"\xff\xd8\xff":
-                mime = "image/jpeg"
-            else:
-                raise ValueError(t("Logo muss PNG oder JPG sein"))
-            sha = hashlib.sha256(blob).hexdigest()
+            mime = logo.detect(blob)
+            if mime is None:
+                raise ValueError(t("Logo muss PNG, JPG oder SVG sein"))
             name = logo_path.name
+            if mime == "image/svg+xml":  # PDF braucht ein Rasterbild: umwandeln, Original-Hash protokollieren
+                svg_sha = hashlib.sha256(blob).hexdigest()
+                try:
+                    blob = logo.svg_to_png(blob)
+                except Exception as e:
+                    raise ValueError(t("Logo: SVG kann nicht umgewandelt werden ({error})", error=e)) from e
+                mime, name = "image/png", logo_path.with_suffix(".png").name
+                self.log("INFO", "logo_converted", {"svg": logo_path.name, "svg_sha256": svg_sha,
+                                                    "png_sha256": hashlib.sha256(blob).hexdigest(),
+                                                    "pixels": logo.SVG_PIXELS})
+            sha = hashlib.sha256(blob).hexdigest()
         with self.conn:
             self.conn.execute(
                 "INSERT INTO config_snapshot (id, toml_text, logo_file, logo_mime, logo_blob, logo_sha256) "

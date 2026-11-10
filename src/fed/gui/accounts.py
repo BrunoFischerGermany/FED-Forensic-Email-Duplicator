@@ -95,7 +95,7 @@ class AccountsTable(QWidget):
     """Tabelle aller Konten im Case (für die Seiten „Konto“ und „Sicherung“ und die Historie).
     Die Notiz ist per Klick bearbeitbar, solange der Case offen ist."""
 
-    COLS = (QT_TRANSLATE_NOOP("AccountsTable", "Evidence"), QT_TRANSLATE_NOOP("AccountsTable", "Konto"),
+    COLS = (QT_TRANSLATE_NOOP("AccountsTable", "Asservat"), QT_TRANSLATE_NOOP("AccountsTable", "Konto"),
             QT_TRANSLATE_NOOP("AccountsTable", "Status"), QT_TRANSLATE_NOOP("AccountsTable", "Mails gesichert / Server"),
             QT_TRANSLATE_NOOP("AccountsTable", "Größe"), QT_TRANSLATE_NOOP("AccountsTable", "Ordner"),
             QT_TRANSLATE_NOOP("AccountsTable", "Versuche"), QT_TRANSLATE_NOOP("AccountsTable", "Zuletzt"),
@@ -267,7 +267,7 @@ class AccountsRail(QWidget):
         self.lay = QVBoxLayout(self)
         self.lay.setContentsMargins(0, 0, 0, 0)
         self.lay.setSpacing(2)
-        self.title = QLabel(QCoreApplication.translate("AccountsTable", "KONTEN IM CASE"))
+        self.title = QLabel(QCoreApplication.translate("AccountsTable", "KONTEN IM FALL"))
         self.title.setObjectName("RailTitle")
         self.lay.addWidget(self.title)
         self.items: list[_RailItem] = []

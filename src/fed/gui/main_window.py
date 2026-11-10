@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
         self.nav.idClicked.connect(self.stack.setCurrentIndex)
         self.nav.button(0).setChecked(True)
 
-        self.case_info = ElidedLabel(self.tr("Kein Case geöffnet"))
+        self.case_info = ElidedLabel(self.tr("Kein Fall geöffnet"))
         self.case_info.max_hint = 2000
         self.statusBar().addWidget(self.case_info, 1)
         self.connection = ConnectionStatus(self)
@@ -99,12 +99,12 @@ class MainWindow(QMainWindow):
         case = self.assistant.st.case
         if case:
             i = case.info()
-            self.case_lbl.setText(self.tr("Case {0}").format(i["case_number"]))
-            self.case_info.setText(f"Case {i['case_number']} · {case.root}"
+            self.case_lbl.setText(self.tr("Fall {0}").format(i["case_number"]))
+            self.case_info.setText(f"Fall {i['case_number']} · {case.root}"
                                    + (self.tr(" · abgeschlossen") if i["closed_utc"] else ""))
         else:
             self.case_lbl.setText("Forensic Email Duplicator")
-            self.case_info.setText(self.tr("Kein Case geöffnet"))
+            self.case_info.setText(self.tr("Kein Fall geöffnet"))
 
     def _settings_saved(self, cfg: Config) -> None:
         self.agency.setText(cfg.agentur.name)

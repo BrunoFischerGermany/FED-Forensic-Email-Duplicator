@@ -113,7 +113,7 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
                    "Timestamp for the ZIP hash received; hash and nonce match; signature valid with openssl "
                    "ts -verify.")},
     "V12": {"de": ("Berichte und Ausgabe-Hashes",
-                   "report.txt/report.pdf und log.csv erzeugt; alle in der Case-Datei vermerkten Ausgabe-"
+                   "report.txt/report.pdf und log.csv erzeugt; alle in der Fall-Datei vermerkten Ausgabe-"
                    "Hashes stimmen mit den Dateien überein."),
             "en": ("Reports and output hashes",
                    "report.txt/report.pdf and log.csv created; all output hashes recorded in the case file "
@@ -126,7 +126,7 @@ CHECKS: dict[str, dict[str, tuple[str, str]]] = {
                    "acquired bit-exactly; the ZIP folder carries the address in Unicode (UTF-8 flag).")},
     "V14": {"de": ("Echtheitsprüfung (DKIM)",
                    "Gültig signierte Mail = gültig, nach dem Signieren veränderte Mail = ungültig, übrige = nicht "
-                   "signiert; der öffentliche Schlüssel ist mit SHA-256 in der Case-Datei aufbewahrt; "
+                   "signiert; der öffentliche Schlüssel ist mit SHA-256 in der Fall-Datei aufbewahrt; "
                    "Authentication-Results des Anbieters ausgewertet."),
             "en": ("Authenticity check (DKIM)",
                    "Validly signed message = valid, message modified after signing = invalid, others = not signed; "
@@ -552,7 +552,7 @@ def v12_reports(ctx: Ctx) -> CheckResult:
         if not p.exists() or hash_file(p)["sha256"] != sha:
             r.status = FAIL
             r.details.append(_d(f"Hash passt nicht: {name}", f"hash mismatch: {name}"))
-    r.details.insert(0, _d(f"{n} Ausgabedateien gegen die Case-Datei geprüft",
+    r.details.insert(0, _d(f"{n} Ausgabedateien gegen die Fall-Datei geprüft",
                            f"{n} output files checked against the case file"))
     return r
 

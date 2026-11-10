@@ -14,11 +14,11 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 - SHA-256 (zusätzlich MD5 und SHA-512) pro Mail und für das ZIP-Archiv
 - optional verschlüsselte Kopie für die Weitergabe (AES-256, Passwort wird nie gespeichert)
 - ZIP mit der Ordnerstruktur des Postfachs, erste Ebene = E-Mail-Adresse; bei mehreren Konten wählbar: ein ZIP für alle oder eines je Konto
-- Case-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
-- mehrere Konten je Case mit Übersicht, was schon gesichert ist; Evidence-Nummer wird vorgeschlagen (`A-01` → `A-02`); Konten können parallel im Hintergrund gesichert werden
+- Fall-Datei (SQLite) mit manipulationsgeschütztem Log, Historie, mehreren Versuchen, Fortsetzen/Neubeginn
+- mehrere Konten je Fall mit Übersicht, was schon gesichert ist; Asservatennummer wird vorgeschlagen (`A-01` → `A-02`); Konten können parallel im Hintergrund gesichert werden
 - alle Schriften: Ordner und Mails in Kyrillisch, Chinesisch, Japanisch, Myanmar, Arabisch, Hebräisch, Vietnamesisch … werden bitgenau gesichert; der PDF-Bericht zeigt sie korrekt an, auch von rechts nach links und mit verbundenen arabischen Buchstaben (Validierung V16)
 - Passwörter nur im Arbeitsspeicher: nach erfolgreichem Test für die Sitzung gemerkt (die betroffene Person gibt es oft nur einmal ein), nie auf der Festplatte oder im Log, beim Beenden von FED verworfen
-- TXT- und PDF-Bericht mit Agentur-Logo, Anmerkungen zum Case und Notiz je Konto – gesamt und je Konto; optional RFC-3161-Zeitstempel
+- TXT- und PDF-Bericht mit Agentur-Logo, Anmerkungen zum Fall und Notiz je Konto – gesamt und je Konto; optional RFC-3161-Zeitstempel
 - Gmail/Google Workspace und Microsoft 365/Outlook.com per OAuth2 (Microsoft erlaubt für IMAP keine Passwörter oder App-Passwörter mehr)
 - Deutsch und Englisch, weitere Sprachen ohne Programmierung ergänzbar ([docs/translating.md](docs/translating.md), englisch); Windows/macOS/Linux, portabel ohne Installation
 
@@ -26,7 +26,7 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 
 | Meilenstein | Inhalt | Status |
 | --- | --- | --- |
-| 1 | Projektstruktur, Config, Case-Datei mit Hash-Kette, Dateinamen, Hashes, GUI-Gerüst | ✅ |
+| 1 | Projektstruktur, Config, Fall-Datei mit Hash-Kette, Dateinamen, Hashes, GUI-Gerüst | ✅ |
 | 2 | Systemprüfung, Autoerkennung, IMAP nur lesend, Scan, Download in Arbeitsordner, Testpostfach | ✅ |
 | 3 | OAuth2 Google / Microsoft 365 (Browser + PKCE, Gerätecode, Token-Erneuerung) | ✅ |
 | 4 | ZIP mit Zeitstempeln, Verifikation, Berichte TXT/PDF, Oberfläche (Assistent, Historie, Einstellungen, Hell/Dunkel) | ✅ |
@@ -54,7 +54,7 @@ fed acquire --case-dir E:/FED-Cases/2026-0042 --account max@example.de --evidenc
 #   erneut aufrufen = Fortsetzen; --force --reason "…" = Neubeginn
 #   Gmail / Microsoft 365: Anmeldung automatisch per OAuth im Browser
 #   (Einrichtung der Client-IDs: im Programm unter Einstellungen → Anleitung)
-fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + report.pdf/.txt, Case abschließen
+fed finish --case-dir E:/FED-Cases/2026-0042   # ZIP + Hashes + report.pdf/.txt, Fall abschließen
 fed verify --case-dir E:/FED-Cases/2026-0042
 ```
 
@@ -105,7 +105,7 @@ Die Programme sind nicht signiert: macOS meldet „nicht verifizierter Entwickle
 src/fed/
 ├─ core/            Kern ohne GUI (testbar, auch für CLI)
 │  ├─ config.py     config.toml laden/prüfen/speichern
-│  ├─ case.py       Case-Datei, Log mit Hash-Kette
+│  ├─ case.py       Fall-Datei, Log mit Hash-Kette
 │  ├─ syscheck.py   Benutzer, Zeit/NTP, Internet, Datenträger, Speicher
 │  ├─ autoconfig.py Thunderbird-Autoerkennung
 │  ├─ oauth.py      Google / Microsoft 365
