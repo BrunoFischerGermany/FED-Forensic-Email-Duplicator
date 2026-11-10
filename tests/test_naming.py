@@ -41,3 +41,22 @@ def test_zip_paths():
     assert (
         zip_member_path("max@example.de", "INBOX", "/", "x.eml") == "max@example.de/INBOX/x.eml"
     )
+
+
+@pytest.mark.parametrize("pattern,expected", [
+    ("{lfd:04}/{jahr}", "0001/2026"), ("{lfd:04}/{jahr:2}", "0001/26"), ("{jahr:04}-{lfd}", "2026-1"),
+    ("AZ {jahr:2}{monat}{tag}-{lfd:03}", "AZ 260309-001"), ("{jahr:1}", "6"), ("ohne Platzhalter", "ohne Platzhalter")])
+def test_suggest_case_number(pattern, expected):
+    from datetime import datetime
+
+    from fed.core.naming import suggest_case_number
+
+    assert suggest_case_number(pattern, datetime(2026, 3, 9)) == expected
+
+
+@pytest.mark.parametrize("pattern", ["{foo}", "{jahr", "{lfd:xyz}"])
+def test_suggest_case_number_invalid(pattern):
+    from fed.core.naming import suggest_case_number
+
+    with pytest.raises(ValueError):
+        suggest_case_number(pattern)

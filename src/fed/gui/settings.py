@@ -14,10 +14,11 @@ from fed import APP_NAME, __version__
 from fed.core import config as cfgmod
 from fed.core import logo as logomod
 from fed.core.languages import report_languages, ui_languages
+from fed.core.naming import suggest_case_number
 from fed.gui import i18n
 from fed.gui import logo as logopick
 from fed.gui.help import show_help
-from fed.gui.widgets import Card, ElidedLabel, PasswordField, Segmented, label
+from fed.gui.widgets import Card, ElidedLabel, PasswordField, Segmented, label, restyle
 
 
 class SettingsTab(QWidget):
@@ -82,6 +83,9 @@ class SettingsTab(QWidget):
         self.target.setPlaceholderText(self.tr("leer = Laufwerk des Programms"))
         f.addRow(self.tr("Examiner (Vorbelegung)"), self.examiner)
         f.addRow(self.tr("Muster Aktenzeichen"), self.pattern)
+        self.pattern_hint = label("", "Hint", wrap=True)
+        f.addRow("", self.pattern_hint)
+        self.pattern.textChanged.connect(lambda _: self._update_pattern_hint())
         f.addRow(self.tr("Standard-Zielordner"), self.target)
         c.add(f)
         grid.addWidget(c, 0, 1)
@@ -230,6 +234,7 @@ class SettingsTab(QWidget):
         self._show_logo()
         self.examiner.setText(c.examiner_name)
         self.pattern.setText(c.case_nummer_muster)
+        self._update_pattern_hint()
         self.target.setText(p.zielpfad)
         self.design.set_value(p.design)
         self.lang.setCurrentIndex(max(self.lang.findData(p.sprache), 0))
@@ -258,6 +263,17 @@ class SettingsTab(QWidget):
         self.g_secret.setText(c.oauth_google.client_secret)
         self.m_id.setText(c.oauth_microsoft.client_id)
         self.m_tenant.setText(c.oauth_microsoft.tenant)
+
+    def _update_pattern_hint(self) -> None:
+        places = self.tr("Platzhalter: {jahr} = 2026 · {jahr:2} = 26 · {monat} · {tag} · {lfd:04} = 0001")
+        try:
+            example = suggest_case_number(self.pattern.text() or "{jahr}-{lfd:04}")
+        except ValueError:
+            self.pattern_hint.setText(self.tr("Muster ungültig.") + "\n" + places)
+            restyle(self.pattern_hint, "Error")
+            return
+        self.pattern_hint.setText(self.tr("Beispiel: {0}").format(example) + "\n" + places)
+        restyle(self.pattern_hint, "Hint")
 
     def _update_lang_hint(self) -> None:
         changed = self.lang.currentData() not in (None, self._started_lang)

@@ -24,7 +24,7 @@ from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, is_gmail, is_microsof
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
 from fed.core.finalize import finish_case
-from fed.core.naming import next_evidence, normalize_email
+from fed.core.naming import next_evidence, normalize_email, suggest_case_number
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
 from fed.gui.help import show_help
@@ -180,10 +180,9 @@ class CasePage(QWidget):
         QTimer.singleShot(0, self.check_system)
 
     def _suggest(self) -> str:
-        pattern = self.st.cfg.case_nummer_muster or "{jahr}-{lfd:04}"
         try:
-            return pattern.format(jahr=datetime.now().year, lfd=1)
-        except (KeyError, ValueError, IndexError):
+            return suggest_case_number(self.st.cfg.case_nummer_muster or "{jahr}-{lfd:04}")
+        except ValueError:
             return ""
 
     def _browse(self) -> None:

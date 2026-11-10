@@ -562,5 +562,8 @@
   "Das Logo muss eine PNG-, JPG- oder SVG-Datei sein.": "The logo must be a PNG, JPG or SVG file.",
   "Das SVG lässt sich nicht umwandeln: {0}": "The SVG cannot be converted: {0}",
   "Bilder ({0})": "Images ({0})",
-  "Logo (PNG/JPG/SVG, max. 2 MB)": "Logo (PNG/JPG/SVG, max. 2 MB)"
+  "Logo (PNG/JPG/SVG, max. 2 MB)": "Logo (PNG/JPG/SVG, max. 2 MB)",
+  "Platzhalter: {jahr} = 2026 · {jahr:2} = 26 · {monat} · {tag} · {lfd:04} = 0001": "Placeholders: {jahr} (year) = 2026 · {jahr:2} = 26 · {monat} (month) · {tag} (day) · {lfd:04} (sequence) = 0001",
+  "Muster ungültig.": "Invalid pattern.",
+  "Beispiel: {0}": "Example: {0}"
 }

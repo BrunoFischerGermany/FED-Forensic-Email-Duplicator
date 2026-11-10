@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import re
+import string
 import unicodedata
 from datetime import UTC, datetime
 from fed.core.msg import t
@@ -133,3 +134,32 @@ def decode_imap_utf7(raw: bytes | str) -> str:
             out.append(base64.b64decode(b64).decode("utf-16-be"))
         i = end + 1
     return "".join(out)
+
+
+class _PatternFormatter(string.Formatter):
+    """``{jahr:2}`` = die letzten 2 Ziffern des Jahres (2026 -> 26); sonst normales ``format``."""
+
+    def format_field(self, value, format_spec):
+        if isinstance(value, _Year) and format_spec.isdigit() and not format_spec.startswith("0"):
+            return str(value.year)[-int(format_spec):]
+        return super().format_field(int(value) if isinstance(value, _Year) else value, format_spec)
+
+
+class _Year(int):
+    @property
+    def year(self) -> int:
+        return int(self)
+
+
+def suggest_case_number(pattern: str, when: datetime | None = None, lfd: int = 1) -> str:
+    """Vorschlag für ein neues Aktenzeichen aus dem Muster der Einstellungen.
+
+    Platzhalter: ``{jahr}`` (2026), ``{jahr:2}`` (26), ``{monat}`` (03), ``{tag}`` (09),
+    ``{lfd}`` bzw. ``{lfd:04}`` (laufende Nummer, 0001). Ungültiges Muster -> ``ValueError``.
+    """
+    when = when or datetime.now()
+    try:
+        return _PatternFormatter().format(pattern, jahr=_Year(when.year), monat=f"{when.month:02d}",
+                                          tag=f"{when.day:02d}", lfd=lfd)
+    except (KeyError, ValueError, IndexError, AttributeError) as e:
+        raise ValueError(str(e)) from e
