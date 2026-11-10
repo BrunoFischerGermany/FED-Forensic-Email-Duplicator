@@ -126,7 +126,7 @@ class CasePage(QWidget):
         self.target = QLineEdit(st.cfg.programm.zielpfad or str(Path.cwd()))
         browse = QPushButton(self.tr("Durchsuchen …"))
         browse.clicked.connect(self._browse)
-        f.addWidget(label(self.tr("Fall-Nummer *"), "H2"), 0, 0)
+        f.addWidget(label(self.tr("Aktenzeichen *"), "H2"), 0, 0)
         f.addWidget(label(self.tr("Examiner *"), "H2"), 0, 1)
         f.addWidget(self.case_no, 1, 0)
         f.addWidget(self.examiner, 1, 1)
@@ -202,10 +202,10 @@ class CasePage(QWidget):
         self.name_hint.setVisible(changed)
         if changed:
             text = (self.tr("Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \\ : *) und Leerzeichen werden durch "
-                            "„_“ ersetzt (Einstellungen). Die Fall-Nummer selbst bleibt unverändert in Bericht und Log.")
+                            "„_“ ersetzt (Einstellungen). Das Aktenzeichen selbst bleibt unverändert in Bericht und Log.")
                     if self.st.cfg.programm.leerzeichen_ersetzen else
                     self.tr("Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \\ : *), werden "
-                            "durch „_“ ersetzt. Die Fall-Nummer selbst bleibt unverändert in Bericht und Log."))
+                            "durch „_“ ersetzt. Das Aktenzeichen selbst bleibt unverändert in Bericht und Log."))
             self.name_hint.setText(text.format(safe))
 
     def check_system(self) -> None:
@@ -239,7 +239,7 @@ class CasePage(QWidget):
     def _validate(self) -> bool:
         self.error.setText("")
         if not self.case_no.text().strip() or not self.examiner.text().strip():
-            self.error.setText(self.tr("Fall-Nummer und Examiner sind Pflicht."))
+            self.error.setText(self.tr("Aktenzeichen und Examiner sind Pflicht."))
             return False
         info = self.st.system
         if info and not info.online:

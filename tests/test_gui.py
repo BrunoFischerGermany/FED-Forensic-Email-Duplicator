@@ -362,3 +362,29 @@ def test_ask_zip_mode(app, tmp_path, monkeypatch):
     assert "einstellung" in src
     assert "je Konto" in assistant.zip_mode_text("je_konto") and "offen" in assistant.zip_mode_text(None)
     case.close()
+
+
+def test_settings_language_restart_hint_and_svg_logo(app, tmp_path):
+    from fed.core import config as cfgmod
+    from fed.gui.main_window import MainWindow
+    from tests.test_logo import SVG
+
+    cfg = cfgmod.Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    win = MainWindow(cfg, tmp_path)
+    s = win.settings
+    assert s.lang_hint.isHidden()
+    s.lang.setCurrentIndex(s.lang.findData("en"))
+    assert not s.lang_hint.isHidden() and "Neustart" in s.lang_hint.text() and "Restart" in s.lang_hint.text()
+    s.lang.setCurrentIndex(s.lang.findData("de"))
+    assert s.lang_hint.isHidden()
+
+    (s.path.parent / "logo.svg").write_bytes(SVG)
+    s._set_logo("logo.svg")
+    assert s.logo_preview.pixmap() is not None and not s.logo_preview.pixmap().isNull()
+    assert "PNG umgewandelt" in s.logo_hint.text()
+    win.close()
+    win.deleteLater()
+    app.processEvents()
+

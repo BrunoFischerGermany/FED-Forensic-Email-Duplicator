@@ -45,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     new = sub.add_parser("new-case", help=t("Fall anlegen"))
     new.add_argument("--target", type=Path, required=True, help=t("Zielordner (Datenträger)"))
-    new.add_argument("--case", required=True, help=t("Fall-Nummer"))
+    new.add_argument("--case", required=True, help=t("Aktenzeichen"))
     new.add_argument("--examiner", help=t("Examiner (Standard aus Config)"))
     new.add_argument("--notes", default="")
 

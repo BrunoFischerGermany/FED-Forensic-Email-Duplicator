@@ -6,13 +6,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
                                QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout)
 
 from fed.core import config as cfgmod
 from fed.core.languages import ui_languages
 from fed.gui import i18n
+from fed.gui import logo as logopick
 
 MAX_LOGO = 2 * 1024 * 1024
 
@@ -70,7 +70,7 @@ class SetupDialog(QDialog):
         form = QFormLayout()
         form.addRow(self.tr("Agentur / Dienststelle *"), self.name)
         form.addRow(self.tr("Anschrift"), self.addr)
-        form.addRow(self.tr("Logo (PNG/JPG, max. 2 MB)"), lrow)
+        form.addRow(self.tr("Logo (PNG/JPG/SVG, max. 2 MB)"), lrow)
         form.addRow(self.tr("Examiner *"), self.examiner)
         form.addRow(self.tr("Sprache"), self.lang)
         form.addRow(self.tr("Zielordner"), trow)
@@ -100,7 +100,7 @@ class SetupDialog(QDialog):
     def _show_logo(self) -> None:
         p = self._logo_abs()
         if p and p.exists():
-            self.logo_preview.setPixmap(QPixmap(str(p)).scaled(150, 70, Qt.AspectRatioMode.KeepAspectRatio,
+            self.logo_preview.setPixmap(logopick.pixmap(p).scaled(150, 70, Qt.AspectRatioMode.KeepAspectRatio,
                                                                Qt.TransformationMode.SmoothTransformation))
         else:
             self.logo_preview.clear()
@@ -112,11 +112,10 @@ class SetupDialog(QDialog):
 
     def _pick_logo(self) -> None:
         f, _ = QFileDialog.getOpenFileName(self, self.tr("Logo wählen"), str(self.path.parent),
-                                           self.tr("Bilder (*.png *.jpg *.jpeg)"))
+                                           logopick.file_filter())
         if not f:
             return
-        if Path(f).stat().st_size > MAX_LOGO:
-            QMessageBox.warning(self, "FED", self.tr("Das Logo ist größer als 2 MB."))
+        if not logopick.accept(self, Path(f)):
             return
         try:
             f = str(Path(f).relative_to(self.path.parent))

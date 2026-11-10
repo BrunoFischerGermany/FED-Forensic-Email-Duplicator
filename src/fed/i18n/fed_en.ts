@@ -655,7 +655,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Browse …</translation>
     </message>
     <message>
-        <source>Fall-Nummer *</source>
+        <source>Aktenzeichen *</source>
         <translation>Case number *</translation>
     </message>
     <message>
@@ -695,11 +695,11 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Case folder will be created: </translation>
     </message>
     <message>
-        <source>Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \ : *) und Leerzeichen werden durch „_“ ersetzt (Einstellungen). Die Fall-Nummer selbst bleibt unverändert in Bericht und Log.</source>
+        <source>Ordnername: „{0}“ – nicht erlaubte Zeichen (z. B. / \ : *) und Leerzeichen werden durch „_“ ersetzt (Einstellungen). Das Aktenzeichen selbst bleibt unverändert in Bericht und Log.</source>
         <translation>Folder name: “{0}” – characters that are not allowed (e.g. / \ : *) and spaces are replaced by “_” (Settings). The case number itself stays unchanged in report and log.</translation>
     </message>
     <message>
-        <source>Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \ : *), werden durch „_“ ersetzt. Die Fall-Nummer selbst bleibt unverändert in Bericht und Log.</source>
+        <source>Ordnername: „{0}“ – Zeichen, die in Ordnernamen nicht erlaubt sind (z. B. / \ : *), werden durch „_“ ersetzt. Das Aktenzeichen selbst bleibt unverändert in Bericht und Log.</source>
         <translation>Folder name: “{0}” – characters not allowed in folder names (e.g. / \ : *) are replaced by “_”. The case number itself stays unchanged in report and log.</translation>
     </message>
     <message>
@@ -747,7 +747,7 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Free space</translation>
     </message>
     <message>
-        <source>Fall-Nummer und Examiner sind Pflicht.</source>
+        <source>Aktenzeichen und Examiner sind Pflicht.</source>
         <translation>Case number and examiner are required.</translation>
     </message>
     <message>
@@ -1385,6 +1385,25 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Ansicht als CSV speichern</source>
         <translation>Save view as CSV</translation>
+    </message>
+</context>
+<context>
+    <name>LogoPicker</name>
+    <message>
+        <source>Bilder ({0})</source>
+        <translation>Images ({0})</translation>
+    </message>
+    <message>
+        <source>Das Logo ist größer als 2 MB.</source>
+        <translation>The logo is larger than 2 MB.</translation>
+    </message>
+    <message>
+        <source>Das Logo muss eine PNG-, JPG- oder SVG-Datei sein.</source>
+        <translation>The logo must be a PNG, JPG or SVG file.</translation>
+    </message>
+    <message>
+        <source>Das SVG lässt sich nicht umwandeln: {0}</source>
+        <translation>The SVG cannot be converted: {0}</translation>
     </message>
 </context>
 <context>
@@ -2170,7 +2189,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Examiner (default)</translation>
     </message>
     <message>
-        <source>Muster Fall-Nummer</source>
+        <source>Muster Aktenzeichen</source>
         <translation>Case number pattern</translation>
     </message>
     <message>
@@ -2366,28 +2385,32 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Google guide</translation>
     </message>
     <message>
-        <source>PNG oder JPG, max. 2 MB · wird beim Anlegen eines Falls in die case.sqlite kopiert · SHA-256 </source>
-        <translation>PNG or JPG, max. 2 MB · copied into case.sqlite when a case is created · SHA-256 </translation>
+        <source>Neustart nötig: Die Oberfläche wechselt die Sprache erst, wenn FED neu gestartet wird. Bitte speichern und FED neu starten.</source>
+        <translation>Restart required: the interface only changes language when FED is restarted. Please save and restart FED.</translation>
+    </message>
+    <message>
+        <source>nicht lesbar</source>
+        <translation>not readable</translation>
+    </message>
+    <message>
+        <source>SVG, max. 2 MB · wird beim Anlegen eines Falls in ein PNG umgewandelt und in die case.sqlite kopiert (Hash des SVG wird protokolliert)</source>
+        <translation>SVG, max. 2 MB · converted to PNG and copied into case.sqlite when a case is created (hash of the SVG is logged)</translation>
+    </message>
+    <message>
+        <source>PNG oder JPG, max. 2 MB · wird beim Anlegen eines Falls in die case.sqlite kopiert</source>
+        <translation>PNG or JPG, max. 2 MB · copied into case.sqlite when a case is created</translation>
     </message>
     <message>
         <source>kein Logo</source>
         <translation>no logo</translation>
     </message>
     <message>
-        <source>PNG oder JPG, max. 2 MB · im PDF max. 40 × 20 mm</source>
-        <translation>PNG or JPG, max. 2 MB · max. 40 × 20 mm in the PDF</translation>
+        <source>PNG, JPG oder SVG, max. 2 MB · im PDF max. 40 × 20 mm</source>
+        <translation>PNG, JPG or SVG, max. 2 MB · max. 40 × 20 mm in the PDF</translation>
     </message>
     <message>
         <source>Logo wählen</source>
         <translation>Choose logo</translation>
-    </message>
-    <message>
-        <source>Bilder (*.png *.jpg *.jpeg)</source>
-        <translation>Images (*.png *.jpg *.jpeg)</translation>
-    </message>
-    <message>
-        <source>Das Logo ist größer als 2 MB.</source>
-        <translation>The logo is larger than 2 MB.</translation>
     </message>
 </context>
 <context>
@@ -2429,8 +2452,8 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Address</translation>
     </message>
     <message>
-        <source>Logo (PNG/JPG, max. 2 MB)</source>
-        <translation>Logo (PNG/JPG, max. 2 MB)</translation>
+        <source>Logo (PNG/JPG/SVG, max. 2 MB)</source>
+        <translation>Logo (PNG/JPG/SVG, max. 2 MB)</translation>
     </message>
     <message>
         <source>Examiner *</source>
@@ -2459,14 +2482,6 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Logo wählen</source>
         <translation>Choose logo</translation>
-    </message>
-    <message>
-        <source>Bilder (*.png *.jpg *.jpeg)</source>
-        <translation>Images (*.png *.jpg *.jpeg)</translation>
-    </message>
-    <message>
-        <source>Das Logo ist größer als 2 MB.</source>
-        <translation>The logo is larger than 2 MB.</translation>
     </message>
     <message>
         <source>Zielordner wählen</source>
