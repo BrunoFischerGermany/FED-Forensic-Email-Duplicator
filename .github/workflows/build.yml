@@ -191,7 +191,8 @@ jobs:
     needs: [check, build, validate]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write        # Tag + Release anlegen, Dateien anhängen
+      pull-requests: read    # automatische PR-Liste in den Release-Notizen
     steps:
       - uses: actions/download-artifact@v7
         with:
@@ -204,17 +205,33 @@ jobs:
           cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
           { echo; echo "## SHA-256"; echo; echo '```'; cat SHA256SUMS.txt; echo '```'; } >> ../notes.md
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.check.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          name: ${{ github.event.release.name || format('FED {0}', needs.check.outputs.tag) }}
-          prerelease: ${{ github.event.release.prerelease || inputs.prerelease == true }}
-          generate_release_notes: ${{ github.event_name != 'release' }}
-          files: dist/*
-          body_path: notes.md
-          append_body: true
-          fail_on_unmatched_files: true
+      # Mit der GitHub-CLI wie im Nightly-Workflow (dort klappt das Anlegen mit GITHUB_TOKEN).
+      # Die automatische PR-Liste braucht Lesezugriff auf Pull Requests; schlägt sie trotzdem
+      # fehl, wird das Release ohne PR-Liste angelegt statt den Lauf abzubrechen.
+      - name: Release anlegen bzw. Dateien anhängen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.check.outputs.tag }}
+          EVENT: ${{ github.event_name }}
+          PRERELEASE: ${{ inputs.prerelease == true }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "release" ]; then
+            # Release gibt es schon (auf GitHub veröffentlicht): Dateien anhängen, Notizen ergänzen
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > body.md
+            { echo; cat notes.md; } >> body.md
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file body.md
+            exit 0
+          fi
+          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "FED $TAG" --notes-file notes.md)
+          [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
+          if ! gh release create "$TAG" "${args[@]}" --generate-notes dist/*; then
+            echo "::warning::Release mit automatischer PR-Liste fehlgeschlagen – neuer Versuch ohne PR-Liste."
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+            gh release create "$TAG" "${args[@]}" dist/*
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json url --jq .url
 
       - name: Alle Programme angehängt?
         env:
