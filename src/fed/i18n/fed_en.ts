@@ -23,7 +23,7 @@
         <translation>Email address *</translation>
     </message>
     <message>
-        <source>Evidence-Nummer *</source>
+        <source>Beweis-Nummer *</source>
         <translation>Evidence number *</translation>
     </message>
     <message>
@@ -119,11 +119,11 @@
         <translation>No further account – close the case with the acquired accounts</translation>
     </message>
     <message>
-        <source>Evidence-Nummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
+        <source>Beweis-Nummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
         <translation>Evidence number suggested (after {0}) – please check.</translation>
     </message>
     <message>
-        <source>Dieses Konto ist schon im Case ({0}, {1} {2}) – es wird fortgesetzt, die Evidence-Nummer bleibt {0}.</source>
+        <source>Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Beweis-Nummer bleibt {0}.</source>
         <translation>This account is already in the case ({0}, {1} {2}) – it will be resumed, the evidence number stays {0}.</translation>
     </message>
     <message>
@@ -175,7 +175,7 @@
         <translation>Email address</translation>
     </message>
     <message>
-        <source>Evidence-Nummer</source>
+        <source>Beweis-Nummer</source>
         <translation>Evidence number</translation>
     </message>
     <message>
@@ -183,7 +183,7 @@
         <translation>Please fill in: {0}</translation>
     </message>
     <message>
-        <source>Die Evidence-Nummer {0} ist im Case schon für {1} vergeben.</source>
+        <source>Die Beweis-Nummer {0} ist im Fall schon für {1} vergeben.</source>
         <translation>Evidence number {0} is already used for {1} in this case.</translation>
     </message>
     <message>
@@ -282,7 +282,7 @@
         <translation>Appears in the report. Every change is logged with the old and new text.</translation>
     </message>
     <message>
-        <source>Evidence</source>
+        <source>Beweis</source>
         <translation>Evidence</translation>
     </message>
     <message>
@@ -530,7 +530,7 @@ No = delete permanently.</translation>
     <message>
         <source>Ein ZIP für alle Konten: ein Archiv, ein Hash, je Konto ein Ordner darin.
 
-Ein ZIP je Konto: je Evidence-Nummer ein eigenes Archiv mit eigenem Hash (und Zeitstempel) – lässt sich einzeln weitergeben.
+Ein ZIP je Konto: je Beweis-Nummer ein eigenes Archiv mit eigenem Hash (und Zeitstempel) – lässt sich einzeln weitergeben.
 
 Die Wahl kann bis zum Abschluss geändert werden.</source>
         <translation>One ZIP for all accounts: one archive, one hash, one folder per account inside.
