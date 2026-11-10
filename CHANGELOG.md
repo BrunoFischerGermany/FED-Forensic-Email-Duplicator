@@ -12,6 +12,8 @@
 - Deutsche Begriffe: „Fall“ statt „Case“, „Aktenzeichen“ statt „Casenumber“, „Asservat“/„Asservatennummer“
   statt „Evidence“ – in Oberfläche, Kommandozeile, Bericht und Validierungsprotokoll (englisch unverändert)
 - Logo: auch SVG – wird beim Anlegen eines Falls in ein PNG umgewandelt (Hash des Original-SVG im Log)
+- Muster Aktenzeichen: `{jahr:2}` = zweistellige Jahreszahl (26), dazu `{monat}` und `{tag}`; Beispiel und
+  Platzhalter direkt unter dem Feld
 - Einstellungen: Hinweis, dass ein Sprachwechsel der Oberfläche erst nach einem Neustart wirkt
 
 ## 1.0.0

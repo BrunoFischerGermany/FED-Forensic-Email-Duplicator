@@ -2385,6 +2385,18 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Google guide</translation>
     </message>
     <message>
+        <source>Platzhalter: {jahr} = 2026 · {jahr:2} = 26 · {monat} · {tag} · {lfd:04} = 0001</source>
+        <translation>Placeholders: {jahr} (year) = 2026 · {jahr:2} = 26 · {monat} (month) · {tag} (day) · {lfd:04} (sequence) = 0001</translation>
+    </message>
+    <message>
+        <source>Muster ungültig.</source>
+        <translation>Invalid pattern.</translation>
+    </message>
+    <message>
+        <source>Beispiel: {0}</source>
+        <translation>Example: {0}</translation>
+    </message>
+    <message>
         <source>Neustart nötig: Die Oberfläche wechselt die Sprache erst, wenn FED neu gestartet wird. Bitte speichern und FED neu starten.</source>
         <translation>Restart required: the interface only changes language when FED is restarted. Please save and restart FED.</translation>
     </message>

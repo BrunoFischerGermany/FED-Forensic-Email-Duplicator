@@ -11,7 +11,8 @@ logo    = "logo.png"            # PNG/JPG, relativ zum Programmordner; leer = ke
 name = ""                       # Vorbelegung, im Case änderbar
 
 [case]
-nummer_muster = "{jahr}-{lfd:04}"   # Vorschlag für neue Casenumber
+nummer_muster = "{jahr}-{lfd:04}"   # Vorschlag für neue Aktenzeichen
+# Platzhalter: {jahr} = 2026, {jahr:2} = 26, {monat} = 03, {tag} = 09, {lfd:04} = 0001
 
 [programm]
 sprache          = "de"         # de | en
