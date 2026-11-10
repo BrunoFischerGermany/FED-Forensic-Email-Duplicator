@@ -138,7 +138,7 @@ jobs:
         shell: bash
         run: python packaging/selftest.py "${{ steps.build.outputs.archive }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: FED-${{ runner.os }}-${{ runner.arch }}
           path: ${{ steps.build.outputs.archive }}
@@ -147,7 +147,7 @@ jobs:
   validate:
     name: Validierung
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # Dovecot 2.3 – Ubuntu 26.04 bringt Dovecot 2.4 mit anderem Konfigurationsformat
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -176,7 +176,7 @@ jobs:
           v="$(python -c 'import fed; print(fed.__version__)')"
           for f in validation-report/*; do cp "$f" "dist/FED-$v-$(basename "$f")"; done
           if [ -f validation-notes.md ]; then cp validation-notes.md dist/; fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: FED-validation
@@ -193,7 +193,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v7
         with:
           path: dist
           merge-multiple: true
