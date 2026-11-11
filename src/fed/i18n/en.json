@@ -580,5 +580,11 @@
   "z. B. Musterstraße 1, 12345 Musterstadt": "e.g. 1 Sample Street, 12345 Sample Town",
   "Ausführendes Gerät": "Device running FED",
   "Wird FED auf einem eigenen Gerät ausgeführt (z. B. Dienstgerät)?": "Is FED running on your own device (e.g. an agency device)?",
-  "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nAbbrechen – nicht fortfahren (kein Fall)\nFED beenden – Programm schließen\n\nDie Antwort wird im Protokoll und im Bericht dokumentiert.": "Yes – own device\nNo – device of the person concerned\nCancel – do not continue (no case)\nQuit FED – close the program\n\nThe answer is documented in the log and in the report."
+  "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nAbbrechen – nicht fortfahren (kein Fall)\nFED beenden – Programm schließen\n\nDie Antwort wird im Protokoll und im Bericht dokumentiert.": "Yes – own device\nNo – device of the person concerned\nCancel – do not continue (no case)\nQuit FED – close the program\n\nThe answer is documented in the log and in the report.",
+  "Datum": "Date",
+  "Aktuelles Datum einfügen (Gerätezeit)": "Insert current date (device time)",
+  "Aktuelle Uhrzeit einfügen (Gerätezeit)": "Insert current time (device time)",
+  "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nFED beenden – Programm schließen\n\nDie Antwort wird in jedem Fall dieser Sitzung im Protokoll und im Bericht dokumentiert.": "Yes – own device\nNo – device of the person concerned\nQuit FED – close the program\n\nThe answer is documented in the log and report of every case in this session.",
+  "eigenes Gerät": "own device",
+  "Gerät der betroffenen Person": "device of the person concerned"
 }
