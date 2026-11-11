@@ -107,6 +107,11 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          # Im Job-Container löst der Runner-Resolver gelegentlich keine Namen auf – dann öffentliche DNS
+          if ! getent hosts archive.ubuntu.com >/dev/null; then
+            echo "DNS im Container gestört – nutze 1.1.1.1 / 8.8.8.8"
+            printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
+          fi
           apt-get update
           apt-get install -y --no-install-recommends ca-certificates git curl xz-utils build-essential \
             patchelf ccache libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 \
