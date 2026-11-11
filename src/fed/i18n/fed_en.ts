@@ -697,13 +697,19 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <source>Ja – eigenes Gerät
 Nein – Gerät der betroffenen Person
 Abbrechen – nicht fortfahren (kein Fall)
+FED beenden – Programm schließen
 
 Die Antwort wird im Protokoll und im Bericht dokumentiert.</source>
         <translation>Yes – own device
 No – device of the person concerned
 Cancel – do not continue (no case)
+Quit FED – close the program
 
 The answer is documented in the log and in the report.</translation>
+    </message>
+    <message>
+        <source>FED beenden</source>
+        <translation>Quit FED</translation>
     </message>
     <message>
         <source>Fall anlegen</source>

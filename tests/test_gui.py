@@ -458,9 +458,10 @@ def test_case_page_continue_scan_without_test_and_add_account(app, tmp_path, mon
     app.processEvents()
 
 
-@pytest.mark.parametrize("button,expected", [("Yes", "own"), ("No", "subject"), ("Cancel", None)])
+@pytest.mark.parametrize("button,expected", [("Yes", "own"), ("No", "subject"), ("Cancel", None),
+                                            ("Quit", "quit")])
 def test_ask_device_owner(app, tmp_path, monkeypatch, button, expected):
-    """Ja = eigenes Gerät, Nein = Gerät der betroffenen Person, Abbrechen = kein Fall."""
+    """Ja = eigenes Gerät, Nein = Gerät der betroffenen Person, Abbrechen = kein Fall, FED beenden."""
     from PySide6 import QtWidgets
 
     from fed.core import config as cfgmod
@@ -472,13 +473,16 @@ def test_ask_device_owner(app, tmp_path, monkeypatch, button, expected):
     def fake_exec(box):
         seen["buttons"] = [b.text() for b in box.buttons()]
         seen["text"] = box.text()
+        if button == "Quit":
+            next(b for b in box.buttons() if b.text() == "FED beenden").click()
+            return 0
         return getattr(QtWidgets.QMessageBox.StandardButton, button).value
 
     monkeypatch.setattr(QtWidgets.QMessageBox, "exec", fake_exec)
     monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
                         staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
     assert ga.ask_device_owner(None) == expected
-    assert len(seen["buttons"]) == 3 and "eigenen Gerät" in seen["text"]
+    assert len(seen["buttons"]) == 4 and "eigenen Gerät" in seen["text"]
 
     cfg = cfgmod.Config()
     cfg.examiner_name = "Max Mustermann"
@@ -488,9 +492,13 @@ def test_ask_device_owner(app, tmp_path, monkeypatch, button, expected):
     a = w.assistant
     _pump(app, lambda: a.st.system is not None)
     a.p_case.case_no.setText(f"AZ-{button}")
+    w.show()
     a.p_case._go_clicked()
-    if expected is None:
-        assert a.st.case is None and not any(tmp_path.glob("AZ-Cancel*"))
+    if expected == "quit":
+        app.processEvents()
+        assert a.st.case is None and not w.isVisible()
+    elif expected is None:
+        assert a.st.case is None and not any(tmp_path.glob("AZ-Cancel*")) and w.isVisible()
     else:
         assert a.st.case.info()["device_owner"] == expected
         assert a.st.case.device_owner_history()[0]["hostname"] == a.st.system.hostname
