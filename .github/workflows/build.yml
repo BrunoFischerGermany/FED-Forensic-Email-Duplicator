@@ -89,6 +89,10 @@ jobs:
     name: ${{ matrix.name }}
     needs: check
     runs-on: ${{ matrix.os }}
+    # Linux: im Container bauen. Die glibc des Containers bestimmt, auf welchen Distributionen FED
+    # läuft (ältere glibc = mehr Systeme) – unabhängig davon, welche Ubuntu-Versionen GitHub als
+    # Runner anbietet (ubuntu-22.04 nur noch bis ca. April 2027).
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
@@ -96,18 +100,27 @@ jobs:
           - { name: Windows x64,            os: windows-latest }
           - { name: macOS Apple Silicon,    os: macos-15 }
           - { name: macOS Intel,            os: macos-15-intel }
-          - { name: Linux x64,              os: ubuntu-22.04 }   # ältere glibc = läuft auf mehr Distributionen
+          - { name: Linux x64,              os: ubuntu-24.04, container: "ubuntu:22.04" }   # glibc 2.35
     steps:
+      - name: Linux-Container vorbereiten
+        if: runner.os == 'Linux'
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git curl xz-utils build-essential \
+            patchelf ccache libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 \
+            libdbus-1-3 libglib2.0-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libxrender1 \
+            libxi6 libsm6 libice6 fonts-dejavu-core
+          ldd --version | head -1
+
       - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: pip
-
-      - name: Linux-Abhängigkeiten
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y patchelf ccache libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
 
       - name: Version setzen
         shell: bash
@@ -125,8 +138,8 @@ jobs:
             ~/.cache/Nuitka
             ~/Library/Caches/Nuitka
             ~/AppData/Local/Nuitka/Nuitka/Cache
-          key: nuitka-${{ matrix.os }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: nuitka-${{ matrix.os }}-
+          key: nuitka-${{ matrix.os }}${{ matrix.container }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: nuitka-${{ matrix.os }}${{ matrix.container }}-
 
       - name: Bauen
         id: build
