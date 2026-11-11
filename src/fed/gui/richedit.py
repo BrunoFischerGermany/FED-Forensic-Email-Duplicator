@@ -133,6 +133,12 @@ class RichNoteEdit(QWidget):
         lay.addWidget(self.edit, 1)
 
     # ------------------------------------------------------------ API
+    def setReadOnly(self, ro: bool) -> None:
+        """Nur ansehen (z. B. Anmerkungen eines schon angelegten Falls): Text und Werkzeuge sperren."""
+        self.edit.setReadOnly(ro)
+        for b in self.findChildren(QToolButton):
+            b.setEnabled(not ro)
+
     def html(self) -> str:
         """Bereinigtes HTML; leer, wenn die Notiz leer ist."""
         blocks = blocks_from_document(self.edit.document())

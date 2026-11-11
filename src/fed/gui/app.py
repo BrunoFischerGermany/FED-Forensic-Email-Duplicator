@@ -98,6 +98,8 @@ def selftest(out: Path) -> int:
         from fed.gui import i18n
 
         app = QApplication.instance() or QApplication([])
+        i18n.install("de")  # Qt-eigene Knöpfe (Ja/Nein, Abbrechen) müssen übersetzt sein
+        qt_buttons_de = [app.translate("QPlatformTheme", t) for t in ("&Yes", "&No", "Cancel", "Close")]
         i18n.install("en")
         en = app.translate("MainWindow", "Einstellungen")
         QLabel("FED").grab()
@@ -105,7 +107,7 @@ def selftest(out: Path) -> int:
         res.update(version=__version__, program_file=str(exe) if exe else None, program_dir=str(program_dir()),
                    translocated=bool(TRANSLOCATION),
                    tool_sha256=tool_fingerprint(), ui_languages=ui_languages(), report_languages=report_languages(),
-                   translation_en=en)
+                   translation_en=en, qt_buttons_de=qt_buttons_de)
         with tempfile.TemporaryDirectory() as tmp:
             from fed.core.report import write_pdf
 
@@ -128,7 +130,7 @@ def selftest(out: Path) -> int:
             logging.getLogger("fpdf").removeHandler(handler)
             res["text_shaping"] = pdftext.shaping_available()
             res["pdf_missing_glyphs"] = missing
-        res["ok"] = (en == "Settings" and res["pdf_bytes"] > 1000 and res["log_ok"] and "en" in res["ui_languages"]
+        res["ok"] = (en == "Settings" and qt_buttons_de == ["&Ja", "&Nein", "Abbrechen", "Schließen"] and res["pdf_bytes"] > 1000 and res["log_ok"] and "en" in res["ui_languages"]
                      and res["text_shaping"] and not res["pdf_missing_glyphs"])
     except Exception:
         res["error"] = traceback.format_exc()

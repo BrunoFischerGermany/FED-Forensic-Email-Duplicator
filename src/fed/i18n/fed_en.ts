@@ -111,12 +111,24 @@
         <translation>Scan mailbox</translation>
     </message>
     <message>
+        <source>Testet die Verbindung, falls noch nicht geschehen, und liest dann die Ordner</source>
+        <translation>Tests the connection if not done yet, then reads the folders</translation>
+    </message>
+    <message>
         <source>Fall abschließen …</source>
         <translation>Close case …</translation>
     </message>
     <message>
         <source>Kein weiteres Konto – den Fall mit den gesicherten Konten abschließen</source>
         <translation>No further account – close the case with the acquired accounts</translation>
+    </message>
+    <message>
+        <source>+ Weiteres Konto</source>
+        <translation>+ Add account</translation>
+    </message>
+    <message>
+        <source>Formular leeren und ein weiteres Konto zu diesem Fall hinzufügen</source>
+        <translation>Clear the form and add another account to this case</translation>
     </message>
     <message>
         <source>Asservatennummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
@@ -348,6 +360,14 @@
     <message>
         <source>KONTEN IM FALL</source>
         <translation>ACCOUNTS IN CASE</translation>
+    </message>
+    <message>
+        <source>+ Weiteres Konto</source>
+        <translation>+ Add account</translation>
+    </message>
+    <message>
+        <source>Ein weiteres Konto zu diesem Fall hinzufügen</source>
+        <translation>Add another account to this case</translation>
     </message>
     <message>
         <source>Klicken: Fortschritt ansehen</source>
@@ -788,6 +808,24 @@ After closing, the case cannot be extended. Close anyway?</translation>
     <message>
         <source>Der Zielordner liegt nicht (erkennbar) auf einem externen Datenträger. Trotzdem fortfahren? Die Bestätigung wird protokolliert.</source>
         <translation>The target folder is not (recognisably) on an external drive. Continue anyway? The confirmation is logged.</translation>
+    </message>
+    <message>
+        <source>Weiter</source>
+        <translation>Next</translation>
+    </message>
+    <message>
+        <source>Fall existiert bereits</source>
+        <translation>Case already exists</translation>
+    </message>
+    <message>
+        <source>Für dieses Aktenzeichen gibt es im Zielordner schon einen Fall:
+{0}
+
+Diesen Fall öffnen und fortsetzen?</source>
+        <translation>A case with this case number already exists in the target folder:
+{0}
+
+Open and continue this case?</translation>
     </message>
     <message>
         <source>Fall-Ordner wählen</source>

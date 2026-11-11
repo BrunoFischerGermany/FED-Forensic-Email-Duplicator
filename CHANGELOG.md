@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.5 (in Entwicklung)
+
+- Schritt „Fall anlegen“ bei offenem Fall: „Weiter“ statt „Fall anlegen und weiter“, Felder gesperrt – kein
+  „Fall existiert bereits“ mehr; gibt es den Fall im Zielordner schon, fragt FED, ob er geöffnet werden soll
+- „+ Weiteres Konto“ in der linken Leiste und neben „Fall abschließen“
+- „Postfach scannen“ ist immer klickbar und testet die Verbindung bei Bedarf selbst (auch für ein schon
+  gesichertes Konto, z. B. zum Nachsichern)
+- Qt-eigene Knöpfe (Ja/Nein, Abbrechen, Schließen, Dateidialog) werden im gebauten Programm sicher übersetzt;
+  der Selbsttest prüft das
+
 ## 1.0.3 (in Entwicklung)
 
 - macOS: Startet FED aus einer von macOS verschobenen Kopie („App Translocation“, z. B. direkt aus
