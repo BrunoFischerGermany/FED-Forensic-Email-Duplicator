@@ -5,8 +5,11 @@
 - macOS: Startet FED aus einer von macOS verschobenen Kopie („App Translocation“, z. B. direkt aus
   „Downloads“), werden config.toml und FED.ini neben dem echten FED.app gespeichert (sonst in
   ~/Library/Application Support/FED) statt im schreibgeschützten Temp-Ordner; Hinweis zur dauerhaften Lösung
-- Windows: Auslieferung als ZIP mit Ordner `FED\` und `FED.exe` statt selbstentpackender Einzeldatei – die
-  löste Virenscanner-Fehlalarme aus (Symantec „Heur.AdvML.B“); startet außerdem schneller
+- Windows: Auslieferung als ZIP statt selbstentpackender Einzeldatei – die löste Virenscanner-Fehlalarme aus
+  (Symantec „Heur.AdvML.B“). Im Ordner `FED\` liegen nur `FED.exe` (kleines Startprogramm), `config.toml`
+  und die Dokumente; das Programm mit allen Bibliotheken liegt in `FED\app\`. Startet außerdem schneller
+- Windows: beim ersten Start (USB-Prüfung des Zielordners per PowerShell) öffnet sich kein
+  Kommandozeilenfenster mehr
 
 ## 1.0.2
 

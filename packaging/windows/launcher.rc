@@ -1,0 +1,31 @@
+// Icon und Versionsangaben des Startprogramms
+#include <winver.h>
+#include "version.h"  /* FED_VER_COMMA, FED_VER_STR – erzeugt von build.py */
+
+1 ICON "fed.ico"
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION FED_VER_COMMA
+PRODUCTVERSION FED_VER_COMMA
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "FED Project"
+      VALUE "FileDescription", "FED - Forensic Email Duplicator"
+      VALUE "FileVersion", FED_VER_STR
+      VALUE "InternalName", "FED"
+      VALUE "LegalCopyright", "GPL-3.0-only"
+      VALUE "OriginalFilename", "FED.exe"
+      VALUE "ProductName", "FED - Forensic Email Duplicator"
+      VALUE "ProductVersion", FED_VER_STR
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

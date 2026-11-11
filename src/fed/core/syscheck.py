@@ -104,15 +104,26 @@ def _removable_windows(path: Path) -> bool | None:
     return False
 
 
+def no_console() -> dict:
+    """Unter Windows kein Konsolenfenster für Hilfsprogramme (FED selbst hat keine Konsole,
+    ohne diese Kennung öffnet Windows für PowerShell & Co. ein eigenes Fenster)."""
+    import subprocess
+
+    if sys.platform == "win32":
+        return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+    return {}
+
+
 def _windows_bus_is_usb(drive: str) -> bool | None:
     """Fragt per PowerShell den Bustyp ab (USB-Festplatten melden sich als „fixed“)."""
     import subprocess
 
     letter = drive[0]
-    cmd = ["powershell", "-NoProfile", "-Command",
+    cmd = ["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
            f"(Get-Partition -DriveLetter {letter} | Get-Disk).BusType"]
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False).stdout.strip()
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False,
+                             **no_console()).stdout.strip()
     except (OSError, subprocess.TimeoutExpired):
         return None
     return out.upper() == "USB" if out else None

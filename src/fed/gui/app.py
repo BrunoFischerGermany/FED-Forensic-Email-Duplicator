@@ -30,6 +30,9 @@ def resolve_program_dir(exe: Path | None) -> Path:
     if exe is None:
         return Path.cwd()
     exe_dir = exe.parent
+    # Windows: FED\FED.exe (Startprogramm) startet FED\app\FED.exe -> Einstellungen in FED\
+    if exe_dir.name.lower() == "app" and (exe_dir.parent / "FED.exe").is_file():
+        return exe_dir.parent
     # macOS: FED.app/Contents/MacOS/fed -> Ordner, in dem FED.app liegt
     if exe_dir.name == "MacOS" and exe_dir.parent.name == "Contents" and exe_dir.parent.parent.suffix == ".app":
         from fed.core import macos
