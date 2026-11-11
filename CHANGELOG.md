@@ -8,7 +8,7 @@
 - „Postfach scannen“ ist immer klickbar und testet die Verbindung bei Bedarf selbst (auch für ein schon
   gesichertes Konto, z. B. zum Nachsichern)
 - Beim Anlegen (und Fortsetzen) eines Falls fragt FED, ob es auf einem eigenen Gerät läuft: Ja = eigenes
-  Gerät, Nein = Gerät der betroffenen Person, Abbrechen = nicht fortfahren. Die Antwort steht mit Rechnername
+  Gerät, Nein = Gerät der betroffenen Person, Abbrechen = nicht fortfahren, „FED beenden“ schließt das Programm. Die Antwort steht mit Rechnername
   im Log und im Bericht („Ausführendes Gerät“); CLI `fed new-case --device own|subject`
 - Kontoseite: „Verbindung testen“ und „Postfach scannen“ oben im Kasten „Verbindungstest“, Fehlermeldungen
   direkt darunter; „Zurück“, „+ Weiteres Konto“ und „Fall abschließen“ bleiben beim Scrollen unten sichtbar
