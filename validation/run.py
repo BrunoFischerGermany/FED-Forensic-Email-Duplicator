@@ -734,7 +734,7 @@ def run(work: Path) -> Report:
     rep.environment = {
         "tool": f"{APP_NAME} {__version__}", "tool_sha256": tool_fingerprint(), "commit": _git_commit(),
         "python": platform.python_version(), "os": platform.platform(),
-        "server": _version(["dovecot", "--version"]), "openssl": _version(["openssl", "version"]),
+        "server": _version([dovecot_server.DOVECOT, "--version"]), "openssl": _version(["openssl", "version"]),
         "mailbox": _expected(),
     }
     from fed.core import authcheck

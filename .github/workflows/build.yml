@@ -176,7 +176,7 @@ jobs:
   validate:
     name: Validierung
     needs: check
-    runs-on: ubuntu-24.04   # Dovecot 2.3 – Ubuntu 26.04 bringt Dovecot 2.4 mit anderem Konfigurationsformat
+    runs-on: ubuntu-latest   # Testpostfach läuft mit Dovecot 2.3 und 2.4
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
