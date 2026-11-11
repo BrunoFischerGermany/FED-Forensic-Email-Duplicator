@@ -16,7 +16,7 @@ MARKER = "/AppTranslocation/"
 
 
 def is_translocated(path: Path) -> bool:
-    return sys.platform == "darwin" and MARKER in str(path)
+    return sys.platform == "darwin" and MARKER in Path(path).as_posix()
 
 
 def _original_via_security(bundle: Path) -> Path | None:
