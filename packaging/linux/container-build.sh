@@ -8,6 +8,8 @@
 # Erwartet: Arbeitsordner = Repository, FED_VERSION gesetzt, optional GITHUB_OUTPUT.
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
+# Docker-Netz des Runners löst Ubuntu-Spiegel teils nicht auf – der Workflow setzt --dns 1.1.1.1/8.8.8.8
+getent hosts archive.ubuntu.com >/dev/null || { echo "::error::DNS im Container gestört"; exit 1; }
 
 echo "::group::Systempakete"
 apt-get update
@@ -15,13 +17,18 @@ apt-get install -y --no-install-recommends ca-certificates git curl xz-utils bui
   patchelf ccache libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 \
   libdbus-1-3 libglib2.0-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libxrender1 \
-  libxi6 libsm6 libice6 fonts-dejavu-core software-properties-common gpg-agent
+  libxi6 libsm6 libice6 fonts-dejavu-core
 echo "::endgroup::"
 
-echo "::group::Python 3.14 (deadsnakes)"
-add-apt-repository -y ppa:deadsnakes/ppa
-apt-get install -y --no-install-recommends python3.14 python3.14-dev python3.14-venv
-python3.14 -m venv /opt/fed-python
+echo "::group::Python (Build von actions/python-versions für Ubuntu 22.04)"
+# PYTHON_URL setzt der Workflow: dasselbe Python, das setup-python auf einem Ubuntu-22.04-Runner nimmt
+: "${PYTHON_URL:?PYTHON_URL fehlt}"
+export AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache RUNNER_TOOL_CACHE=/opt/hostedtoolcache
+mkdir -p /tmp/py && curl -fsSL "$PYTHON_URL" | tar -xz -C /tmp/py
+(cd /tmp/py && bash ./setup.sh)
+pybin=$(dirname "$(ls -d /opt/hostedtoolcache/Python/3.*/x64/bin/python3 | head -1)")
+python3_real="$pybin/python3"
+"$python3_real" -m venv /opt/fed-python
 export PATH=/opt/fed-python/bin:$PATH
 ldd --version | head -1
 python --version

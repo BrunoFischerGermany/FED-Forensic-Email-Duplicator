@@ -92,7 +92,7 @@ jobs:
     # Linux: in einem Container bauen (packaging/linux/container-build.sh). Die glibc des Containers
     # bestimmt, auf welchen Distributionen FED läuft (ältere glibc = mehr Systeme) – unabhängig davon,
     # welche Ubuntu-Versionen GitHub als Runner anbietet (ubuntu-22.04 nur noch bis ca. April 2027).
-    # docker run --network host statt Job-Container: dessen Netz (DNS, Launchpad) war unzuverlässig.
+    # docker run mit --dns statt Job-Container: dort lösten die Ubuntu-Spiegel nicht zuverlässig auf.
     strategy:
       fail-fast: false
       matrix:
@@ -152,8 +152,17 @@ jobs:
           IMAGE: ${{ matrix.docker }}
         run: |
           mkdir -p ~/.cache/Nuitka
-          docker run --rm --network host \
-            -e FED_VERSION -e GITHUB_OUTPUT=/gh_output -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+          # Python für Ubuntu 22.04 aus dem Verzeichnis, das auch setup-python nutzt
+          PYTHON_URL=$(curl -fsSL https://raw.githubusercontent.com/actions/python-versions/main/versions-manifest.json \
+            | python3 -c 'import json,sys
+          m = json.load(sys.stdin)
+          v = next(v for v in m if v["version"].startswith("3.14.") and v["stable"])
+          f = next(f for f in v["files"] if f["platform"] == "linux" and f.get("platform_version") == "22.04" and f["arch"] == "x64")
+          print(f["download_url"])')
+          echo "Python: $PYTHON_URL"
+          export PYTHON_URL
+          docker run --rm --dns 1.1.1.1 --dns 8.8.8.8 \
+            -e FED_VERSION -e PYTHON_URL -e GITHUB_OUTPUT=/gh_output -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
             -v "$GITHUB_OUTPUT:/gh_output" -v "$HOME/.cache/Nuitka:/root/.cache/Nuitka" \
             -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" \
             "$IMAGE" bash packaging/linux/container-build.sh
