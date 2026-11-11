@@ -505,3 +505,61 @@ def test_ask_device_owner(app, tmp_path, monkeypatch, button, expected):
     w.close()
     w.deleteLater()
     app.processEvents()
+
+
+@pytest.mark.parametrize("button,expected", [("Yes", "own"), ("No", "subject"), ("Quit", "quit"), ("Esc", "quit")])
+def test_ask_device_owner_at_start(app, monkeypatch, button, expected):
+    """Beim Programmstart: Ja / Nein / FED beenden – Enter und Esc beenden."""
+    from PySide6 import QtWidgets
+
+    from fed.gui import assistant as ga
+
+    seen = {}
+
+    def fake_exec(box):
+        seen["buttons"] = [b.text() for b in box.buttons()]
+        seen["escape"] = box.escapeButton().text()
+        if button in ("Quit", "Esc"):
+            box.escapeButton().click() if button == "Esc" else next(
+                b for b in box.buttons() if b.text() == "FED beenden").click()
+            return 0
+        return getattr(QtWidgets.QMessageBox.StandardButton, button).value
+
+    monkeypatch.setattr(QtWidgets.QMessageBox, "exec", fake_exec)
+    assert ga.ask_device_owner(None, at_start=True) == expected
+    assert len(seen["buttons"]) == 3 and seen["escape"] == "FED beenden"
+
+
+def test_ask_device_owner_session_answer_used_for_case(app, tmp_path, monkeypatch):
+    """Antwort vom Start gilt für jeden Fall der Sitzung (auch nach „Neuer Fall“) – keine zweite Frage."""
+    from PySide6 import QtWidgets
+
+    from fed.core import config as cfgmod
+    from fed.gui import assistant as ga
+    from fed.gui.main_window import MainWindow
+
+    monkeypatch.setattr(ga, "ask_device_owner", lambda *a, **k: (_ for _ in ()).throw(AssertionError("gefragt")))
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    w = MainWindow(cfg, tmp_path)
+    a = w.assistant
+    a.st.device_owner, a.st.device_asked_utc = "subject", "2026-11-11T08:00:00+00:00"
+    _pump(app, lambda: a.st.system is not None)
+    a.p_case.case_no.setText("AZ-1")
+    a.p_case._go_clicked()
+    h = a.st.case.device_owner_history()
+    assert h[0]["device_owner"] == "subject"
+    row = a.st.case.conn.execute("SELECT details FROM log WHERE event = 'device_owner_confirmed'").fetchone()[0]
+    assert "2026-11-11T08:00:00" in row
+    a._new_case()
+    assert a.st.device_owner == "subject"
+    a.p_case.case_no.setText("AZ-2")
+    a.p_case._go_clicked()
+    assert a.st.case.info()["device_owner"] == "subject"
+    w.close()
+    w.deleteLater()
+    app.processEvents()

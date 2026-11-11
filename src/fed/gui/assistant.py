@@ -72,6 +72,9 @@ class State:
     attempts: list = field(default_factory=list)
     jobs: object = None  # JobManager – bleibt beim Wechsel des Case erhalten
     vault: object = None  # SessionVault – Anmeldedaten nur im Arbeitsspeicher, bis FED beendet wird
+    # Beim Programmstart abgefragt: own = eigenes Gerät, subject = Gerät der betroffenen Person
+    device_owner: str | None = None
+    device_asked_utc: str | None = None
 
 
 def page(title: str, subtitle: str = "") -> tuple[QWidget, QVBoxLayout]:
@@ -104,28 +107,38 @@ def fmt_secs(s: float | None) -> str:
 
 
 # ====================================================================== Schritt 1
-def ask_device_owner(parent: QWidget) -> str | None:
-    """Zu Beginn dokumentieren, auf wessen Gerät FED läuft: ``own`` (Ja), ``subject`` (Nein),
-    ``None`` (Abbrechen), ``"quit"`` (FED beenden)."""
+def ask_device_owner(parent: QWidget | None, at_start: bool = False) -> str | None:
+    """Dokumentieren, auf wessen Gerät FED läuft: ``own`` (Ja), ``subject`` (Nein), ``"quit"`` (FED beenden),
+    ``None`` (Abbrechen – nur wenn nicht beim Programmstart gefragt wird)."""
     box = QMessageBox(parent)
     box.setIcon(QMessageBox.Icon.Question)
     box.setWindowTitle(QCoreApplication.translate("CasePage", "Ausführendes Gerät"))
     box.setText(QCoreApplication.translate("CasePage", "Wird FED auf einem eigenen Gerät ausgeführt (z. B. Dienstgerät)?"))
-    box.setInformativeText(QCoreApplication.translate(
-        "CasePage", "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nAbbrechen – nicht fortfahren (kein Fall)\n"
-                    "FED beenden – Programm schließen\n\n"
-                    "Die Antwort wird im Protokoll und im Bericht dokumentiert."))
-    box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-                           | QMessageBox.StandardButton.Cancel)
-    quit_btn = box.addButton(QCoreApplication.translate("CasePage", "FED beenden"),
-                             QMessageBox.ButtonRole.DestructiveRole)
-    box.setDefaultButton(QMessageBox.StandardButton.Cancel)
-    box.setEscapeButton(QMessageBox.StandardButton.Cancel)
+    if at_start:
+        box.setInformativeText(QCoreApplication.translate("CasePage", "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\n"
+                                              "FED beenden – Programm schließen\n\n"
+                                              "Die Antwort wird in jedem Fall dieser Sitzung im Protokoll und im "
+                                              "Bericht dokumentiert."))
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+    else:
+        box.setInformativeText(QCoreApplication.translate("CasePage", "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\n"
+                                              "Abbrechen – nicht fortfahren (kein Fall)\n"
+                                              "FED beenden – Programm schließen\n\n"
+                                              "Die Antwort wird im Protokoll und im Bericht dokumentiert."))
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                               | QMessageBox.StandardButton.Cancel)
+    quit_btn = box.addButton(QCoreApplication.translate("CasePage", "FED beenden"), QMessageBox.ButtonRole.DestructiveRole)
+    if at_start:  # Enter/Esc beenden – nichts wird ohne bewusste Antwort festgehalten
+        box.setDefaultButton(quit_btn)
+        box.setEscapeButton(quit_btn)
+    else:
+        box.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        box.setEscapeButton(QMessageBox.StandardButton.Cancel)
     r = box.exec()
     if box.clickedButton() is quit_btn:
         return "quit"
     return {QMessageBox.StandardButton.Yes: "own", QMessageBox.StandardButton.No: "subject"}.get(
-        QMessageBox.StandardButton(r))
+        QMessageBox.StandardButton(r), "quit" if at_start else None)
 
 
 class CasePage(QWidget):
@@ -247,6 +260,9 @@ class CasePage(QWidget):
         self.st.system = info
         s = self.sys
         s.clear()
+        if self.st.device_owner:
+            s.set(self.tr("Ausführendes Gerät"), self.tr("eigenes Gerät") if self.st.device_owner == "own"
+                  else self.tr("Gerät der betroffenen Person"), "ok" if self.st.device_owner == "own" else "warn")
         s.set(self.tr("Benutzer"), info.user, mono=True)
         s.set(self.tr("Rechner"), f"{info.hostname} · {info.os.split('(')[0].strip()}")
         ntp = f" · NTP {info.ntp_offset_s:+.1f} s" if info.ntp_offset_s is not None else ""
@@ -297,6 +313,20 @@ class CasePage(QWidget):
         self.go.setText(self.tr("Weiter") if is_open else self.tr("Fall anlegen und weiter"))
         self.open_btn.setVisible(not is_open)
 
+    def _device_owner(self) -> str | None:
+        """Antwort vom Programmstart; nur falls dort nicht gefragt wurde, jetzt fragen."""
+        if self.st.device_owner:
+            return self.st.device_owner
+        owner = ask_device_owner(self)
+        if owner in ("own", "subject"):
+            self.st.device_owner = owner
+            self.st.device_asked_utc = datetime.now(UTC).isoformat(timespec="seconds")
+        return owner
+
+    def _record_device(self, case: Case, owner: str) -> None:
+        case.set_device_owner(owner, self.st.system.hostname if self.st.system else "",
+                              asked_utc=self.st.device_asked_utc)
+
     def _quit(self) -> None:
         """„FED beenden“ in der Gerätefrage: Hauptfenster schließen (räumt Sitzung und Anmeldedaten auf)."""
         self.window().close()
@@ -310,7 +340,7 @@ class CasePage(QWidget):
     def _create(self) -> None:
         if not self._validate():
             return
-        owner = ask_device_owner(self)
+        owner = self._device_owner()
         if owner == "quit":
             self._quit()
             return
@@ -337,7 +367,7 @@ class CasePage(QWidget):
             case.store_config_snapshot(self.st.cfg.raw_text, self.st.cfg.logo_path())
         except ValueError as e:
             case.log("WARNING", "logo_rejected", str(e))
-        case.set_device_owner(owner, self.st.system.hostname if self.st.system else "")
+        self._record_device(case, owner)
         if self.st.system:
             case.record_system_check(self.st.system.as_dict())
             if self.st.system.target_removable is not True:
@@ -368,13 +398,13 @@ class CasePage(QWidget):
             self.error.setText(str(e))
             return
         if not case.closed:  # Fortsetzung, evtl. auf einem anderen Rechner: erneut dokumentieren
-            owner = ask_device_owner(self)
+            owner = self._device_owner()
             if owner in (None, "quit"):
                 case.close()
                 if owner == "quit":
                     self._quit()
                 return
-            case.set_device_owner(owner, self.st.system.hostname if self.st.system else "")
+            self._record_device(case, owner)
         self.st.case = case
         self.next.emit()
 
@@ -1875,9 +1905,11 @@ class Assistant(QWidget):
         if self.st.case:
             self.st.case.close()
         cfg = self.st.cfg
+        owner, asked = self.st.device_owner, self.st.device_asked_utc
         self.st.__init__(cfg)
         self.st.jobs = self.jobs
         self.st.vault = self.vault  # Anmeldedaten gelten für die ganze Sitzung, auch im neuen Case
+        self.st.device_owner, self.st.device_asked_utc = owner, asked  # Gerät ändert sich nicht
         self.jobs.clear()
         self.p_case.case_no.setText(self.p_case._suggest())
         self.p_case.notes.clear()

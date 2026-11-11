@@ -170,14 +170,17 @@ class Case:
 
     DEVICE_OWNERS = ("own", "subject")
 
-    def set_device_owner(self, owner: str, hostname: str = "") -> None:
+    def set_device_owner(self, owner: str, hostname: str = "", asked_utc: str | None = None) -> None:
         """Auf wessen Gerät läuft FED? ``own`` = eigenes Gerät (z. B. Dienstgerät), ``subject`` = Gerät der
         betroffenen Person. Jede Angabe wird protokolliert (auch beim erneuten Öffnen auf einem anderen Rechner)."""
         if owner not in self.DEVICE_OWNERS:
             raise ValueError(owner)
         with self.conn:
             self.conn.execute("UPDATE case_info SET device_owner = ? WHERE id = 1", (owner,))
-        self.log("INFO", "device_owner_confirmed", {"device_owner": owner, "hostname": hostname})
+        details = {"device_owner": owner, "hostname": hostname}
+        if asked_utc:  # beim Programmstart beantwortet
+            details["asked_utc"] = asked_utc
+        self.log("INFO", "device_owner_confirmed", details)
 
     def device_owner_history(self) -> list[dict]:
         """Alle Angaben zum ausführenden Gerät in zeitlicher Reihenfolge (aus dem Log)."""

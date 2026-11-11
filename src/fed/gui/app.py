@@ -184,7 +184,18 @@ def main() -> int:
         dlg.exec()
         dlg.deleteLater()
         i18n.install(cfg.programm.sprache)  # in der Ersteinrichtung gewählte Sprache
+    # unmittelbar nach dem Start (vor jedem Fall) festhalten, auf wessen Gerät FED läuft
+    from datetime import UTC, datetime
+
+    from fed.gui.assistant import ask_device_owner
+
+    theme.apply(app, "dunkel" if theme.is_dark(cfg.programm.design) else "hell")
+    owner = ask_device_owner(None, at_start=True)
+    if owner not in ("own", "subject"):
+        return 0  # „FED beenden“
     win = MainWindow(cfg, program_dir())
+    win.assistant.st.device_owner = owner
+    win.assistant.st.device_asked_utc = datetime.now(UTC).isoformat(timespec="seconds")
     win.show()
     if TRANSLOCATION:  # macOS startet eine verschobene Kopie – erklären, wo gespeichert wird
         from PySide6.QtWidgets import QMessageBox

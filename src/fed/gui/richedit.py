@@ -127,6 +127,11 @@ class RichNoteEdit(QWidget):
         self.b_mark.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.b_list = tool("• " + self.tr("Liste"), self.tr("Aufzählung ein/aus"), self._list, True)
         self.b_clear = tool("⌫ " + self.tr("Format"), self.tr("Formatierung der Auswahl entfernen"), self._clear)
+        bar.addSpacing(8)
+        self.b_date = tool(self.tr("Datum"), self.tr("Aktuelles Datum einfügen (Gerätezeit)"),
+                           lambda: self._insert_now("date"))
+        self.b_time = tool(self.tr("Uhrzeit"), self.tr("Aktuelle Uhrzeit einfügen (Gerätezeit)"),
+                           lambda: self._insert_now("time"))
         bar.addStretch(1)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -135,6 +140,23 @@ class RichNoteEdit(QWidget):
         lay.addWidget(self.edit, 1)
 
     # ------------------------------------------------------------ API
+    @staticmethod
+    def now_text(kind: str, when=None) -> str:
+        """Datum bzw. Uhrzeit der Gerätezeit: deutsch 11.11.2026 / 11:50 Uhr, sonst 2026-11-11 / 11:50."""
+        from datetime import datetime
+
+        from fed.core.msg import current_language
+
+        when = when or datetime.now()
+        de = current_language() == "de"
+        if kind == "date":
+            return when.strftime("%d.%m.%Y" if de else "%Y-%m-%d")
+        return when.strftime("%H:%M") + (" Uhr" if de else "")
+
+    def _insert_now(self, kind: str) -> None:
+        if not self.edit.isReadOnly():
+            self.edit.textCursor().insertText(self.now_text(kind))
+
     def _refocus(self) -> None:
         if not self.edit.isReadOnly():
             self.edit.setFocus(Qt.FocusReason.OtherFocusReason)

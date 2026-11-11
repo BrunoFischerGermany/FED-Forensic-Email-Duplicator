@@ -204,7 +204,7 @@ def test_toolbar_keeps_focus_in_editor(qapp_or_app=None):
     lay.addWidget(other)
     lay.addWidget(ed)
     w.show()
-    for b in (ed.b_bold, ed.b_italic, ed.b_under, ed.b_mark, ed.b_list, ed.b_clear):
+    for b in (ed.b_bold, ed.b_italic, ed.b_under, ed.b_mark, ed.b_list, ed.b_clear, ed.b_date, ed.b_time):
         other.setFocus()
         app.processEvents()
         b.click()
@@ -215,3 +215,37 @@ def test_toolbar_keeps_focus_in_editor(qapp_or_app=None):
     ed.b_bold.click()
     assert w.focusWidget() is other  # gesperrt: kein Sprung ins Feld
     w.close()
+
+
+def test_insert_date_and_time():
+    from datetime import datetime
+
+    from PySide6.QtWidgets import QApplication
+
+    from fed.core import msg
+    from fed.gui.richedit import RichNoteEdit
+
+    QApplication.instance() or QApplication([])
+    when = datetime(2026, 11, 11, 9, 5)
+    old = msg.current_language()
+    try:
+        msg.set_language("de")
+        assert RichNoteEdit.now_text("date", when) == "11.11.2026"
+        assert RichNoteEdit.now_text("time", when) == "09:05 Uhr"
+        msg.set_language("en")
+        assert RichNoteEdit.now_text("date", when) == "2026-11-11"
+        assert RichNoteEdit.now_text("time", when) == "09:05"
+        msg.set_language("de")
+        ed = RichNoteEdit()
+        ed.edit.setPlainText("Durchsuchung am ")
+        c = ed.edit.textCursor()
+        c.movePosition(c.MoveOperation.End)
+        ed.edit.setTextCursor(c)
+        ed.b_date.click()
+        assert ed.toPlainText().startswith("Durchsuchung am ") and ed.toPlainText()[-10:].count(".") == 2
+        ed.setReadOnly(True)
+        before = ed.toPlainText()
+        ed._insert_now("time")
+        assert ed.toPlainText() == before
+    finally:
+        msg.set_language(old)

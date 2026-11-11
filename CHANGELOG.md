@@ -7,6 +7,11 @@
 - „+ Weiteres Konto“ in der linken Leiste und neben „Fall abschließen“
 - „Postfach scannen“ ist immer klickbar und testet die Verbindung bei Bedarf selbst (auch für ein schon
   gesichertes Konto, z. B. zum Nachsichern)
+- Notizen (Fall, Konto, Abschlussvermerk, Übersicht): Knöpfe „Datum“ und „Uhrzeit“ fügen die aktuelle
+  Gerätezeit an der Cursorposition ein (11.11.2026 / 11:50 Uhr)
+- Die Gerätefrage kommt unmittelbar nach dem Programmstart (Ja / Nein / FED beenden; Enter und Esc beenden)
+  und gilt für alle Fälle der Sitzung; im Log steht zusätzlich der Zeitpunkt der Antwort. Systemprüfung
+  zeigt „Ausführendes Gerät“. Nur wenn beim Start nicht gefragt wurde, fragt FED beim Fall.
 - Beim Anlegen (und Fortsetzen) eines Falls fragt FED, ob es auf einem eigenen Gerät läuft: Ja = eigenes
   Gerät, Nein = Gerät der betroffenen Person, Abbrechen = nicht fortfahren, „FED beenden“ schließt das Programm. Die Antwort steht mit Rechnername
   im Log und im Bericht („Ausführendes Gerät“); CLI `fed new-case --device own|subject`

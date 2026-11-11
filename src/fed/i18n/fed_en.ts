@@ -696,6 +696,18 @@ After closing, the case cannot be extended. Close anyway?</translation>
     <message>
         <source>Ja – eigenes Gerät
 Nein – Gerät der betroffenen Person
+FED beenden – Programm schließen
+
+Die Antwort wird in jedem Fall dieser Sitzung im Protokoll und im Bericht dokumentiert.</source>
+        <translation>Yes – own device
+No – device of the person concerned
+Quit FED – close the program
+
+The answer is documented in the log and report of every case in this session.</translation>
+    </message>
+    <message>
+        <source>Ja – eigenes Gerät
+Nein – Gerät der betroffenen Person
 Abbrechen – nicht fortfahren (kein Fall)
 FED beenden – Programm schließen
 
@@ -782,6 +794,14 @@ The answer is documented in the log and in the report.</translation>
     <message>
         <source>prüfe …</source>
         <translation>checking …</translation>
+    </message>
+    <message>
+        <source>eigenes Gerät</source>
+        <translation>own device</translation>
+    </message>
+    <message>
+        <source>Gerät der betroffenen Person</source>
+        <translation>device of the person concerned</translation>
     </message>
     <message>
         <source>Benutzer</source>
@@ -2227,6 +2247,22 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Formatierung der Auswahl entfernen</source>
         <translation>Remove formatting from the selection</translation>
+    </message>
+    <message>
+        <source>Datum</source>
+        <translation>Date</translation>
+    </message>
+    <message>
+        <source>Aktuelles Datum einfügen (Gerätezeit)</source>
+        <translation>Insert current date (device time)</translation>
+    </message>
+    <message>
+        <source>Uhrzeit</source>
+        <translation>Time</translation>
+    </message>
+    <message>
+        <source>Aktuelle Uhrzeit einfügen (Gerätezeit)</source>
+        <translation>Insert current time (device time)</translation>
     </message>
 </context>
 <context>
