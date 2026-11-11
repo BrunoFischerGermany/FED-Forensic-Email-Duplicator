@@ -686,6 +686,26 @@ After closing, the case cannot be extended. Close anyway?</translation>
 <context>
     <name>CasePage</name>
     <message>
+        <source>Ausführendes Gerät</source>
+        <translation>Device running FED</translation>
+    </message>
+    <message>
+        <source>Wird FED auf einem eigenen Gerät ausgeführt (z. B. Dienstgerät)?</source>
+        <translation>Is FED running on your own device (e.g. an agency device)?</translation>
+    </message>
+    <message>
+        <source>Ja – eigenes Gerät
+Nein – Gerät der betroffenen Person
+Abbrechen – nicht fortfahren (kein Fall)
+
+Die Antwort wird im Protokoll und im Bericht dokumentiert.</source>
+        <translation>Yes – own device
+No – device of the person concerned
+Cancel – do not continue (no case)
+
+The answer is documented in the log and in the report.</translation>
+    </message>
+    <message>
         <source>Fall anlegen</source>
         <translation>Create case</translation>
     </message>

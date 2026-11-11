@@ -29,6 +29,7 @@
   "Arbeitsordner nach erfolgreicher ZIP-Verifikation löschen? [j/N] ": "Delete the working folder after successful ZIP verification? [y/N] ",
   "Arbeitsordner wird nur nach erfolgreicher ZIP-Verifikation gelöscht": "The working folder is only deleted after successful ZIP verification",
   "Asservatennummer": "Evidence number",
+  "Ausführendes Gerät: own = eigenes Gerät, subject = Gerät der betroffenen Person": "Device running FED: own = own device, subject = device of the person concerned",
   "Befehl '{cmd}' ist noch nicht umgesetzt.": "Command '{cmd}' is not implemented yet.",
   "Benutzername (Standard: Adresse)": "User name (default: address)",
   "Benutzername oder Passwort enthält Sonderzeichen (z. B. Umlaute), der Server bietet aber keine Anmeldung per AUTHENTICATE PLAIN an": "User name or password contains special characters (e.g. umlauts), but the server does not offer sign-in via AUTHENTICATE PLAIN",

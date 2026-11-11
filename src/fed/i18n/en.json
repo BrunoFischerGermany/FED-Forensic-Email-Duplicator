@@ -577,5 +577,8 @@
   "Weiter": "Next",
   "Fall existiert bereits": "Case already exists",
   "Für dieses Aktenzeichen gibt es im Zielordner schon einen Fall:\n{0}\n\nDiesen Fall öffnen und fortsetzen?": "A case with this case number already exists in the target folder:\n{0}\n\nOpen and continue this case?",
-  "z. B. Musterstraße 1, 12345 Musterstadt": "e.g. 1 Sample Street, 12345 Sample Town"
+  "z. B. Musterstraße 1, 12345 Musterstadt": "e.g. 1 Sample Street, 12345 Sample Town",
+  "Ausführendes Gerät": "Device running FED",
+  "Wird FED auf einem eigenen Gerät ausgeführt (z. B. Dienstgerät)?": "Is FED running on your own device (e.g. an agency device)?",
+  "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nAbbrechen – nicht fortfahren (kein Fall)\n\nDie Antwort wird im Protokoll und im Bericht dokumentiert.": "Yes – own device\nNo – device of the person concerned\nCancel – do not continue (no case)\n\nThe answer is documented in the log and in the report."
 }

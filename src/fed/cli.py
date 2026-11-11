@@ -48,6 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
     new.add_argument("--case", required=True, help=t("Aktenzeichen"))
     new.add_argument("--examiner", help=t("Examiner (Standard aus Config)"))
     new.add_argument("--notes", default="")
+    new.add_argument("--device", choices=["own", "subject"],
+                     help=t("Ausführendes Gerät: own = eigenes Gerät, subject = Gerät der betroffenen Person"))
 
     acq = sub.add_parser("acquire", help=t("Konto sichern"))
     acq.add_argument("--case-dir", type=Path, required=True)
@@ -113,6 +115,8 @@ def main(argv: list[str] | None = None) -> int:
         case = Case.create(args.target, CaseInfo(args.case, examiner, args.notes),
                            replace_spaces=cfg.programm.leerzeichen_ersetzen)
         info = syscheck.collect(args.target, cfg.programm.ntp_server if cfg.programm.ntp else None, cfg.proxy_url)
+        if args.device:
+            case.set_device_owner(args.device, info.hostname)
         case.record_system_check(info.as_dict())
         case.store_config_snapshot(cfg.raw_text, cfg.logo_path())
         print(t("Fall angelegt: {path}", path=case.root))
