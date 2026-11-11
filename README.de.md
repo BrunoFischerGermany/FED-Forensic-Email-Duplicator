@@ -85,7 +85,7 @@ jedes Paket, validiert und hängt alles an das Release:
 
 | Datei | |
 |---|---|
-| `FED-<version>-windows-x64.exe` | Windows – eine einzelne Datei, Doppelklick startet |
+| `FED-<version>-windows-x64.zip` | Windows – entpacken, im Ordner `FED` startet `FED.exe` |
 | `FED-<version>-macos-arm64.zip` / `-macos-x64.zip` | macOS Apple Silicon / Intel (`FED.app`) |
 | `FED-<version>-linux-x64.tar.gz` | Linux (`FED/FED`) |
 | `FED-<version>-validation-report-*.pdf` | Validierungsprotokoll (13 Prüfungen) |
@@ -95,9 +95,12 @@ Jede Nacht entsteht bei neuen Commits eine Vorabversion **Nightly** von `main`.
 Ohne Release: **Actions → Build → Run workflow** (Dateien unter *Artifacts*) oder lokal
 `pip install -e .[build]` und `python packaging/build.py`. Anleitung: [docs/releases.md](docs/releases.md).
 
-Die `config.toml` gehört neben `FED.exe`, `FED` bzw. `FED.app` – oder einfach starten, FED fragt die Grunddaten ab.
+Die `config.toml` gehört neben `FED.exe` (im Ordner `FED`), `FED` bzw. `FED.app` – oder einfach starten, FED fragt die Grunddaten ab.
 Die Programme sind nicht signiert: macOS meldet „nicht verifizierter Entwickler“
 (Rechtsklick → Öffnen, oder `xattr -cr FED.app`), Windows SmartScreen „Weitere Informationen → Trotzdem ausführen“.
+Meldet ein Virenscanner FED (z. B. Symantec „Heur.AdvML.B“), ist das ein Fehlalarm der Heuristik bei
+unsignierten Programmen: SHA-256 mit `SHA256SUMS.txt` vergleichen und den Hash von der IT freigeben
+lassen bzw. beim Hersteller als Fehlalarm melden – siehe [docs/releases.md](docs/releases.md).
 
 ## Aufbau
 

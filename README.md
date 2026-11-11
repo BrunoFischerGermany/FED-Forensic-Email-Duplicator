@@ -87,7 +87,7 @@ self-tests every package, runs the validation and attaches everything to the rel
 
 | File | |
 |---|---|
-| `FED-<version>-windows-x64.exe` | Windows – a single file, double-click to start |
+| `FED-<version>-windows-x64.zip` | Windows – unzip, start `FED.exe` in the `FED` folder |
 | `FED-<version>-macos-arm64.zip` / `-macos-x64.zip` | macOS Apple Silicon / Intel (`FED.app`) |
 | `FED-<version>-linux-x64.tar.gz` | Linux (`FED/FED`) |
 | `FED-<version>-validation-report-*.pdf` | validation report (13 checks) |
@@ -97,9 +97,12 @@ A **nightly** pre-release of `main` is built every night when there are new comm
 Builds without a release: **Actions → Build → Run workflow** (files under *Artifacts*), or locally
 `pip install -e .[build]` and `python packaging/build.py`. Details (German): [docs/releases.md](docs/releases.md).
 
-Put `config.toml` next to `FED.exe`, `FED`, or `FED.app` – or just start FED: it asks for the base data.
+Put `config.toml` next to `FED.exe` (in the `FED` folder), `FED`, or `FED.app` – or just start FED: it asks for the base data.
 The programs are not signed: macOS reports an "unidentified developer"
 (right-click → Open, or `xattr -cr FED.app`); Windows SmartScreen: "More info → Run anyway".
+If an antivirus flags FED (e.g. Symantec "Heur.AdvML.B"), it is a heuristic false positive for unsigned
+programs: compare the SHA-256 with `SHA256SUMS.txt`, have IT allow the hash, or report it to the vendor
+as a false positive.
 
 ## Case folder
 

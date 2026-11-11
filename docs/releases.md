@@ -38,7 +38,7 @@ Danach unter **Actions → Build** zusehen (ca. 25–35 Minuten). Am Ende hänge
 
 | Datei | Inhalt |
 | --- | --- |
-| `FED-1.0.0-windows-x64.exe` | Windows: **eine einzelne Datei**, Doppelklick startet FED |
+| `FED-1.0.0-windows-x64.zip` | Windows: Ordner `FED\` mit `FED.exe` |
 | `FED-1.0.0-macos-arm64.zip` | macOS Apple Silicon (M1–M4): `FED.app` |
 | `FED-1.0.0-macos-x64.zip` | macOS Intel: `FED.app` |
 | `FED-1.0.0-linux-x64.tar.gz` | Linux: Ordner `FED/`, Programm `FED/FED` |
@@ -82,10 +82,18 @@ liegen danach im Lauf unter *Artifacts*
 
 ## Hinweise für Nutzer der Programme
 
-- **Windows**: Die `.exe` ist nicht signiert. SmartScreen meldet „Der Computer wurde durch
-  Windows geschützt“ → **Weitere Informationen → Trotzdem ausführen**. Beim Start entpackt sich
-  das Programm in den Temp-Ordner (erster Start einige Sekunden) und räumt beim Beenden auf.
-  `config.toml` und `FED.ini` liegen neben der `.exe`.
+- **Windows**: ZIP entpacken (z. B. auf den Sicherungs-Datenträger), im Ordner `FED` startet
+  `FED.exe`. Die Bibliotheken müssen im Ordner daneben bleiben. Nicht signiert: SmartScreen meldet
+  „Der Computer wurde durch Windows geschützt“ → **Weitere Informationen → Trotzdem ausführen**.
+  `config.toml` und `FED.ini` liegen neben `FED.exe`.
+  Bis Version 1.0.3 gab es eine einzelne `.exe`, die sich beim Start in den Temp-Ordner entpackte –
+  das hat Virenscanner-Fehlalarme ausgelöst (Symantec „Heur.AdvML.B“), deshalb jetzt der Ordner.
+- **Fehlalarm eines Virenscanners**: Heuristiken („Heur.…“, „AdvML“, „ML“) schlagen bei neuen,
+  unsignierten Programmen an, die noch keine Verbreitung haben. Vorgehen:
+  1. SHA-256 der Datei mit `SHA256SUMS.txt` am Release vergleichen.
+  2. Von der IT eine Ausnahme für diesen Hash bzw. Ordner einrichten lassen.
+  3. Beim Hersteller als Fehlalarm melden (Symantec/Broadcom: „Submit false positive“ im
+     Broadcom-Support-Portal) – danach erkennen alle Installationen die Datei als sauber.
 - **macOS**: nicht notarisiert. Erststart per Rechtsklick → **Öffnen**, oder
   `xattr -cr FED.app` im Terminal. `config.toml` gehört neben `FED.app`.
   Startet man FED direkt aus „Downloads“, führt macOS eine schreibgeschützte Kopie unter
@@ -100,3 +108,5 @@ liegen danach im Lauf unter *Artifacts*
 
 Signieren (Windows-Zertifikat, Apple-Developer-ID mit Notarisierung) lässt sich später als
 weiterer Schritt in `build.yml` ergänzen; die Zertifikate werden dann als GitHub-Secrets hinterlegt.
+Für Open-Source-Projekte bietet die SignPath Foundation kostenlose Windows-Signaturen an; signierte
+Programme lösen deutlich seltener Fehlalarme und SmartScreen-Warnungen aus.

@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,8 +56,10 @@ def target() -> tuple[str, str]:
 def nuitka_args(system: str, v: str) -> list[str]:
     args = [
         sys.executable, "-m", "nuitka",
-        # Windows: eine einzelne .exe (entpackt sich beim Start in den Temp-Ordner und räumt danach auf)
-        "--onefile" if system == "windows" else "--standalone",
+        # Ordner mit Programm und Bibliotheken – auch unter Windows keine selbstentpackende Einzeldatei:
+        # die entpackt sich beim Start in den Temp-Ordner und löst bei Virenscannern (z. B. Symantec
+        # „Heur.AdvML.B“) Fehlalarme aus
+        "--standalone",
         "--enable-plugin=pyside6",
         "--include-package=fed",
         "--include-package-data=fed",
@@ -88,10 +91,6 @@ def nuitka_args(system: str, v: str) -> list[str]:
 def package(system: str, arch: str, v: str) -> Path:
     DIST.mkdir(exist_ok=True)
     name = f"FED-{v}-{system}-{arch}"
-    if system == "windows":
-        out = DIST / f"{name}.exe"
-        shutil.copy2(BUILD / "FED.exe", out)
-        return out
     stage = BUILD / name
     shutil.rmtree(stage, ignore_errors=True)
     stage.mkdir(parents=True)
@@ -104,7 +103,13 @@ def package(system: str, arch: str, v: str) -> Path:
     for f in EXTRAS:
         if (ROOT / f).exists():
             shutil.copy2(ROOT / f, target_dir / f)
-    if system == "linux":
+    if system == "windows":
+        out = DIST / f"{name}.zip"
+        root = stage / "FED"
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+            for f in sorted(root.rglob("*")):
+                zf.write(f, Path("FED") / f.relative_to(root))
+    elif system == "linux":
         out = DIST / f"{name}.tar.gz"
         with tarfile.open(out, "w:gz") as tf:
             tf.add(stage / "FED", arcname="FED")

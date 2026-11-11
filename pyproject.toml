@@ -32,7 +32,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.8", "pypdfium2>=4.30",  # pypdfium2: PDF-Text in den Tests prüfen
        "tzdata; sys_platform == 'win32'"]
-build = ["nuitka>=4.2", "zstandard>=0.23"]  # zstandard: kompakte Windows-Einzeldatei
+build = ["nuitka>=4.2"]
 
 [project.scripts]
 fed = "fed.cli:main"

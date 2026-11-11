@@ -1,6 +1,6 @@
 """Startet ein gebautes FED-Paket im Selbsttest-Modus und prüft das Ergebnis.
 
-    python packaging/selftest.py dist/FED-1.0.0-windows-x64.exe
+    python packaging/selftest.py dist/FED-1.0.0-windows-x64.zip
     python packaging/selftest.py dist/FED-1.0.0-macos-arm64.zip
     python packaging/selftest.py dist/FED-1.0.0-linux-x64.tar.gz
 
@@ -32,10 +32,12 @@ def sha256(p: Path) -> str:
 def unpack(archive: Path, dest: Path) -> tuple[Path, Path]:
     """Rückgabe: (Programmdatei, erwarteter Programmordner)."""
     name = archive.name
-    if name.endswith(".exe"):
-        exe = dest / "FED.exe"
-        exe.write_bytes(archive.read_bytes())
-        return exe, dest
+    if name.endswith(".zip") and "-windows-" in name:  # Windows: Ordner FED\ mit FED.exe
+        import zipfile
+
+        with zipfile.ZipFile(archive) as zf:
+            zf.extractall(dest)
+        return dest / "FED" / "FED.exe", dest / "FED"
     if name.endswith(".tar.gz"):
         with tarfile.open(archive) as tf:
             tf.extractall(dest, filter="tar")

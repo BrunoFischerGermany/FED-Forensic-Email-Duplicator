@@ -7,8 +7,7 @@ from pathlib import Path
 
 
 def program_file() -> Path | None:
-    """Die gestartete Programmdatei im gebauten Programm (bei der Windows-Einzeldatei die .exe selbst,
-    nicht die entpackte Kopie im Temp-Ordner), sonst ``None``."""
+    """Die gestartete Programmdatei im gebauten Programm, sonst ``None``."""
     if getattr(sys, "frozen", False) or "__compiled__" in globals():
         return Path(sys.argv[0]).resolve()
     return None
