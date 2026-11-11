@@ -117,16 +117,20 @@ jobs:
             patchelf ccache libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 \
             libdbus-1-3 libglib2.0-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
             libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libxrender1 \
-            libxi6 libsm6 libice6 fonts-dejavu-core
+            libxi6 libsm6 libice6 fonts-dejavu-core software-properties-common gpg-agent
+          add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get install -y --no-install-recommends python3.14 python3.14-dev python3.14-venv
+          python3.14 -m venv /opt/fed-python
+          echo /opt/fed-python/bin >> "$GITHUB_PATH"
           ldd --version | head -1
+          /opt/fed-python/bin/python --version
 
       - uses: actions/checkout@v5
 
+      # Windows/macOS: Python von GitHub. Im Linux-Container nicht – das Python des Runners ist für
+      # Ubuntu 24.04 gebaut (neuere glibc); dort kommt Python aus deadsnakes (Schritt oben).
       - uses: actions/setup-python@v6
-        # im Container eigener Tool-Cache: der des Runners enthält Python für Ubuntu 24.04 (neuere glibc)
-        env:
-          RUNNER_TOOL_CACHE: ${{ matrix.container && '/opt/hostedtoolcache' || runner.tool_cache }}
-          AGENT_TOOLSDIRECTORY: ${{ matrix.container && '/opt/hostedtoolcache' || runner.tool_cache }}
+        if: ${{ !matrix.container }}
         with:
           python-version: "3.14"
           cache: pip
