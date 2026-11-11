@@ -10,7 +10,8 @@ für das Validierungsprotokoll (ISO 17025).
 | `dovecot_server.py` | startet einen lokalen Dovecot mit diesem Postfach (`python validation/dovecot_server.py`) |
 
 Die Tests unter `tests/test_imap_reader.py` und `tests/test_acquisition.py` laufen
-automatisch gegen diesen Server, wenn `dovecot` installiert ist (`apt install dovecot-imapd`),
+automatisch gegen diesen Server, wenn `dovecot` installiert ist (`apt install dovecot-imapd`; Dovecot 2.3
+und 2.4 werden erkannt, ein anderes Programm wählt `FED_DOVECOT=/pfad/zu/dovecot`),
 sonst werden sie übersprungen. In der CI laufen sie unter Linux.
 
 ## Validierungsprotokoll

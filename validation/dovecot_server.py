@@ -1,7 +1,10 @@
 """Startet einen lokalen Dovecot mit dem Testpostfach (für Tests und Validierung).
 
-Benötigt ``dovecot`` und ``openssl`` im PATH. Läuft ohne Root (nutzt den
-aktuellen Benutzer) oder als Root (nutzt die Systembenutzer dovecot/dovenull).
+Benötigt ``dovecot`` und ``openssl`` im PATH (oder ``FED_DOVECOT=/pfad/zu/dovecot``). Läuft ohne Root
+(nutzt den aktuellen Benutzer) oder als Root (nutzt die Systembenutzer dovecot/dovenull).
+
+Dovecot 2.3 und 2.4 haben verschiedene Konfigurationsformate; die Version wird erkannt
+(``dovecot --version``) und die passende Konfiguration geschrieben.
 
     python validation/dovecot_server.py      # startet und wartet, Strg+C beendet
 """
@@ -23,6 +26,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import intlmailbox
 import testmailbox
 
+DOVECOT = os.environ.get("FED_DOVECOT") or "dovecot"
+
+# Dovecot 2.3 (Ubuntu 24.04, Debian 12)
 CONF = """\
 base_dir = {d}/run
 state_dir = {d}/state
@@ -79,6 +85,77 @@ service stats {{
 """
 
 
+# Dovecot 2.4 (Ubuntu 26.04, Debian 13): neue Namen, benannte passdb/userdb, mail_driver/mail_path,
+# %{user} statt %u; OAuth2 läuft über den Mechanismus selbst, nicht mehr über eine passdb
+CONF_24 = """\
+dovecot_config_version = 2.4.0
+dovecot_storage_version = 2.4.0
+base_dir = {d}/run
+state_dir = {d}/state
+log_path = {d}/dovecot.log
+info_log_path = {d}/dovecot.log
+protocols = imap
+listen = 127.0.0.1
+ssl = required
+ssl_server_cert_file = {d}/cert.pem
+ssl_server_key_file = {d}/key.pem
+auth_allow_cleartext = no
+auth_mechanisms = plain login{mechs}
+# Standard erlaubt nur ASCII im Benutzernamen; für das Umlaut-Testkonto alles zulassen
+auth_username_chars =
+first_valid_uid = 0
+default_internal_user = {iuser}
+default_internal_group = {igroup}
+default_login_user = {luser}
+passdb passwd-file {{
+  passwd_file_path = {d}/users
+  default_password_scheme = PLAIN
+}}
+{oauth2}userdb static {{
+  fields {{
+    uid = {uid}
+    gid = {gid}
+    home = {d}/home/%{{user}}
+  }}
+}}
+mail_driver = maildir
+mail_path = ~/Maildir
+namespace inbox {{
+  inbox = yes
+  separator = /
+  prefix =
+}}
+service imap-login {{
+  chroot =
+  inet_listener imap {{
+    port = 0
+  }}
+  inet_listener imaps {{
+    port = {port}
+    ssl = yes
+  }}
+}}
+service anvil {{
+  chroot =
+}}
+service stats {{
+  unix_listener stats-reader {{
+    mode = 0666
+  }}
+  unix_listener stats-writer {{
+    mode = 0666
+  }}
+}}
+"""
+
+
+def version() -> tuple[int, int]:
+    """(Haupt-, Nebenversion) des installierten Dovecot, z. B. (2, 4)."""
+    out = subprocess.run([DOVECOT, "--version"], capture_output=True, text=True, check=True).stdout
+    major, minor = out.split()[0].split(".")[:2]
+    return int(major), int(minor)
+
+
 @dataclass
 class Server:
     host: str
@@ -98,7 +175,7 @@ class Server:
 
 
 def available() -> bool:
-    return bool(shutil.which("dovecot") and shutil.which("openssl"))
+    return bool(shutil.which(DOVECOT) and shutil.which("openssl"))
 
 
 def _free_port() -> int:
@@ -137,23 +214,29 @@ def start(root: Path | None = None, oauth_introspection_url: str | None = None) 
             os.chown(dirpath, uid, gid)
             for f in files:
                 os.chown(os.path.join(dirpath, f), uid, gid)
-    oauth_passdb, mechs = "", ""
+    v24 = version() >= (2, 4)
+    oauth_passdb, oauth2, mechs = "", "", ""
     if oauth_introspection_url:
         mechs = " xoauth2 oauthbearer"
-        (d / "oauth2.conf").write_text(
-            f"introspection_mode = post\nintrospection_url = {oauth_introspection_url}\n"
-            "username_attribute = email\nactive_attribute = active\nactive_value = true\n"
-            "force_introspection = yes\n", encoding="utf-8")
-        oauth_passdb = f"passdb {{\n  driver = oauth2\n  mechanisms = xoauth2 oauthbearer\n  args = {d}/oauth2.conf\n}}\n"
-    conf = CONF.format(
-        d=d, port=port, uid=uid, gid=gid, mechs=mechs, oauth_passdb=oauth_passdb,
+        oauth_settings = {"introspection_mode": "post", "introspection_url": oauth_introspection_url,
+                          "username_attribute": "email", "active_attribute": "active", "active_value": "true",
+                          "force_introspection": "yes"}
+        if v24:
+            oauth2 = "oauth2 {\n" + "".join(f"  {k} = {v}\n" for k, v in oauth_settings.items()) + "}\n"
+        else:
+            (d / "oauth2.conf").write_text("".join(f"{k} = {v}\n" for k, v in oauth_settings.items()),
+                                           encoding="utf-8")
+            oauth_passdb = (f"passdb {{\n  driver = oauth2\n  mechanisms = xoauth2 oauthbearer\n"
+                            f"  args = {d}/oauth2.conf\n}}\n")
+    conf = (CONF_24 if v24 else CONF).format(
+        d=d, port=port, uid=uid, gid=gid, mechs=mechs, oauth_passdb=oauth_passdb, oauth2=oauth2,
         iuser="dovecot" if root_mode else me, igroup="dovecot" if root_mode else me,
         luser="dovenull" if root_mode else me,
     )
     (d / "dovecot.conf").write_text(conf, encoding="utf-8")
     if root_mode:
         os.chmod(d, 0o755)
-    proc = subprocess.Popen(["dovecot", "-F", "-c", str(d / "dovecot.conf")],
+    proc = subprocess.Popen([DOVECOT, "-F", "-c", str(d / "dovecot.conf")],
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     deadline = time.time() + 15
     while time.time() < deadline:
@@ -173,7 +256,7 @@ def start(root: Path | None = None, oauth_introspection_url: str | None = None) 
 
 if __name__ == "__main__":
     srv = start()
-    print(f"Dovecot läuft: imaps://{srv.host}:{srv.port}  Benutzer {srv.user} / {srv.password}  CA {srv.cafile}")
+    print(f"Dovecot {'.'.join(map(str, version()))} läuft: imaps://{srv.host}:{srv.port}  Benutzer {srv.user} / {srv.password}  CA {srv.cafile}")
     try:
         srv.proc.wait()
     except KeyboardInterrupt:

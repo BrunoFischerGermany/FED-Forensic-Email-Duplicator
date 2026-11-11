@@ -1,0 +1,4 @@
+# Runner-Labels, die neuer sind als die eingebaute Liste von actionlint
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

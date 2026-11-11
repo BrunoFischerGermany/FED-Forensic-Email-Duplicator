@@ -9,9 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # ubuntu-24.04 fest: Ubuntu 26.04 (neues ubuntu-latest) bringt Dovecot 2.4 mit anderem
-        # Konfigurationsformat – das Testpostfach ist für Dovecot 2.3 eingerichtet
-        os: [ubuntu-24.04, windows-latest, macos-latest]
+        # beide Dovecot-Generationen: 24.04 = Dovecot 2.3, 26.04 = Dovecot 2.4 (anderes Konfig-Format)
+        os: [ubuntu-24.04, ubuntu-26.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5

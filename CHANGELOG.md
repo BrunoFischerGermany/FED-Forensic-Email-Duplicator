@@ -2,6 +2,9 @@
 
 ## 1.0.6 (in Entwicklung)
 
+- Testpostfach (Tests und Validierung) läuft mit Dovecot 2.3 **und** 2.4 – die Version wird erkannt und das
+  passende Konfigurationsformat geschrieben; CI testet auf Ubuntu 24.04 (2.3) und 26.04 (2.4), die Validierung
+  hängt nicht mehr an Ubuntu 24.04. `FED_DOVECOT` wählt ein anderes Dovecot-Programm
 - Linux-Build im Container `ubuntu:22.04` (glibc 2.35) auf einem aktuellen Runner – gleiche Kompatibilität wie
   bisher, aber unabhängig davon, wie lange GitHub den Runner ubuntu-22.04 anbietet (ca. April 2027)
 - Linux: alle Bibliotheken, gegen die Python gebaut ist (u. a. libsqlite3), werden ins Paket übernommen – vorher
