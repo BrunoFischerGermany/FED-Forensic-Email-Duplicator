@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, Signal
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QFrame, QHeaderView, QLabel,
-                               QProgressBar, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+                               QProgressBar, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 
 from fed.core import timefmt as tf
 from fed.core.acquisition import accounts_overview, set_account_notes
@@ -261,15 +261,26 @@ class AccountsRail(QWidget):
     Laufende Sicherungen zeigen einen Ladebalken – Klick öffnet ihre Live-Ansicht."""
 
     picked = Signal(dict)
+    add_account = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.lay = QVBoxLayout(self)
-        self.lay.setContentsMargins(0, 0, 0, 0)
-        self.lay.setSpacing(2)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(2)
         self.title = QLabel(QCoreApplication.translate("AccountsTable", "KONTEN IM FALL"))
         self.title.setObjectName("RailTitle")
-        self.lay.addWidget(self.title)
+        outer.addWidget(self.title)
+        self.lay = QVBoxLayout()  # Einträge der Konten
+        self.lay.setContentsMargins(0, 0, 0, 0)
+        self.lay.setSpacing(2)
+        outer.addLayout(self.lay)
+        self.add_btn = QPushButton(QCoreApplication.translate("AccountsTable", "+ Weiteres Konto"))
+        self.add_btn.setObjectName("Step")
+        self.add_btn.setToolTip(QCoreApplication.translate("AccountsTable",
+                                                           "Ein weiteres Konto zu diesem Fall hinzufügen"))
+        self.add_btn.clicked.connect(self.add_account.emit)
+        outer.addWidget(self.add_btn)
         self.items: list[_RailItem] = []
         self.by_id: dict[int, _RailItem] = {}
         self._last: list | None = None
@@ -277,6 +288,7 @@ class AccountsRail(QWidget):
 
     def refresh(self, case: Case | None) -> None:
         rows = accounts_overview(case) if case else []
+        self.add_btn.setVisible(case is not None and not case.closed)
         jobs = self.jobs
         live = {j.account_id for j in jobs.running()} if jobs else set()
         key = [(o["email"], o["state"], o["saved"], o["attempts"], o["id"] in live) for o in rows]

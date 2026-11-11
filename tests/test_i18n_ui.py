@@ -143,7 +143,7 @@ def test_english_ui_shows_no_german(english_app, imap_server, tmp_path, monkeypa
     p.port.setValue(imap_server.port)
     p.password.setText(imap_server.password)
     p._test()
-    _pump(app, p.go.isEnabled)
+    _pump(app, lambda: p._ok)
     seen |= _texts(w)
     p._go()
     _pump(app, a.p_fold.go.isEnabled)

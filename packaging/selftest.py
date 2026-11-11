@@ -72,6 +72,8 @@ def main(argv: list[str]) -> int:
             == expected_dir.resolve(),
             "Programm-Hash = SHA-256 der Programmdatei": res.get("tool_sha256") == sha256(program),
             "Englische Übersetzung": res.get("translation_en") == "Settings",
+            "Qt-Knöpfe deutsch (Ja/Nein/Abbrechen/Schließen)":
+                res.get("qt_buttons_de") == ["&Ja", "&Nein", "Abbrechen", "Schließen"],
             "PDF: Textformung (uharfbuzz) verfügbar": bool(res.get("text_shaping")),
             "PDF: alle Schriften (CJK, Myanmar, Arabisch, Hebräisch, Emoji)": res.get("pdf_missing_glyphs") == [],
         }

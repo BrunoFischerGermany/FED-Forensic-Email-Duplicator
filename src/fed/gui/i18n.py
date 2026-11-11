@@ -43,10 +43,15 @@ def install(language: str) -> str:
         if t.load(str(qm)):
             app.installTranslator(t)
             _installed.append(t)
-    qt = QTranslator(app)  # Standardtexte von Qt (Ja/Nein, Abbrechen, Dateidialog)
-    if qt.load(QLocale(language), "qtbase", "_", QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
-        app.installTranslator(qt)
-        _installed.append(qt)
+    # Standardtexte von Qt (Ja/Nein, Abbrechen, Schließen, Dateidialog): im gebauten Programm aus
+    # fed/i18n/qt (von build.py mitgegeben), sonst aus der Qt-Installation
+    for folder in (str(resources.files("fed") / "i18n" / "qt"),
+                   QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)):
+        qt = QTranslator(app)
+        if qt.load(QLocale(language), "qtbase", "_", folder):
+            app.installTranslator(qt)
+            _installed.append(qt)
+            break
     QLocale.setDefault(QLocale(language))
     from fed.core import msg
 

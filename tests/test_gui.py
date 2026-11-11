@@ -62,7 +62,7 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     p.port.setValue(imap_server.port)
     p.password.setText(imap_server.password)
     p._test()
-    _pump(app, p.go.isEnabled)
+    _pump(app, lambda: p._ok)
     p._go()
     _pump(app, a.p_fold.go.isEnabled)
     assert a.p_fold.tree.topLevelItemCount() > 0
@@ -388,3 +388,71 @@ def test_settings_language_restart_hint_and_svg_logo(app, tmp_path):
     win.deleteLater()
     app.processEvents()
 
+
+
+def test_case_page_continue_scan_without_test_and_add_account(app, tmp_path, monkeypatch, imap_server):
+    """Fall schon offen: „Weiter“ statt neu anlegen; „Postfach scannen“ testet selbst;
+    „+ Weiteres Konto“ in Leiste und Kontoseite; gleicher Fall erneut anlegen -> öffnen."""
+    from PySide6 import QtWidgets
+
+    from fed.core import auth
+    from fed.core import config as cfgmod
+    from fed.gui import assistant as ga
+    from fed.gui.main_window import MainWindow
+
+    orig = auth.make_connector
+    monkeypatch.setattr(ga, "make_connector", lambda *a, **k: orig(*a, cafile=str(imap_server.cafile), **k))
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    asked = []
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: asked.append(a[2]) or QtWidgets.QMessageBox.StandardButton.Yes))
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    cfg.source_path = tmp_path / "config.toml"
+    w = MainWindow(cfg, tmp_path)
+    w.show()
+    a = w.assistant
+    _pump(app, lambda: a.st.system is not None)
+    a.p_case.case_no.setText("VG-1234/12, EV-1")
+    a.p_case._go_clicked()
+    case = a.st.case
+    assert case is not None and a.stack.currentIndex() == 1
+
+    # Konto ohne vorherigen Test: „Postfach scannen“ testet und geht weiter
+    p = a.p_acc
+    p.email.setText(imap_server.user)
+    p.evidence.setText("DF001")
+    p.server.setText(imap_server.host)
+    p.port.setValue(imap_server.port)
+    p.password.setText(imap_server.password)
+    assert p.go.isEnabled() and not p._ok
+    p._go_clicked()
+    _pump(app, lambda: a.stack.currentIndex() == 2)
+    _pump(app, a.p_fold.go.isEnabled)
+
+    # zurück zu Schritt 1: Fall ist offen -> „Weiter“, Felder gesperrt, kein „Fall existiert bereits“
+    a._show(0, 0)
+    assert a.p_case.go.text() == "Weiter" and a.p_case.case_no.isReadOnly()
+    assert not a.p_case.open_btn.isVisible()
+    a.p_case._go_clicked()
+    assert a.st.case is case and a.stack.currentIndex() == 1 and a.p_case.error.text() == ""
+
+    # „+ Weiteres Konto“: Formular leer, Leiste hat den Knopf
+    a.refresh_accounts()
+    assert a.rail_accounts.add_btn.isVisibleTo(w)
+    a.rail_accounts.add_btn.click()
+    assert a.stack.currentIndex() == 1 and p.email.text() == ""
+
+    # Programm neu gestartet: gleicher Fall noch einmal „anlegen“ -> Frage, dann öffnen statt Fehler
+    case_dir = case.root
+    a._new_case()
+    a.p_case.case_no.setText("VG-1234/12, EV-1")
+    a.p_case._go_clicked()
+    assert any("schon einen Fall" in q for q in asked)
+    assert a.st.case is not None and a.st.case.root == case_dir
+    w.close()
+    w.deleteLater()
+    app.processEvents()

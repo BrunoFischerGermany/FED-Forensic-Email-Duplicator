@@ -126,6 +126,7 @@ class CasePage(QWidget):
         self.target = QLineEdit(st.cfg.programm.zielpfad or str(Path.cwd()))
         browse = QPushButton(self.tr("Durchsuchen …"))
         browse.clicked.connect(self._browse)
+        self.browse_btn = browse
         f.addWidget(label(self.tr("Aktenzeichen *"), "H2"), 0, 0)
         f.addWidget(label(self.tr("Examiner *"), "H2"), 0, 1)
         f.addWidget(self.case_no, 1, 0)
@@ -167,7 +168,8 @@ class CasePage(QWidget):
         open_btn.clicked.connect(self._open_existing)
         self.go = QPushButton(self.tr("Fall anlegen und weiter"))
         self.go.setObjectName("Primary")
-        self.go.clicked.connect(self._create)
+        self.go.clicked.connect(self._go_clicked)
+        self.open_btn = open_btn
         btns = QHBoxLayout()
         btns.addStretch(1)
         btns.addWidget(open_btn)
@@ -253,6 +255,30 @@ class CasePage(QWidget):
                 return False
         return True
 
+    def sync(self) -> None:
+        """Ist schon ein Fall offen, zeigt die Seite ihn nur an: „Weiter“ statt „Fall anlegen“."""
+        case = self.st.case
+        is_open = case is not None
+        if is_open:
+            info = case.info()
+            self.case_no.setText(info.get("case_number") or "")
+            self.examiner.setText(info.get("examiner") or "")
+            self.notes.set_value(info.get("notes") or "", info.get("notes_html"))
+            self.target.setText(str(case.root.parent))
+            self.error.setText("")
+        for w in (self.case_no, self.examiner, self.target):
+            w.setReadOnly(is_open)
+        self.notes.setReadOnly(is_open)
+        self.browse_btn.setEnabled(not is_open)
+        self.go.setText(self.tr("Weiter") if is_open else self.tr("Fall anlegen und weiter"))
+        self.open_btn.setVisible(not is_open)
+
+    def _go_clicked(self) -> None:
+        if self.st.case is not None:  # Fall läuft schon – nicht neu anlegen
+            self.next.emit()
+            return
+        self._create()
+
     def _create(self) -> None:
         if not self._validate():
             return
@@ -260,7 +286,17 @@ class CasePage(QWidget):
             case = Case.create(Path(self.target.text()), CaseInfo(self.case_no.text(), self.examiner.text(),
                                                                    self.notes.toPlainText(), self.notes.html() or None),
                                replace_spaces=self.st.cfg.programm.leerzeichen_ersetzen)
-        except (FileExistsError, ValueError, OSError) as e:
+        except FileExistsError as e:
+            folder = self._existing_folder()
+            if folder is not None and QMessageBox.question(
+                    self, self.tr("Fall existiert bereits"),
+                    self.tr("Für dieses Aktenzeichen gibt es im Zielordner schon einen Fall:\n{0}\n\n"
+                            "Diesen Fall öffnen und fortsetzen?").format(folder)) == QMessageBox.StandardButton.Yes:
+                self._open(folder)
+                return
+            self.error.setText(str(e))
+            return
+        except (ValueError, OSError) as e:
             self.error.setText(str(e))
             return
         try:
@@ -274,12 +310,25 @@ class CasePage(QWidget):
         self.st.case = case
         self.next.emit()
 
+    def _existing_folder(self) -> Path | None:
+        """Ordner des Falls, den „Fall anlegen“ mit den aktuellen Eingaben anlegen würde – falls es ihn gibt."""
+        from fed.core.naming import file_name
+
+        try:
+            name = file_name(self.case_no.text().strip(), self.st.cfg.programm.leerzeichen_ersetzen)
+        except Exception:
+            return None
+        folder = Path(self.target.text()) / name
+        return folder if (folder / "case.sqlite").exists() else None
+
     def _open_existing(self) -> None:
         d = QFileDialog.getExistingDirectory(self, self.tr("Fall-Ordner wählen"), self.target.text())
-        if not d:
-            return
+        if d:
+            self._open(Path(d))
+
+    def _open(self, folder: Path) -> None:
         try:
-            self.st.case = Case.open(Path(d))
+            self.st.case = Case.open(folder)
         except (FileNotFoundError, OSError) as e:
             self.error.setText(str(e))
             return
@@ -291,6 +340,7 @@ class AccountPage(QWidget):
     next = Signal()
     back = Signal()
     finish = Signal()
+    new_account = Signal()
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -407,15 +457,22 @@ class AccountPage(QWidget):
         self.test_btn.clicked.connect(self._test)
         self.go = QPushButton(self.tr("Postfach scannen"))
         self.go.setObjectName("Primary")
-        self.go.setEnabled(False)
-        self.go.clicked.connect(self._go)
+        self.go.setToolTip(self.tr("Testet die Verbindung, falls noch nicht geschehen, und liest dann die Ordner"))
+        self._ok = False  # Verbindungstest mit den aktuellen Eingaben erfolgreich
+        self._go_after_test = False
+        self.go.clicked.connect(self._go_clicked)
         # ohne neues Konto direkt zum Abschluss (z. B. nach einem Neustart von FED)
         self.finish_btn = QPushButton(self.tr("Fall abschließen …"))
         self.finish_btn.setToolTip(self.tr("Kein weiteres Konto – den Fall mit den gesicherten Konten abschließen"))
         self.finish_btn.clicked.connect(self.finish.emit)
         self.finish_btn.setVisible(False)
+        self.new_btn = QPushButton(self.tr("+ Weiteres Konto"))
+        self.new_btn.setToolTip(self.tr("Formular leeren und ein weiteres Konto zu diesem Fall hinzufügen"))
+        self.new_btn.clicked.connect(self.new_account.emit)
+        self.new_btn.setVisible(False)
         b = QHBoxLayout()
         b.addWidget(back)
+        b.addWidget(self.new_btn)
         b.addWidget(self.finish_btn)
         b.addStretch(1)
         b.addWidget(self.test_btn)
@@ -425,8 +482,22 @@ class AccountPage(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(scroll(w))
         self._method_changed("password")
-        for x in (self.server, self.user, self.password):
-            x.textChanged.connect(lambda *_: self.go.setEnabled(False))
+        for x in (self.server, self.user, self.password, self.email):
+            x.textChanged.connect(lambda *_: self._untested())
+
+    def _untested(self) -> None:
+        """Eingaben geändert: der letzte Verbindungstest gilt nicht mehr."""
+        self._ok = False
+
+    def _go_clicked(self) -> None:
+        """„Postfach scannen“: ohne gültigen Test erst testen, bei Erfolg automatisch weiter."""
+        if self._ok:
+            self._go()
+            return
+        self._go_after_test = True
+        self._test()
+        if self.test_btn.isEnabled():  # Test gar nicht gestartet (Eingaben unvollständig)
+            self._go_after_test = False
 
     def reset(self) -> None:
         """Formular für ein neues Konto leeren; Anmeldeart zurück auf „Passwort“."""
@@ -440,7 +511,7 @@ class AccountPage(QWidget):
         self._method_changed("password")
         self.found = None
         self._recall_off()
-        self.go.setEnabled(False)
+        self._untested()
         self.test.clear()
         self.test_state.setText(self.tr("noch nicht getestet"))
         restyle(self.test_state, "Muted")
@@ -452,6 +523,7 @@ class AccountPage(QWidget):
         rows = self.accounts.refresh(self.st.case)
         self.accounts_card.setVisible(bool(rows))
         self.finish_btn.setVisible(bool(rows) and not self.st.case.closed)
+        self.new_btn.setVisible(bool(rows) and not self.st.case.closed)
         suggestion = next_evidence([o["evidence"] for o in rows])
         if suggestion and not self.evidence.text().strip():
             self.evidence.setText(suggestion)
@@ -538,7 +610,7 @@ class AccountPage(QWidget):
         else:
             self.st.oauth_session = None
         self._recall_off()
-        self.go.setEnabled(False)
+        self._untested()
         self.test_state.setText(self.tr("noch nicht getestet"))
         restyle(self.test_state, "Muted")
 
@@ -560,7 +632,7 @@ class AccountPage(QWidget):
                                     "Google / Microsoft 365)."))
         self.oauth_hint.setText(self._with_help_link(text, "microsoft" if m == "microsoft" else "google"))
         restyle(self.oauth_hint, "Hint" if cid else "Warn")
-        self.go.setEnabled(False)
+        self._untested()
 
     def _ms_password_text(self) -> str:
         return self.tr("Microsoft (Outlook.com, Hotmail, Live, Microsoft 365) nimmt für IMAP weder das "
@@ -664,6 +736,7 @@ class AccountPage(QWidget):
             return
         m = self.method.value()
         self.test_btn.setEnabled(False)
+        self.go.setEnabled(False)
         self.test_state.setText(self.tr("teste …"))
         restyle(self.test_state, "Muted")
         cfg = self.st.cfg
@@ -721,12 +794,16 @@ class AccountPage(QWidget):
         t.set(self.tr("Anmeldung"), self.tr("OK · ") + now.strftime("%H:%M:%S UTC") + " / "
               + tf.local_str(now, with_date=False), "ok")
         t.set(self.tr("Ordner"), self.tr("{0} gefunden").format(nfolders))
+        self._ok = True
         self.go.setEnabled(True)
         tested = getattr(self, "_tested", None)
         if self.st.vault is not None and tested and tested[0] == normalize_email(self.email.text()):
             email, m, password = tested
             self.st.vault.put(email, m, password if m in ("password", "google_app") else None,
                               self.st.oauth_session if m in ("google", "microsoft") else None)
+        if self._go_after_test:  # „Postfach scannen“ hatte den Test ausgelöst
+            self._go_after_test = False
+            self._go()
 
     def _login_hint(self, err: str) -> str:
         """Hinweis bei abgelehnter Anmeldung mit Passwort/App-Passwort (übersetzbar)."""
@@ -763,7 +840,9 @@ class AccountPage(QWidget):
             self.test_state.setText(self.tr("✗ fehlgeschlagen: ") + err + (f"\n\n{hint}" if hint else ""))
         self.test_state.setWordWrap(True)
         restyle(self.test_state, "Error")
-        self.go.setEnabled(False)
+        self._untested()
+        self._go_after_test = False
+        self.go.setEnabled(True)
 
     def _go(self) -> None:
         self.password.hide_text()
@@ -1644,9 +1723,13 @@ class Assistant(QWidget):
         self.p_fin.retry.connect(self._finish)
         self.p_fin.back.connect(self._another)
         self.p_acc.finish.connect(self._finish)
+        self.p_acc.new_account.connect(self._another)
+        self.rail_accounts.add_account.connect(self._rail_add)
         self._show(0, 0)
 
     def _show(self, page_index: int, step: int) -> None:
+        if page_index == 0:
+            self.p_case.sync()
         self.stack.setCurrentIndex(page_index)
         for i, b in enumerate(self.step_btns):
             b.setChecked(i == step)
@@ -1686,6 +1769,12 @@ class Assistant(QWidget):
         self.p_acc.prepare()
         self.p_acc._pick(o)
         self._show(1, 2)
+
+    def _rail_add(self) -> None:
+        """„+ Weiteres Konto“ in der linken Leiste."""
+        if self.st.case is None or self.st.case.closed:
+            return
+        self._another()
 
     def _finish(self) -> None:
         running = self.jobs.running()

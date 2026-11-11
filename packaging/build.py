@@ -53,6 +53,21 @@ def target() -> tuple[str, str]:
     return system, arch
 
 
+def qt_translation_args() -> list[str]:
+    """Qt-eigene Übersetzungen (Ja/Nein, Abbrechen, Dateidialog) für jede Oberflächensprache von FED
+    ausdrücklich mitgeben – sonst zeigen Meldungsfenster englische Knöpfe."""
+    from PySide6.QtCore import QLibraryInfo
+
+    qt_dir = Path(QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
+    langs = {"de"} | {f.stem.split("_", 1)[1] for f in (ROOT / "src" / "fed" / "i18n").glob("fed_*.qm")}
+    out = []
+    for lang in sorted(langs):
+        qm = qt_dir / f"qtbase_{lang}.qm"
+        if qm.exists():
+            out.append(f"--include-data-files={qm}=fed/i18n/qt/qtbase_{lang}.qm")
+    return out
+
+
 def nuitka_args(system: str, v: str) -> list[str]:
     args = [
         sys.executable, "-m", "nuitka",
@@ -80,6 +95,7 @@ def nuitka_args(system: str, v: str) -> list[str]:
         "--file-description=FED - Forensic Email Duplicator",
         "--copyright=GPL-3.0-only",
     ]
+    args += qt_translation_args()
     if system == "windows":
         args += ["--msvc=latest", "--windows-console-mode=disable", f"--windows-icon-from-ico={LOGO / 'fed.ico'}"]
     elif system == "macos":
