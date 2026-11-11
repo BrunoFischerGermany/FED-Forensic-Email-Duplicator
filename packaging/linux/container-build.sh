@@ -17,7 +17,10 @@ apt-get install -y --no-install-recommends ca-certificates git curl xz-utils bui
   patchelf ccache libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libfreetype6 \
   libdbus-1-3 libglib2.0-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
   libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libxrender1 \
-  libxi6 libsm6 libice6 fonts-dejavu-core
+  libxi6 libsm6 libice6 fonts-dejavu-core \
+  libsqlite3-0 libssl3 libffi8 libbz2-1.0 liblzma5 zlib1g libreadline8 libncursesw6 libgdbm6 \
+  libuuid1 libexpat1 libmpdec3
+# ^ Bibliotheken, gegen die Python gebaut ist: Nuitka packt sie nur ein, wenn sie beim Bauen da sind
 echo "::endgroup::"
 
 echo "::group::Python (Build von actions/python-versions für Ubuntu 22.04)"
