@@ -95,3 +95,15 @@ def _closing_note_dialog(monkeypatch):
     except ImportError:  # ohne PySide6
         return
     monkeypatch.setattr(richedit.RichNoteDialog, "exec", lambda self: 1)
+
+
+@pytest.fixture(autouse=True)
+def _device_owner_question(monkeypatch, request):
+    """Frage „eigenes Gerät?“ beim Anlegen/Öffnen eines Falls in GUI-Tests mit „Ja“ beantworten."""
+    if request.node.name.startswith("test_ask_device_owner"):
+        return
+    try:
+        from fed.gui import assistant
+    except ImportError:  # ohne PySide6
+        return
+    monkeypatch.setattr(assistant, "ask_device_owner", lambda parent: "own")

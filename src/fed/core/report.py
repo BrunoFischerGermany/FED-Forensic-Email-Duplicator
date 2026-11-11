@@ -122,6 +122,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "agency": agency,
         "logo": snap[0] if snap else {},
         "system": _q(case, "SELECT * FROM system_check ORDER BY id DESC LIMIT 1"),
+        "device": case.device_owner_history(),
         "accounts": accounts,
         "overview": overview,
         "account_id": account_id,
@@ -236,9 +237,13 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
     if d.get("work_dir"):
         case_items.append((L["work_dir"], _work_dir_text(d["work_dir"], L)))
     secs = [(L["case"], case_items)]
+    device = _device_text(d.get("device") or [], L)
+    if not d["system"] and d.get("device"):
+        case_items.append((L["device"], device))
     if d["system"]:
         s = d["system"][0]
         secs.append((L["system"], [
+            (L["device"], device),
             (L["user"], s["user"]), (L["host"], s["hostname"]), (L["os"], s["os"]),
             (L["time"], f"{tf.utc_str(s['utc_time'])} / {s['local_time'].replace('T', ' ')} ({s['tz']})"),
             (L["ntp"], f"{s['ntp_offset_s']:+.3f} s" if s["ntp_offset_s"] is not None else L["unknown"]),
@@ -246,6 +251,18 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
             (L["removable"], yn.get(s["target_removable"], "?")), (L["free"], _fmt_bytes(s["free_bytes"])),
         ]))
     return secs
+
+
+def _device_text(history: list[dict], L: dict) -> str:
+    """„eigenes Gerät“ bzw. „Gerät der betroffenen Person“; mehrere Angaben (Fall auf anderem Rechner
+    fortgesetzt) je Zeile mit Rechner und Zeit."""
+    if not history:
+        return L["device_unknown"]
+    names = {"own": L["device_own"], "subject": L["device_subject"]}
+    if len(history) == 1:
+        return names.get(history[0]["device_owner"], "?")
+    return "\n".join(f"{names.get(h['device_owner'], '?')} · {h['hostname'] or '?'} · {tf.utc_str(h['ts_utc'])}"
+                     for h in history)
 
 
 def _state_text(o: dict, L: dict) -> str:

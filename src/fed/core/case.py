@@ -168,6 +168,26 @@ class Case:
             self._all.clear()
         self._local = threading.local()
 
+    DEVICE_OWNERS = ("own", "subject")
+
+    def set_device_owner(self, owner: str, hostname: str = "") -> None:
+        """Auf wessen Gerät läuft FED? ``own`` = eigenes Gerät (z. B. Dienstgerät), ``subject`` = Gerät der
+        betroffenen Person. Jede Angabe wird protokolliert (auch beim erneuten Öffnen auf einem anderen Rechner)."""
+        if owner not in self.DEVICE_OWNERS:
+            raise ValueError(owner)
+        with self.conn:
+            self.conn.execute("UPDATE case_info SET device_owner = ? WHERE id = 1", (owner,))
+        self.log("INFO", "device_owner_confirmed", {"device_owner": owner, "hostname": hostname})
+
+    def device_owner_history(self) -> list[dict]:
+        """Alle Angaben zum ausführenden Gerät in zeitlicher Reihenfolge (aus dem Log)."""
+        rows = self.conn.execute("SELECT ts_utc, details FROM log WHERE event = 'device_owner_confirmed' ORDER BY id")
+        out = []
+        for ts, details in rows:
+            d = json.loads(details) if details else {}
+            out.append({"ts_utc": ts, "device_owner": d.get("device_owner"), "hostname": d.get("hostname", "")})
+        return out
+
     def set_closing_note(self, text: str = "", html_value: str | None = None) -> bool:
         """Abschlussvermerk des Examiners (vor dem Bericht); wird protokolliert. True, wenn geändert."""
         from fed.core.richtext import normalize
@@ -324,7 +344,7 @@ def _migrate(case: Case) -> None:
                             ("message", "auth_results", "TEXT"), ("message", "gm_thrid", "TEXT"),
                             ("account", "filters", "TEXT"), ("account", "notes_html", "TEXT"),
                             ("case_info", "notes_html", "TEXT"), ("case_info", "closing_note", "TEXT"),
-                            ("case_info", "closing_note_html", "TEXT")):
+                            ("case_info", "closing_note_html", "TEXT"), ("case_info", "device_owner", "TEXT")):
         cols = {r[1] for r in case.conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
             with case.conn:

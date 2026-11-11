@@ -18,7 +18,8 @@ CREATE TABLE IF NOT EXISTS case_info (
     tool_sha256  TEXT,
     closed_utc   TEXT,
     closing_note TEXT,                       -- Abschlussvermerk des Examiners (vor dem Bericht)
-    closing_note_html TEXT
+    closing_note_html TEXT,
+    device_owner TEXT                        -- own = eigenes Gerät, subject = Gerät der betroffenen Person
 );
 
 CREATE TABLE IF NOT EXISTS config_snapshot (

@@ -59,3 +59,29 @@ def test_old_case_gets_notes_column(tmp_path):
     assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'schema_migrated'").fetchone()[0] == 1
     assert case.verify_log()[0]
     case.close()
+
+
+def test_device_owner_logged_and_in_report(tmp_path):
+    from fed.core import report
+    from fed.core.case import Case, CaseInfo
+
+    case = Case.create(tmp_path, CaseInfo("AZ 9/26", "Tester"))
+    assert case.device_owner_history() == []
+    case.set_device_owner("subject", "PC-BETROFFEN")
+    assert case.info()["device_owner"] == "subject"
+    h = case.device_owner_history()
+    assert h[0]["device_owner"] == "subject" and h[0]["hostname"] == "PC-BETROFFEN"
+    assert case.verify_log()[0]
+    txt = tmp_path / "r.txt"
+    report.write_txt(case, txt, "de")
+    assert "Gerät der betroffenen Person" in txt.read_text(encoding="utf-8")
+    # Fortsetzung auf einem anderen Rechner: beide Angaben mit Rechner
+    case.set_device_owner("own", "DIENST-PC")
+    report.write_txt(case, txt, "de")
+    t = txt.read_text(encoding="utf-8")
+    assert "PC-BETROFFEN" in t and "DIENST-PC" in t and "eigenes Gerät" in t
+    import pytest
+
+    with pytest.raises(ValueError):
+        case.set_device_owner("fremd")
+    case.close()

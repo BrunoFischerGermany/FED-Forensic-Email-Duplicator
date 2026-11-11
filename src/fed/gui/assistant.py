@@ -104,6 +104,24 @@ def fmt_secs(s: float | None) -> str:
 
 
 # ====================================================================== Schritt 1
+def ask_device_owner(parent: QWidget) -> str | None:
+    """Zu Beginn dokumentieren, auf wessen Gerät FED läuft: ``own`` (Ja), ``subject`` (Nein), ``None`` (Abbrechen)."""
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Question)
+    box.setWindowTitle(QCoreApplication.translate("CasePage", "Ausführendes Gerät"))
+    box.setText(QCoreApplication.translate("CasePage", "Wird FED auf einem eigenen Gerät ausgeführt (z. B. Dienstgerät)?"))
+    box.setInformativeText(QCoreApplication.translate(
+        "CasePage", "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nAbbrechen – nicht fortfahren (kein Fall)\n\n"
+                    "Die Antwort wird im Protokoll und im Bericht dokumentiert."))
+    box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                           | QMessageBox.StandardButton.Cancel)
+    box.setDefaultButton(QMessageBox.StandardButton.Cancel)
+    box.setEscapeButton(QMessageBox.StandardButton.Cancel)
+    r = box.exec()
+    return {QMessageBox.StandardButton.Yes: "own", QMessageBox.StandardButton.No: "subject"}.get(
+        QMessageBox.StandardButton(r))
+
+
 class CasePage(QWidget):
     next = Signal()
 
@@ -282,6 +300,9 @@ class CasePage(QWidget):
     def _create(self) -> None:
         if not self._validate():
             return
+        owner = ask_device_owner(self)
+        if owner is None:  # Abbrechen: kein Fall
+            return
         try:
             case = Case.create(Path(self.target.text()), CaseInfo(self.case_no.text(), self.examiner.text(),
                                                                    self.notes.toPlainText(), self.notes.html() or None),
@@ -303,6 +324,7 @@ class CasePage(QWidget):
             case.store_config_snapshot(self.st.cfg.raw_text, self.st.cfg.logo_path())
         except ValueError as e:
             case.log("WARNING", "logo_rejected", str(e))
+        case.set_device_owner(owner, self.st.system.hostname if self.st.system else "")
         if self.st.system:
             case.record_system_check(self.st.system.as_dict())
             if self.st.system.target_removable is not True:
@@ -328,10 +350,17 @@ class CasePage(QWidget):
 
     def _open(self, folder: Path) -> None:
         try:
-            self.st.case = Case.open(folder)
+            case = Case.open(folder)
         except (FileNotFoundError, OSError) as e:
             self.error.setText(str(e))
             return
+        if not case.closed:  # Fortsetzung, evtl. auf einem anderen Rechner: erneut dokumentieren
+            owner = ask_device_owner(self)
+            if owner is None:
+                case.close()
+                return
+            case.set_device_owner(owner, self.st.system.hostname if self.st.system else "")
+        self.st.case = case
         self.next.emit()
 
 
