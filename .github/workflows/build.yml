@@ -185,6 +185,7 @@ jobs:
           cache: pip
       - name: Dovecot
         run: |
+          bash packaging/linux/apt-dns-fallback.sh
           sudo apt-get update && sudo apt-get install -y dovecot-imapd
           sudo systemctl stop dovecot || true
       - name: Version setzen
