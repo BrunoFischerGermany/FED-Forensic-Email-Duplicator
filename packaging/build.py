@@ -88,6 +88,40 @@ def nuitka_args(system: str, v: str) -> list[str]:
     return [*args, str(ROOT / "packaging" / "fed_launcher.py")]
 
 
+def build_windows_launcher(v: str) -> Path:
+    """Kleines Startprogramm FED.exe (packaging/windows/launcher.c) mit MSVC bauen.
+
+    Es liegt oben im Ordner FED\\ und startet app\\FED.exe – so sieht man im Ordner nur FED.exe,
+    config.toml und die Dokumente, ohne dass sich das Programm beim Start entpacken muss.
+    """
+    src = ROOT / "packaging" / "windows"
+    work = BUILD / "launcher"
+    shutil.rmtree(work, ignore_errors=True)
+    work.mkdir(parents=True)
+    for f in ("launcher.c", "launcher.rc"):
+        shutil.copy2(src / f, work / f)
+    shutil.copy2(LOGO / "fed.ico", work / "fed.ico")
+    num = numeric_version(v)
+    (work / "version.h").write_text(f'#define FED_VER_COMMA {num.replace(".", ",")}\n'
+                                    f'#define FED_VER_STR "{v}"\n', encoding="ascii")
+    vswhere = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / \
+        "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    vs = subprocess.run([str(vswhere), "-latest", "-products", "*", "-requires",
+                         "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"],
+                        capture_output=True, text=True, check=True).stdout.strip()
+    vcvars = Path(vs) / "VC" / "Auxiliary" / "Build" / "vcvars64.bat"
+    # statische C-Laufzeit (/MT): das Startprogramm braucht keine DLL neben sich
+    # als .bat, weil cmd.exe die von Python gesetzten Anführungszeichen sonst falsch liest
+    (work / "build.bat").write_text(
+        "@echo off\r\n"
+        f'call "{vcvars}" >nul || exit /b 1\r\n'
+        "rc /nologo /fo launcher.res launcher.rc || exit /b 1\r\n"
+        "cl /nologo /O2 /W4 /MT /DUNICODE /D_UNICODE launcher.c launcher.res /Fe:FED.exe "
+        "/link /SUBSYSTEM:WINDOWS user32.lib || exit /b 1\r\n", encoding="utf-8")
+    subprocess.run(["cmd", "/d", "/c", "build.bat"], cwd=work, check=True)
+    return work / "FED.exe"
+
+
 def package(system: str, arch: str, v: str) -> Path:
     DIST.mkdir(exist_ok=True)
     name = f"FED-{v}-{system}-{arch}"
@@ -97,6 +131,9 @@ def package(system: str, arch: str, v: str) -> Path:
     if system == "macos":
         app = next(BUILD.glob("*.app"))
         shutil.copytree(app, stage / "FED.app", symlinks=True)
+    elif system == "windows":  # FED\\FED.exe (Startprogramm) + FED\\app\\ (Programm)
+        shutil.copytree(BUILD / "fed_launcher.dist", stage / "FED" / "app")
+        shutil.copy2(BUILD / "launcher" / "FED.exe", stage / "FED" / "FED.exe")
     else:
         shutil.copytree(BUILD / "fed_launcher.dist", stage / "FED")
     target_dir = stage if system == "macos" else stage / "FED"
@@ -130,6 +167,8 @@ def main() -> int:
     for old in BUILD.glob("*.app"):
         shutil.rmtree(old)
     subprocess.run(nuitka_args(system, v), check=True, cwd=ROOT)
+    if system == "windows":
+        build_windows_launcher(v)
     out = package(system, arch, v)
     print(f"fertig: {out}")
     gh_out = os.environ.get("GITHUB_OUTPUT")

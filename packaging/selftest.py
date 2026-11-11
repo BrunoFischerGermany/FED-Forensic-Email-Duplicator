@@ -29,23 +29,25 @@ def sha256(p: Path) -> str:
     return h.hexdigest()
 
 
-def unpack(archive: Path, dest: Path) -> tuple[Path, Path]:
-    """Rückgabe: (Programmdatei, erwarteter Programmordner)."""
+def unpack(archive: Path, dest: Path) -> tuple[Path, Path, Path]:
+    """Rückgabe: (zu startende Datei, erwarteter Programmordner, Programmdatei für den Hash)."""
     name = archive.name
-    if name.endswith(".zip") and "-windows-" in name:  # Windows: Ordner FED\ mit FED.exe
+    if name.endswith(".zip") and "-windows-" in name:  # Windows: FED\FED.exe startet FED\app\FED.exe
         import zipfile
 
         with zipfile.ZipFile(archive) as zf:
             zf.extractall(dest)
-        return dest / "FED" / "FED.exe", dest / "FED"
+        return dest / "FED" / "FED.exe", dest / "FED", dest / "FED" / "app" / "FED.exe"
     if name.endswith(".tar.gz"):
         with tarfile.open(archive) as tf:
             tf.extractall(dest, filter="tar")
-        return dest / "FED" / "FED", dest / "FED"
+        exe = dest / "FED" / "FED"
+        return exe, dest / "FED", exe
     if name.endswith(".zip"):  # macOS: ditto erhält Symlinks und Rechte des Bundles
         subprocess.run(["ditto", "-x", "-k", str(archive), str(dest)], check=True)
         app = dest / "FED.app"
-        return next((app / "Contents" / "MacOS").glob("FED*")), dest
+        exe = next((app / "Contents" / "MacOS").glob("FED*"))
+        return exe, dest, exe
     raise SystemExit(f"unbekanntes Paket: {archive}")
 
 
@@ -54,7 +56,7 @@ def main(argv: list[str]) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         dest = Path(tmp) / "paket"
         dest.mkdir()
-        exe, expected_dir = unpack(archive, dest)
+        exe, expected_dir, program = unpack(archive, dest)
         out = Path(tmp) / "selftest.json"
         env = {**os.environ, "FED_SELFTEST": str(out), "QT_QPA_PLATFORM": "offscreen"}
         r = subprocess.run([str(exe)], env=env, cwd=tmp, capture_output=True, text=True, timeout=300)
@@ -68,7 +70,7 @@ def main(argv: list[str]) -> int:
             "Selbsttest ok": res.get("ok") is True,
             "Programmordner = Ordner der Programmdatei": Path(res.get("program_dir", "")).resolve()
             == expected_dir.resolve(),
-            "Programm-Hash = SHA-256 der Programmdatei": res.get("tool_sha256") == sha256(exe),
+            "Programm-Hash = SHA-256 der Programmdatei": res.get("tool_sha256") == sha256(program),
             "Englische Übersetzung": res.get("translation_en") == "Settings",
             "PDF: Textformung (uharfbuzz) verfügbar": bool(res.get("text_shaping")),
             "PDF: alle Schriften (CJK, Myanmar, Arabisch, Hebräisch, Emoji)": res.get("pdf_missing_glyphs") == [],

@@ -38,7 +38,7 @@ Danach unter **Actions → Build** zusehen (ca. 25–35 Minuten). Am Ende hänge
 
 | Datei | Inhalt |
 | --- | --- |
-| `FED-1.0.0-windows-x64.zip` | Windows: Ordner `FED\` mit `FED.exe` |
+| `FED-1.0.0-windows-x64.zip` | Windows: Ordner `FED\` mit `FED.exe`, Programmteile in `FED\app\` |
 | `FED-1.0.0-macos-arm64.zip` | macOS Apple Silicon (M1–M4): `FED.app` |
 | `FED-1.0.0-macos-x64.zip` | macOS Intel: `FED.app` |
 | `FED-1.0.0-linux-x64.tar.gz` | Linux: Ordner `FED/`, Programm `FED/FED` |
@@ -83,7 +83,8 @@ liegen danach im Lauf unter *Artifacts*
 ## Hinweise für Nutzer der Programme
 
 - **Windows**: ZIP entpacken (z. B. auf den Sicherungs-Datenträger), im Ordner `FED` startet
-  `FED.exe`. Die Bibliotheken müssen im Ordner daneben bleiben. Nicht signiert: SmartScreen meldet
+  `FED.exe`. Das ist ein kleines Startprogramm; das eigentliche Programm mit seinen Bibliotheken
+  liegt im Unterordner `app` und muss dort bleiben. Nicht signiert: SmartScreen meldet
   „Der Computer wurde durch Windows geschützt“ → **Weitere Informationen → Trotzdem ausführen**.
   `config.toml` und `FED.ini` liegen neben `FED.exe`.
   Bis Version 1.0.3 gab es eine einzelne `.exe`, die sich beim Start in den Temp-Ordner entpackte –

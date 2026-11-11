@@ -73,3 +73,13 @@ def test_security_api_callable_on_macos(tmp_path):
     (bundle / "Contents" / "MacOS").mkdir(parents=True)
     res = macos._original_via_security(bundle)
     assert res is None or res.name == "FED.app"
+
+
+def test_windows_layout_uses_folder_above_app(tmp_path):
+    """Windows: FED\\FED.exe (Startprogramm) + FED\\app\\FED.exe -> Einstellungen in FED\\."""
+    (tmp_path / "FED" / "app").mkdir(parents=True)
+    (tmp_path / "FED" / "FED.exe").write_bytes(b"MZ")
+    assert appmod.resolve_program_dir(tmp_path / "FED" / "app" / "FED.exe") == tmp_path / "FED"
+    # ohne Startprogramm darüber bleibt es der Ordner der Programmdatei
+    (tmp_path / "X" / "app").mkdir(parents=True)
+    assert appmod.resolve_program_dir(tmp_path / "X" / "app" / "FED.exe") == tmp_path / "X" / "app"
