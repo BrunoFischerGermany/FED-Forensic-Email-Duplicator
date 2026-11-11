@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-                               QLineEdit, QMessageBox, QPlainTextEdit, QPushButton, QVBoxLayout)
+                               QLineEdit, QMessageBox, QPushButton, QVBoxLayout)
 
 from fed.core import config as cfgmod
 from fed.core.languages import ui_languages
@@ -39,8 +39,9 @@ class SetupDialog(QDialog):
 
         self.name = QLineEdit(cfg.agentur.name)
         self.name.setPlaceholderText(self.tr("z. B. Polizeipräsidium Musterstadt – K 34"))
-        self.addr = QPlainTextEdit(cfg.agentur.adresse)
-        self.addr.setFixedHeight(64)
+        # einzeilig wie in den Einstellungen (Zeilenumbrüche aus älteren Konfigurationen -> „, “)
+        self.addr = QLineEdit(", ".join(x.strip() for x in cfg.agentur.adresse.splitlines() if x.strip()))
+        self.addr.setPlaceholderText(self.tr("z. B. Musterstraße 1, 12345 Musterstadt"))
         self.examiner = QLineEdit(cfg.examiner_name)
         self.lang = QComboBox()
         i18n.fill_combo(self.lang, ui_languages())
@@ -135,7 +136,7 @@ class SetupDialog(QDialog):
     def save(self) -> None:
         c = self.cfg
         c.agentur.name = self.name.text().strip()
-        c.agentur.adresse = self.addr.toPlainText().strip()
+        c.agentur.adresse = self.addr.text().strip()
         c.agentur.logo = self._logo
         c.examiner_name = self.examiner.text().strip()
         c.programm.sprache = self.lang.currentData()

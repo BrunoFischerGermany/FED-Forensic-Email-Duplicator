@@ -576,5 +576,6 @@
   "Ein weiteres Konto zu diesem Fall hinzufügen": "Add another account to this case",
   "Weiter": "Next",
   "Fall existiert bereits": "Case already exists",
-  "Für dieses Aktenzeichen gibt es im Zielordner schon einen Fall:\n{0}\n\nDiesen Fall öffnen und fortsetzen?": "A case with this case number already exists in the target folder:\n{0}\n\nOpen and continue this case?"
+  "Für dieses Aktenzeichen gibt es im Zielordner schon einen Fall:\n{0}\n\nDiesen Fall öffnen und fortsetzen?": "A case with this case number already exists in the target folder:\n{0}\n\nOpen and continue this case?",
+  "z. B. Musterstraße 1, 12345 Musterstadt": "e.g. 1 Sample Street, 12345 Sample Town"
 }

@@ -91,18 +91,6 @@
         <translation>e.g. origin of the credentials, account holder, consent/court order, particularities – appears in the report</translation>
     </message>
     <message>
-        <source>Verbindungstest</source>
-        <translation>Connection test</translation>
-    </message>
-    <message>
-        <source>noch nicht getestet</source>
-        <translation>not tested yet</translation>
-    </message>
-    <message>
-        <source>Zurück</source>
-        <translation>Back</translation>
-    </message>
-    <message>
         <source>Verbindung testen</source>
         <translation>Test connection</translation>
     </message>
@@ -113,6 +101,18 @@
     <message>
         <source>Testet die Verbindung, falls noch nicht geschehen, und liest dann die Ordner</source>
         <translation>Tests the connection if not done yet, then reads the folders</translation>
+    </message>
+    <message>
+        <source>Verbindungstest</source>
+        <translation>Connection test</translation>
+    </message>
+    <message>
+        <source>noch nicht getestet</source>
+        <translation>not tested yet</translation>
+    </message>
+    <message>
+        <source>Zurück</source>
+        <translation>Back</translation>
     </message>
     <message>
         <source>Fall abschließen …</source>
@@ -2503,6 +2503,10 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>z. B. Polizeipräsidium Musterstadt – K 34</source>
         <translation>e.g. Sample City Police – Cybercrime Unit</translation>
+    </message>
+    <message>
+        <source>z. B. Musterstraße 1, 12345 Musterstadt</source>
+        <translation>e.g. 1 Sample Street, 12345 Sample Town</translation>
     </message>
     <message>
         <source>Standard-Zielordner für Fälle (optional)</source>
