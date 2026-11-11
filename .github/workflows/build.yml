@@ -123,6 +123,10 @@ jobs:
       - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v6
+        # im Container eigener Tool-Cache: der des Runners enthält Python für Ubuntu 24.04 (neuere glibc)
+        env:
+          RUNNER_TOOL_CACHE: ${{ matrix.container && '/opt/hostedtoolcache' || runner.tool_cache }}
+          AGENT_TOOLSDIRECTORY: ${{ matrix.container && '/opt/hostedtoolcache' || runner.tool_cache }}
         with:
           python-version: "3.14"
           cache: pip
