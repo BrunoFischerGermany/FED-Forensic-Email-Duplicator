@@ -91,6 +91,7 @@ class RichNoteEdit(QWidget):
             b.setAutoRaise(True)
             b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             b.clicked.connect(slot)
+            b.clicked.connect(self._refocus)  # nach dem Klick weiter im Textfeld schreiben
             if shortcut:
                 act = QAction(self)
                 act.setShortcut(shortcut)
@@ -118,6 +119,7 @@ class RichNoteEdit(QWidget):
         for key, name in COLOR_NAMES.items():
             menu.addAction(_swatch(rt.COLORS[key]), self.tr(name)).triggered.connect(
                 lambda _=False, c=rt.COLORS[key]: self._color(c))
+        menu.triggered.connect(lambda _a: self._refocus())
         self.b_color.setMenu(menu)
         self.b_color.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.b_mark = tool(self.tr("Marker"), self.tr("Hervorheben (Marker)"), self._mark, True)
@@ -133,6 +135,10 @@ class RichNoteEdit(QWidget):
         lay.addWidget(self.edit, 1)
 
     # ------------------------------------------------------------ API
+    def _refocus(self) -> None:
+        if not self.edit.isReadOnly():
+            self.edit.setFocus(Qt.FocusReason.OtherFocusReason)
+
     def setReadOnly(self, ro: bool) -> None:
         """Nur ansehen (z. B. Anmerkungen eines schon angelegten Falls): Text und Werkzeuge sperren."""
         self.edit.setReadOnly(ro)

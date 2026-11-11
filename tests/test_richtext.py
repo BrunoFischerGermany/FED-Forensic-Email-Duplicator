@@ -188,3 +188,30 @@ def test_no_named_monospace_font_in_gui():
     gui = Path(__file__).resolve().parent.parent / "src" / "fed" / "gui"
     hits = [p.name for p in gui.glob("*.py") if "font-family: monospace" in p.read_text(encoding="utf-8")]
     assert not hits, hits
+
+
+def test_toolbar_keeps_focus_in_editor(qapp_or_app=None):
+    """Klick auf B/I/U/Marker/Liste/Format: Cursor bleibt im Textfeld."""
+    from PySide6.QtWidgets import QApplication, QLineEdit, QVBoxLayout, QWidget
+
+    from fed.gui.richedit import RichNoteEdit
+
+    app = QApplication.instance() or QApplication([])
+    w = QWidget()
+    lay = QVBoxLayout(w)
+    other = QLineEdit()
+    ed = RichNoteEdit()
+    lay.addWidget(other)
+    lay.addWidget(ed)
+    w.show()
+    for b in (ed.b_bold, ed.b_italic, ed.b_under, ed.b_mark, ed.b_list, ed.b_clear):
+        other.setFocus()
+        app.processEvents()
+        b.click()
+        app.processEvents()
+        assert w.focusWidget() is ed.edit, b.text()
+    ed.setReadOnly(True)
+    other.setFocus()
+    ed.b_bold.click()
+    assert w.focusWidget() is other  # gesperrt: kein Sprung ins Feld
+    w.close()

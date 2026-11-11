@@ -7,6 +7,10 @@
 - „+ Weiteres Konto“ in der linken Leiste und neben „Fall abschließen“
 - „Postfach scannen“ ist immer klickbar und testet die Verbindung bei Bedarf selbst (auch für ein schon
   gesichertes Konto, z. B. zum Nachsichern)
+- Kontoseite: „Verbindung testen“ und „Postfach scannen“ oben im Kasten „Verbindungstest“, Fehlermeldungen
+  direkt darunter; „Zurück“, „+ Weiteres Konto“ und „Fall abschließen“ bleiben beim Scrollen unten sichtbar
+- Notizen: nach einem Klick auf B/I/U, Farbe, Marker, Liste oder Format bleibt der Cursor im Textfeld
+- Ersteinrichtung: Anschrift einzeilig wie in den Einstellungen
 - Qt-eigene Knöpfe (Ja/Nein, Abbrechen, Schließen, Dateidialog) werden im gebauten Programm sicher übersetzt;
   der Selbsttest prüft das
 
