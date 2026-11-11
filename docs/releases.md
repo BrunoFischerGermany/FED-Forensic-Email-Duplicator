@@ -103,8 +103,10 @@ liegen danach im Lauf unter *Artifacts*
   `~/Library/Application Support/FED`) und zeigt einen Hinweis. Dauerhaft beheben: `FED.app` im
   Finder in einen anderen Ordner ziehen (z. B. „Programme“) oder
   `xattr -dr com.apple.quarantine FED.app`.
-- **Linux**: `tar xzf FED-…-linux-x64.tar.gz && ./FED/FED`.
-- Prüfsumme kontrollieren: Windows `certutil -hashfile FED-…exe SHA256`, macOS/Linux
+- **Linux**: `tar xzf FED-…-linux-x64.tar.gz && ./FED/FED`. Gebaut in einem Ubuntu-22.04-Container
+  (glibc 2.35): läuft auf Ubuntu ab 22.04, Debian ab 12 und anderen Distributionen mit glibc ≥ 2.35
+  (nicht auf RHEL/Rocky 9 mit glibc 2.34).
+- Prüfsumme kontrollieren: Windows `certutil -hashfile FED-…-windows-x64.zip SHA256`, macOS/Linux
   `shasum -a 256 <datei>` – Vergleich mit `SHA256SUMS.txt`.
 
 Signieren (Windows-Zertifikat, Apple-Developer-ID mit Notarisierung) lässt sich später als

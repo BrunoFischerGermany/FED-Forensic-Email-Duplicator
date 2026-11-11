@@ -89,6 +89,10 @@ jobs:
     name: ${{ matrix.name }}
     needs: check
     runs-on: ${{ matrix.os }}
+    # Linux: in einem Container bauen (packaging/linux/container-build.sh). Die glibc des Containers
+    # bestimmt, auf welchen Distributionen FED läuft (ältere glibc = mehr Systeme) – unabhängig davon,
+    # welche Ubuntu-Versionen GitHub als Runner anbietet (ubuntu-22.04 nur noch bis ca. April 2027).
+    # docker run mit --dns statt Job-Container: dort lösten die Ubuntu-Spiegel nicht zuverlässig auf.
     strategy:
       fail-fast: false
       matrix:
@@ -96,24 +100,24 @@ jobs:
           - { name: Windows x64,            os: windows-latest }
           - { name: macOS Apple Silicon,    os: macos-15 }
           - { name: macOS Intel,            os: macos-15-intel }
-          - { name: Linux x64,              os: ubuntu-22.04 }   # ältere glibc = läuft auf mehr Distributionen
+          - { name: Linux x64,              os: ubuntu-24.04, docker: "ubuntu:22.04" }   # glibc 2.35
     steps:
       - uses: actions/checkout@v5
 
+      # Windows/macOS: Python von GitHub; Linux bringt Python im Container mit (deadsnakes)
       - uses: actions/setup-python@v6
+        if: ${{ !matrix.docker }}
         with:
           python-version: "3.14"
           cache: pip
 
-      - name: Linux-Abhängigkeiten
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y patchelf ccache libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
-
       - name: Version setzen
+        if: ${{ !matrix.docker }}
         shell: bash
         run: python packaging/set_version.py "$FED_VERSION"
 
       - name: Python-Pakete
+        if: ${{ !matrix.docker }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install ".[build]"
@@ -125,23 +129,48 @@ jobs:
             ~/.cache/Nuitka
             ~/Library/Caches/Nuitka
             ~/AppData/Local/Nuitka/Nuitka/Cache
-          key: nuitka-${{ matrix.os }}-${{ hashFiles('pyproject.toml') }}
-          restore-keys: nuitka-${{ matrix.os }}-
+          key: nuitka-${{ matrix.os }}${{ matrix.docker }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: nuitka-${{ matrix.os }}${{ matrix.docker }}-
 
       - name: Bauen
         id: build
+        if: ${{ !matrix.docker }}
         run: python packaging/build.py
 
       # Prüft das Paket, das Nutzer herunterladen: entpacken, starten, Ordner, Programm-Hash,
       # Übersetzung, Qt, PDF und Case-Datei
       - name: Selbsttest des Pakets
+        if: ${{ !matrix.docker }}
         shell: bash
         run: python packaging/selftest.py "${{ steps.build.outputs.archive }}"
+
+      # Linux: Bauen und Selbsttest im Container (gleicher Pfad wie auf dem Runner)
+      - name: Bauen und Selbsttest (Linux-Container)
+        id: build_linux
+        if: ${{ matrix.docker }}
+        env:
+          IMAGE: ${{ matrix.docker }}
+        run: |
+          mkdir -p ~/.cache/Nuitka
+          # Python für Ubuntu 22.04 aus dem Verzeichnis, das auch setup-python nutzt
+          PYTHON_URL=$(curl -fsSL https://raw.githubusercontent.com/actions/python-versions/main/versions-manifest.json \
+            | python3 -c 'import json,sys
+          m = json.load(sys.stdin)
+          v = next(v for v in m if v["version"].startswith("3.14.") and v["stable"])
+          f = next(f for f in v["files"] if f["platform"] == "linux" and f.get("platform_version") == "22.04" and f["arch"] == "x64")
+          print(f["download_url"])')
+          echo "Python: $PYTHON_URL"
+          export PYTHON_URL
+          docker run --rm --dns 1.1.1.1 --dns 8.8.8.8 \
+            -e FED_VERSION -e PYTHON_URL -e GITHUB_OUTPUT=/gh_output -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+            -v "$GITHUB_OUTPUT:/gh_output" -v "$HOME/.cache/Nuitka:/root/.cache/Nuitka" \
+            -v "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" -w "$GITHUB_WORKSPACE" \
+            "$IMAGE" bash packaging/linux/container-build.sh
 
       - uses: actions/upload-artifact@v6
         with:
           name: FED-${{ runner.os }}-${{ runner.arch }}
-          path: ${{ steps.build.outputs.archive }}
+          path: ${{ steps.build.outputs.archive || steps.build_linux.outputs.archive }}
           if-no-files-found: error
 
   validate:
@@ -156,6 +185,7 @@ jobs:
           cache: pip
       - name: Dovecot
         run: |
+          bash packaging/linux/apt-dns-fallback.sh
           sudo apt-get update && sudo apt-get install -y dovecot-imapd
           sudo systemctl stop dovecot || true
       - name: Version setzen

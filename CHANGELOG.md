@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.6 (in Entwicklung)
+
+- Linux-Build im Container `ubuntu:22.04` (glibc 2.35) auf einem aktuellen Runner – gleiche Kompatibilität wie
+  bisher, aber unabhängig davon, wie lange GitHub den Runner ubuntu-22.04 anbietet (ca. April 2027)
+- Linux: alle Bibliotheken, gegen die Python gebaut ist (u. a. libsqlite3), werden ins Paket übernommen – vorher
+  startete FED auf Systemen ohne installiertes SQLite nicht
+
 ## 1.0.5 (in Entwicklung)
 
 - Schritt „Fall anlegen“ bei offenem Fall: „Weiter“ statt „Fall anlegen und weiter“, Felder gesperrt – kein
