@@ -207,6 +207,10 @@
         <translation>Enter code {0} at {1}</translation>
     </message>
     <message>
+        <source>Der Code ist in der Zwischenablage.</source>
+        <translation>The code has been copied to the clipboard.</translation>
+    </message>
+    <message>
         <source>✓ erfolgreich</source>
         <translation>✓ successful</translation>
     </message>

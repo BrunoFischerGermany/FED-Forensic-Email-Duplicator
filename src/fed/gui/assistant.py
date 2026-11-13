@@ -741,7 +741,11 @@ class AccountPage(QWidget):
 
     def _open_link(self, target: str) -> None:
         """Webadressen im Browser, sonst Abschnitt der Anleitung im Hilfe-Fenster."""
-        if target.startswith(("https://", "http://")):
+        if target == "copy:":
+            from PySide6.QtWidgets import QApplication
+
+            QApplication.clipboard().setText(getattr(self, "_device_code", ""))
+        elif target.startswith(("https://", "http://")):
             QDesktopServices.openUrl(QUrl(target))
         else:
             show_help(self, "oauth", target)
@@ -876,9 +880,24 @@ class AccountPage(QWidget):
 
         def progress(dc):
             if isinstance(dc, oauth.DeviceCode):
-                self.test_state.setText(self.tr("Code {0} auf {1} eingeben").format(dc.user_code, dc.verification_uri))
+                self._show_device_code(dc)
 
         run_async(work, self._test_ok, self._test_failed, progress, parent=self)
+
+    def _show_device_code(self, dc: oauth.DeviceCode) -> None:
+        """Gerätecode groß, in der Zwischenablage, Adresse anklickbar (Anmeldung auch auf diesem Gerät möglich)."""
+        from PySide6.QtWidgets import QApplication
+
+        QApplication.clipboard().setText(dc.user_code)
+        self._device_code = dc.user_code
+        url = html.escape(dc.verification_uri)
+        code = html.escape(dc.user_code)
+        self.test_state.setText(
+            self.tr("Code {0} auf {1} eingeben").format(
+                f'<b style="font-size:16pt; letter-spacing:2px;">{code}</b>', f'<a href="{url}">{url}</a>')
+            + "<br>" + html.escape(self.tr("Der Code ist in der Zwischenablage."))
+            + f' <a href="copy:">{html.escape(self.tr("Erneut kopieren"))}</a>')
+        restyle(self.test_state, "Hint")
 
     def _test_ok(self, res) -> None:
         tls, info, nfolders = res

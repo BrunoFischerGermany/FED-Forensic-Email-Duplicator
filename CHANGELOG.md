@@ -9,6 +9,8 @@
 - Verbindungstest Microsoft: bei „User is authenticated but not connected“ (Anmeldung ok, Postfach abgelehnt)
   konkrete Hinweise (IMAP erlauben, Anmeldung bestätigen, andere Programme schließen); meldet sich jemand
   mit einem anderen Konto an als dem zu sichernden, steht das direkt bei der Fehlermeldung
+- Gerätecode: Code groß angezeigt und automatisch in der Zwischenablage („Erneut kopieren“), Adresse anklickbar;
+  Webadressen in Hinweisen öffnen den Browser
 
 ## 1.0.6 (in Entwicklung)
 
