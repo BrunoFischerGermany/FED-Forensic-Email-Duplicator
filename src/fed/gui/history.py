@@ -109,6 +109,15 @@ class Table(QWidget):
         lay.addWidget(self.count)
 
     def fill(self, rows: list[list], ids: list | None = None) -> None:
+        # Unveränderte Daten nicht neu einfüllen (Aktualisierung alle 3 s) – Markierung und Scrollposition bleiben
+        key = (rows, ids)
+        if key == getattr(self, "_last", None):
+            return
+        self._last = key
+        keep = set()
+        if ids is not None and self.view.selectionModel() is not None:
+            keep = {self.proxy.mapToSource(i).data(Qt.ItemDataRole.UserRole)
+                    for i in self.view.selectionModel().selectedRows()}
         self.model.setRowCount(0)
         for n, r in enumerate(rows):
             items = []
@@ -121,6 +130,14 @@ class Table(QWidget):
                 items[0].setData(ids[n], Qt.ItemDataRole.UserRole)
             self.model.appendRow(items)
         self.view.resizeColumnsToContents()
+        if keep:
+            from PySide6.QtCore import QItemSelectionModel
+
+            sel = self.view.selectionModel()
+            for r in range(self.model.rowCount()):
+                if self.model.item(r, 0).data(Qt.ItemDataRole.UserRole) in keep:
+                    sel.select(self.proxy.mapFromSource(self.model.index(r, 0)),
+                               QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows)
         self.count.setText(self.tr("{0} Einträge").format(len(rows)))
 
     def rows(self) -> list[list[str]]:
@@ -156,7 +173,12 @@ class HistoryTab(QWidget):
         self.tabs = QTabWidget()
         self.mails = Table(MAIL_COLS)
         self.mails.view.doubleClicked.connect(self.open_mail)
-        self.mails.view.setToolTip(self.tr("Doppelklick: Mail ansehen (nur lesend)"))
+        self.mails.view.setSelectionMode(QTableView.SelectionMode.ExtendedSelection)
+        self.mails.view.setToolTip(self.tr("Doppelklick: Mail ansehen (nur lesend) · mehrere markieren: Strg/Umschalt"))
+        self.mail_pdf = QPushButton(self.tr("Markierte Mails als PDF …"))
+        self.mail_pdf.setToolTip(self.tr("Alle markierten Mails in ein PDF/A (je Mail eine neue Seite, Original-Mails eingebettet)"))
+        self.mail_pdf.clicked.connect(self.export_pdf)
+        self.mails.layout().addWidget(self.mail_pdf, 0, Qt.AlignmentFlag.AlignRight)
         self.log = Table(LOG_COLS)
         self.folders = Table(FOLDER_COLS, search=False)
         from fed.gui.accounts import AccountsTable
@@ -290,6 +312,29 @@ class HistoryTab(QWidget):
             restyle(self.chain, "Ok" if not bad else "Error")
 
         run_async(work, done, lambda e, tb: QMessageBox.critical(self, "FED", e), parent=self)
+
+    def selected_mail_ids(self) -> list[int]:
+        rows = sorted({self.mails.proxy.mapToSource(i).row() for i in self.mails.view.selectionModel().selectedRows()})
+        ids = [self.mails.model.item(r, 0).data(Qt.ItemDataRole.UserRole) for r in rows]
+        return [int(i) for i in ids if i is not None]
+
+    def export_pdf(self) -> None:
+        case = self.get_case()
+        ids = self.selected_mail_ids()
+        if case is None or not ids:
+            QMessageBox.information(self, "FED", self.tr("Bitte zuerst eine oder mehrere Mails markieren."))
+            return
+        from fed.core.case import utc_now
+        from fed.core.naming import file_name
+        from fed.gui.viewer import export_pdf
+
+        info = case.info()
+        name = file_name(f"{info['case_number']}_mails_{len(ids)}_{utc_now()[:10]}", True) + ".pdf"
+        self.timer.stop()
+        try:
+            export_pdf(self, case, ids, name)
+        finally:
+            self.timer.start(3000)
 
     def export(self) -> None:
         t = self.tabs.currentWidget()
