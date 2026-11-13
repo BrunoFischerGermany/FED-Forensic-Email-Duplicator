@@ -6,6 +6,9 @@
   private Konten, öffentlicher Client ohne Secret). Bleibt *Microsoft Client-ID* in den Einstellungen leer,
   wird sie genutzt; eine eigene Client-ID hat weiter Vorrang. Das Log (`oauth_login`) nennt die verwendete
   Client-ID. Anleitung: Freigabe-Link für Administratoren von Organisationen, die nur freigegebene Apps zulassen
+- Verbindungstest Microsoft: bei „User is authenticated but not connected“ (Anmeldung ok, Postfach abgelehnt)
+  konkrete Hinweise (IMAP erlauben, Anmeldung bestätigen, andere Programme schließen); meldet sich jemand
+  mit einem anderen Konto an als dem zu sichernden, steht das direkt bei der Fehlermeldung
 
 ## 1.0.6 (in Entwicklung)
 

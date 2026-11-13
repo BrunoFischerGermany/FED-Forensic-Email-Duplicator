@@ -96,6 +96,14 @@ def explain_error(provider: str, error: str) -> str:
     if "aadsts7000218" in low:
         return t("In der App-Registrierung „Öffentliche Clientflows zulassen“ auf Ja stellen "
                  "(nötig für den Gerätecode).")
+    if "authenticated but not connected" in low:
+        return t("Die Anmeldung hat geklappt, aber der IMAP-Server von Microsoft lässt das Postfach nicht zu. "
+                 "Prüfen: 1. IMAP im Postfach erlaubt (Outlook.com: outlook.live.com → Einstellungen → E-Mail → "
+                 "Weiterleitung und IMAP → „Geräten und Apps die Verwendung von IMAP gestatten“; Microsoft 365: "
+                 "Administrator → Benutzer → E-Mail-Apps → IMAP). Nach dem Einschalten kann es einige Zeit dauern. "
+                 "2. Im Browser mit genau diesem Postfach angemeldet? 3. account.live.com/activity: die Anmeldung als "
+                 "„Das war ich“ bestätigen. 4. Andere Mail-Programme mit diesem Postfach schließen (Microsoft "
+                 "sperrt bei zu vielen Verbindungen zeitweise) und später erneut versuchen.")
     if "aadsts53003" in low or "aadsts530" in low:
         return t("Eine Richtlinie für bedingten Zugriff des Tenants blockiert die Anmeldung – Administrator fragen.")
     return ""

@@ -128,3 +128,10 @@ def test_builtin_microsoft_client_id():
     assert own.effective_client_id == "11111111-2222-3333-4444-555555555555" and not own.builtin
     import uuid
     uuid.UUID(FED_MICROSOFT_CLIENT_ID)
+
+
+def test_hint_authenticated_not_connected():
+    from fed.core import oauth
+
+    h = oauth.explain_error("microsoft", "User is authenticated but not connected.")
+    assert "IMAP" in h and "outlook.live.com" in h

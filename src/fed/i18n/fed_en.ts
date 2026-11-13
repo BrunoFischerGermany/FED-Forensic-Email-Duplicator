@@ -243,6 +243,10 @@
         <translation>Please check: are user name and password correct? Many providers require IMAP access to be enabled in the webmail first (e.g. GMX/WEB.DE: Settings → POP3/IMAP), or an app password is needed (e.g. with two-factor sign-in enabled, iCloud, Yahoo).</translation>
     </message>
     <message>
+        <source>Angemeldet wurde als {0} – nicht als das zu sichernde Postfach.</source>
+        <translation>Signed in as {0} – not as the mailbox to be acquired.</translation>
+    </message>
+    <message>
         <source>✗ fehlgeschlagen: </source>
         <translation>✗ failed: </translation>
     </message>

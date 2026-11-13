@@ -913,6 +913,11 @@ class AccountPage(QWidget):
         self.test_btn.setEnabled(True)
         hint = self._login_hint(err)
         m, host = self.method.value(), self.server.text()
+        sess = self.st.oauth_session if m in ("google", "microsoft") else None
+        login = sess.token.account if sess is not None and sess.token is not None else None
+        if login and login.lower() != normalize_email(self.email.text()).lower():
+            hint = (hint + " " if hint else "") + self.tr(
+                "Angemeldet wurde als {0} – nicht als das zu sichernde Postfach.").format(login)
         section = ("microsoft" if m == "microsoft" or is_microsoft(host)
                    else "google" if m in ("google", "google_app") or is_gmail(host) else None)
         if hint and section:  # mit Link zur passenden Anleitung
