@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -32,6 +33,22 @@ from fed.gui.richedit import RichNoteEdit
 from fed.gui.widgets import (Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
                             run_async, vbox)
 from fed.core.msg import describe
+
+
+_URL = re.compile(r"(?<![\w@/.])((?:https?://)?(?:[a-z0-9-]+\.)+(?:com|de|net|org)(?:/[\w./?=&%-]*[\w/])?)")  # nur kleingeschriebene Adressen (nicht „Outlook.com“ als Name)
+
+
+def linkify(text: str) -> str:
+    """Text als HTML: Webadressen (auch ohne https://) anklickbar, Zeilenumbrüche erhalten."""
+    out, pos = [], 0
+    for m in _URL.finditer(text):
+        out.append(html.escape(text[pos:m.start()]))
+        url = m.group(1)
+        href = url if url.lower().startswith("http") else "https://" + url
+        out.append(f'<a href="{html.escape(href)}">{html.escape(url)}</a>')
+        pos = m.end()
+    out.append(html.escape(text[pos:]))
+    return "".join(out).replace("\n", "<br>")
 
 
 UROLE = Qt.ItemDataRole.UserRole
@@ -483,7 +500,7 @@ class AccountPage(QWidget):
         self.pw_hint = label(self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt."), "Hint")
         self.oauth_hint = label("", "Hint", wrap=True)
         for lab in (self.pw_hint, self.oauth_hint):  # Link „Anleitung öffnen“ -> Hilfe-Fenster
-            lab.linkActivated.connect(lambda section: show_help(self, "oauth", section))
+            lab.linkActivated.connect(self._open_link)
         self.device = QCheckBox(self.tr("Anmeldung per Gerätecode (anderes Gerät)"))
         self.login_as = QLineEdit()
         self.login_as.setPlaceholderText(self.tr("anmelden als (nur bei geteiltem Postfach)"))
@@ -531,7 +548,7 @@ class AccountPage(QWidget):
         c3.add(self.error)
         self.test_state = label(self.tr("noch nicht getestet"), "Muted")
         c3.add(self.test_state)
-        self.test_state.linkActivated.connect(lambda section: show_help(self, "oauth", section))
+        self.test_state.linkActivated.connect(self._open_link)
         self.test = KeyValues()
         c3.add(self.test)
         c3.lay.addStretch(1)
@@ -722,9 +739,16 @@ class AccountPage(QWidget):
                        "erlaubt sein: Outlook.com → Einstellungen → E-Mail → Weiterleitung und IMAP; Microsoft 365 → "
                        "Administrator (Admin Center → Benutzer → E-Mail-Apps).")
 
+    def _open_link(self, target: str) -> None:
+        """Webadressen im Browser, sonst Abschnitt der Anleitung im Hilfe-Fenster."""
+        if target.startswith(("https://", "http://")):
+            QDesktopServices.openUrl(QUrl(target))
+        else:
+            show_help(self, "oauth", target)
+
     def _with_help_link(self, text: str, section: str) -> str:
         link = html.escape(self.tr("Anleitung öffnen"))
-        return f'{html.escape(text)} <a href="{section}">{link}</a>'
+        return f'{linkify(text)} <a href="{section}">{link}</a>'
 
     def _update_pw_hint(self) -> None:
         """Hinweis unter dem Passwortfeld; bei einem Microsoft-Server mit Passwort-Anmeldung als Warnung."""

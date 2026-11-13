@@ -96,7 +96,7 @@ einen berechtigten Benutzer eintragen.
 | AADSTS7000218 | Gerätecode nicht erlaubt | *Öffentliche Clientflows zulassen = Ja* |
 | AADSTS53003 | Richtlinie für bedingten Zugriff | Administrator des Tenants fragen |
 | AUTHENTICATE failed nach erfolgreicher Anmeldung | IMAP im Postfach aus | IMAP erlauben (siehe oben) |
-| „User is authenticated but not connected“ | Anmeldung ok, Microsoft lässt das Postfach nicht zu: IMAP aus oder gerade erst eingeschaltet, anderes Konto im Browser, Anmeldung nicht bestätigt, zu viele Verbindungen | IMAP erlauben und etwas warten; account.live.com/activity → „Das war ich“; andere Mail-Programme schließen, später erneut |
+| „User is authenticated but not connected“ | Anmeldung ok, Microsoft lässt das Postfach nicht zu: IMAP aus oder gerade erst eingeschaltet, anderes Konto im Browser, Anmeldung nicht bestätigt, zu viele Verbindungen | IMAP erlauben und etwas warten; [account.live.com/activity](https://account.live.com/activity) → „Das war ich“; andere Mail-Programme schließen, später erneut |
 
 ---
 

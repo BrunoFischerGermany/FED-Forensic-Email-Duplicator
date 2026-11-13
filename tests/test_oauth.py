@@ -135,3 +135,13 @@ def test_hint_authenticated_not_connected():
 
     h = oauth.explain_error("microsoft", "User is authenticated but not connected.")
     assert "IMAP" in h and "outlook.live.com" in h
+
+
+def test_linkify():
+    from fed.gui.assistant import linkify
+
+    h = linkify("Outlook.com: outlook.live.com → x\n3. account.live.com/activity: <b> a@b.de")
+    assert '<a href="https://outlook.live.com">outlook.live.com</a>' in h
+    assert '<a href="https://account.live.com/activity">account.live.com/activity</a>' in h
+    assert "Outlook.com:" in h and 'href="https://Outlook' not in h
+    assert "&lt;b&gt;" in h and "<br>" in h and "b.de</a>" not in h

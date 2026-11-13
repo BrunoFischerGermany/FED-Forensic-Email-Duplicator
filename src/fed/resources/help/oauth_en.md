@@ -93,7 +93,7 @@ microsoft.com/devicelogin.
 | AADSTS7000218 | Device code not allowed | *Allow public client flows = Yes* |
 | AADSTS53003 | Conditional Access policy | Ask the tenant administrator |
 | AUTHENTICATE failed after successful sign-in | IMAP disabled for the mailbox | Allow IMAP (see above) |
-| “User is authenticated but not connected” | Sign-in OK, Microsoft refuses the mailbox: IMAP off or only just switched on, other account in the browser, sign-in not confirmed, too many connections | Allow IMAP and wait a while; account.live.com/activity → “This was me”; close other mail programs, retry later |
+| “User is authenticated but not connected” | Sign-in OK, Microsoft refuses the mailbox: IMAP off or only just switched on, other account in the browser, sign-in not confirmed, too many connections | Allow IMAP and wait a while; [account.live.com/activity](https://account.live.com/activity) → “This was me”; close other mail programs, retry later |
 
 ---
 
