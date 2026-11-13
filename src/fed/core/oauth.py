@@ -90,9 +90,9 @@ def explain_error(provider: str, error: str) -> str:
                  "in Entra unter „Unterstützte Kontotypen“ auch persönliche Microsoft-Konten zulassen und "
                  "tenant = \"common\" eintragen – siehe Anleitung unter Einstellungen → Google / Microsoft 365.")
     if any(k in low for k in ("aadsts65001", "aadsts90094", "consent_required")):
-        return t("Die Zustimmung fehlt: Ein Administrator des Tenants muss der App die Berechtigung "
-                 "IMAP.AccessAsUser.All erteilen (Entra → App-Registrierung → API-Berechtigungen → "
-                 "Administratorzustimmung erteilen).")
+        return t("Die Zustimmung fehlt: Die Organisation lässt nur freigegebene Apps zu. Ein Administrator des "
+                 "Tenants muss FED einmalig zustimmen (Link in der Anleitung unter Einstellungen → Google / "
+                 "Microsoft 365) – bei eigener App-Registrierung dort „Administratorzustimmung erteilen“.")
     if "aadsts7000218" in low:
         return t("In der App-Registrierung „Öffentliche Clientflows zulassen“ auf Ja stellen "
                  "(nötig für den Gerätecode).")
@@ -122,6 +122,7 @@ class Token:
     scope: str = ""
     account: str | None = None  # aus dem ID-Token (email / preferred_username)
     provider: str = ""
+    client_id: str = ""  # welche App-Registrierung (nicht geheim) – fürs Log
 
     @property
     def expired(self) -> bool:
@@ -131,7 +132,7 @@ class Token:
         """Was ins Log darf (ohne Tokens)."""
         return {"provider": self.provider, "account": self.account, "scope": self.scope,
                 "expires_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.expires_at)),
-                "refresh_token": self.refresh_token is not None}
+                "refresh_token": self.refresh_token is not None, "client_id": self.client_id}
 
 
 # ---------------------------------------------------------------- Hilfen
@@ -292,7 +293,9 @@ def authorize(
             "client_id": client_id, "code_verifier": verifier}
     if client_secret:
         data["client_secret"] = client_secret
-    return _token_from_response(_post(provider.token_url, data, proxy), provider)
+    tok = _token_from_response(_post(provider.token_url, data, proxy), provider)
+    tok.client_id = client_id
+    return tok
 
 
 def refresh(provider: OAuthProvider, token: Token, client_id: str, client_secret: str = "", proxy: str = "") -> Token:
@@ -302,6 +305,7 @@ def refresh(provider: OAuthProvider, token: Token, client_id: str, client_secret
     if client_secret:
         data["client_secret"] = client_secret
     new = _token_from_response(_post(provider.token_url, data, proxy), provider, token.refresh_token)
+    new.client_id = client_id
     new.account = new.account or token.account
     return new
 
@@ -341,7 +345,9 @@ def device_code_poll(provider: OAuthProvider, dc: DeviceCode, client_id: str,
         r = _post(provider.token_url, {"grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                                        "client_id": client_id, "device_code": dc.device_code}, proxy)
         if "access_token" in r:
-            return _token_from_response(r, provider)
+            tok = _token_from_response(r, provider)
+            tok.client_id = client_id
+            return tok
         err = r.get("error")
         if err == "authorization_pending":
             sleep(interval)

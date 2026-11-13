@@ -117,3 +117,14 @@ def test_xoauth2_login_against_dovecot(imap_server, oauth_provider):
     with pytest.raises(imaplib.IMAP4.error):
         bad.login_xoauth2(imap_server.user, "ungueltiges-token")
     bad.logout()
+
+
+def test_builtin_microsoft_client_id():
+    from fed.core.config import FED_MICROSOFT_CLIENT_ID, OAuthMicrosoft
+
+    assert OAuthMicrosoft().effective_client_id == FED_MICROSOFT_CLIENT_ID
+    assert OAuthMicrosoft().builtin
+    own = OAuthMicrosoft(client_id=" 11111111-2222-3333-4444-555555555555 ")
+    assert own.effective_client_id == "11111111-2222-3333-4444-555555555555" and not own.builtin
+    import uuid
+    uuid.UUID(FED_MICROSOFT_CLIENT_ID)

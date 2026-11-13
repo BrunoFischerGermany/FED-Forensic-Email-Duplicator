@@ -2492,6 +2492,14 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Google client secret</translation>
     </message>
     <message>
+        <source>leer = App-Registrierung von FED</source>
+        <translation>empty = FED's app registration</translation>
+    </message>
+    <message>
+        <source>Leer lassen, um die App-Registrierung des FED-Projekts zu nutzen (funktioniert für Outlook.com und alle Organisationen). Eine eigene Client-ID, z. B. aus dem Tenant der Behörde, hat Vorrang.</source>
+        <translation>Leave empty to use the FED project's app registration (works for Outlook.com and all organisations). Your own client ID, e.g. from the agency's tenant, takes precedence.</translation>
+    </message>
+    <message>
         <source>Microsoft Client-ID</source>
         <translation>Microsoft client ID</translation>
     </message>

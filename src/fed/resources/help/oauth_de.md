@@ -26,7 +26,24 @@ Hotmail, Live, MSN) am 16.09.2024. App-Passwörter zählen dazu und werden ebenf
 abgelehnt, auch wenn manche Anleitungen im Netz etwas anderes sagen. Für Microsoft gibt es
 in FED daher nur **„Microsoft 365 (OAuth)“**.
 
-### App registrieren
+### Ohne Einrichtung: App-Registrierung von FED
+
+FED bringt eine eigene App-Registrierung mit (**„FED – Forensic Email Duplicator“**,
+Client-ID `8de90383-c0ec-4221-9ed6-bd9300cd455c`). Lassen Sie unter **Einstellungen → Google / Microsoft 365** das Feld
+*Microsoft Client-ID* **leer** – dann wird sie genutzt. Sie gilt für private Konten
+(Outlook.com, Hotmail, Live) und für Konten jeder Organisation. FED erhält dabei nur die
+Rechte `IMAP.AccessAsUser.All` (Postfach per IMAP lesen), `offline_access`, `openid`,
+`email` und `profile`; ein Client-Secret gibt es nicht.
+
+**Konten einer Organisation:** Viele Organisationen lassen Benutzer nur Apps zustimmen, die
+sie freigegeben haben. Erscheint „Administratorgenehmigung erforderlich“ (AADSTS65001 /
+AADSTS90094), kann ein Administrator des Tenants FED einmalig für alle freigeben:
+`https://login.microsoftonline.com/<Tenant-ID oder Domain>/adminconsent?client_id=8de90383-c0ec-4221-9ed6-bd9300cd455c`
+Alternativ registriert die Organisation eine eigene App (nächster Abschnitt).
+
+### Optional: eigene App-Registrierung
+
+Für Behörden, die nur Apps aus dem eigenen Tenant zulassen:
 
 1. [Microsoft Entra Admin Center](https://entra.microsoft.com/) öffnen → *Entra ID* →
    *App-Registrierungen* → *Neue Registrierung*.
@@ -75,7 +92,7 @@ einen berechtigten Benutzer eintragen.
 | Meldung enthält | Ursache | Abhilfe |
 |---|---|---|
 | AADSTS50020, AADSTS700016, „not enabled for consumers“ | Kontotyp in der App-Registrierung nicht erlaubt | Kontotypen um private Konten erweitern, Tenant `common` |
-| AADSTS65001 | Zustimmung fehlt | Admin: *Administratorzustimmung erteilen* |
+| AADSTS65001, AADSTS90094 | Zustimmung fehlt (Organisation lässt nur freigegebene Apps zu) | Admin gibt FED frei (Link oben) oder *Administratorzustimmung erteilen* bei eigener App |
 | AADSTS7000218 | Gerätecode nicht erlaubt | *Öffentliche Clientflows zulassen = Ja* |
 | AADSTS53003 | Richtlinie für bedingten Zugriff | Administrator des Tenants fragen |
 | AUTHENTICATE failed nach erfolgreicher Anmeldung | IMAP im Postfach aus | IMAP erlauben (siehe oben) |

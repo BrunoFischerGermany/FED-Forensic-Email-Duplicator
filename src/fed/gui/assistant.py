@@ -708,7 +708,7 @@ class AccountPage(QWidget):
         for x in (self.oauth_hint, self.login_as):
             x.setVisible(not pw)
         self.device.setVisible(m == "microsoft")
-        cid = {"google": self.st.cfg.oauth_google.client_id, "microsoft": self.st.cfg.oauth_microsoft.client_id}.get(m)
+        cid = {"google": self.st.cfg.oauth_google.client_id, "microsoft": self.st.cfg.oauth_microsoft.effective_client_id}.get(m)
         text = (self.tr("Beim Test öffnet sich der Browser zur Anmeldung. Das Passwort sieht FED nicht.")
                 if cid else self.tr("Keine Client-ID in den Einstellungen eingetragen (Einstellungen → "
                                     "Google / Microsoft 365)."))
@@ -838,7 +838,7 @@ class AccountPage(QWidget):
             else:
                 prov = (oauth.GOOGLE if m == "google"
                         else oauth.microsoft(oauth.microsoft_tenant(cfg.oauth_microsoft.tenant, hint)))
-                cid = cfg.oauth_google.client_id if m == "google" else cfg.oauth_microsoft.client_id
+                cid = cfg.oauth_google.client_id if m == "google" else cfg.oauth_microsoft.effective_client_id
                 secret = cfg.oauth_google.client_secret if m == "google" else ""
                 sess = OAuthSession(prov, cid, secret, cfg.proxy_url)
                 sess.login_interactive(login_hint=hint, device_code=device, show_device_code=report, cancel=cancel)

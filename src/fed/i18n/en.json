@@ -586,5 +586,7 @@
   "Aktuelle Uhrzeit einfügen (Gerätezeit)": "Insert current time (device time)",
   "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nFED beenden – Programm schließen\n\nDie Antwort wird in jedem Fall dieser Sitzung im Protokoll und im Bericht dokumentiert.": "Yes – own device\nNo – device of the person concerned\nQuit FED – close the program\n\nThe answer is documented in the log and report of every case in this session.",
   "eigenes Gerät": "own device",
-  "Gerät der betroffenen Person": "device of the person concerned"
+  "Gerät der betroffenen Person": "device of the person concerned",
+  "leer = App-Registrierung von FED": "empty = FED's app registration",
+  "Leer lassen, um die App-Registrierung des FED-Projekts zu nutzen (funktioniert für Outlook.com und alle Organisationen). Eine eigene Client-ID, z. B. aus dem Tenant der Behörde, hat Vorrang.": "Leave empty to use the FED project's app registration (works for Outlook.com and all organisations). Your own client ID, e.g. from the agency's tenant, takes precedence."
 }

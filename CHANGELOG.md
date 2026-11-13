@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.7 (in Entwicklung)
+
+- Microsoft ohne Einrichtung: FED bringt eine eigene App-Registrierung mit (mehrinstanzenfähig und für
+  private Konten, öffentlicher Client ohne Secret). Bleibt *Microsoft Client-ID* in den Einstellungen leer,
+  wird sie genutzt; eine eigene Client-ID hat weiter Vorrang. Das Log (`oauth_login`) nennt die verwendete
+  Client-ID. Anleitung: Freigabe-Link für Administratoren von Organisationen, die nur freigegebene Apps zulassen
+
 ## 1.0.6 (in Entwicklung)
 
 - Testpostfach (Tests und Validierung) läuft mit Dovecot 2.3 **und** 2.4 – die Version wird erkannt und das

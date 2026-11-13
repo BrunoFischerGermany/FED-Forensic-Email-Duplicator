@@ -264,7 +264,7 @@ def _acquire(args) -> int:
                 prov, cid, secret = oauth.GOOGLE, cfg.oauth_google.client_id, cfg.oauth_google.client_secret
             else:
                 tenant = oauth.microsoft_tenant(cfg.oauth_microsoft.tenant, args.login_as or args.account)
-                prov, cid, secret = oauth.microsoft(tenant), cfg.oauth_microsoft.client_id, ""
+                prov, cid, secret = oauth.microsoft(tenant), cfg.oauth_microsoft.effective_client_id, ""
             sess = OAuthSession(prov, cid, secret, cfg.proxy_url)
             print(t("Anmeldung bei {provider} – ", provider=method.title())
                   + (t("Gerätecode folgt …") if args.device_code else t("Browser wird geöffnet …")))
