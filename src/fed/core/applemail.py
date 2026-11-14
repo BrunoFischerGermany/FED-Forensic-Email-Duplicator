@@ -42,7 +42,8 @@ _FLAG_FLAGGED = 1 << 4
 _UUID = re.compile(r"\A[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\Z")
 _ADDR = re.compile(rb"[\w.+-]+@[\w.-]+\.\w+")
 # Welche Kopfzeile die eigene Adresse des Kontos trägt: im Postausgang der Absender, sonst der Empfänger.
-_SENT_NAMES = ("sent", "gesendet", "postausgang", "drafts", "entwürfe", "entwurfe")
+# Wortstämme, als Teilwort geprüft, damit auch lokalisierte Namen passen („Gesendete Elemente“, „Entwürfe“).
+_SENT_STEMS = ("sent", "gesendet", "postausgang", "outbox", "draft", "entw")
 
 
 class EmlxError(Exception):
@@ -283,7 +284,8 @@ def address_candidates(account: AppleAccount, limit: int = 400) -> list[tuple[st
     counter: Counter[str] = Counter()
     scanned = 0
     for folder in account.folders:
-        is_sent = any(part.lower() in _SENT_NAMES for part in folder.path.split("/"))
+        low = folder.path.lower()
+        is_sent = any(stem in low for stem in _SENT_STEMS)
         headers = ("from",) if is_sent else ("delivered-to", "x-envelope-to", "to")
         for msg in folder.messages():
             if scanned >= limit:

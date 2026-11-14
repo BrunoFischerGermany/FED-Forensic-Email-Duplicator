@@ -128,6 +128,19 @@ def test_address_falls_back_to_headers(mailroot):
     assert cands[0][0] == "maik@freenet.example"
 
 
+def test_exchange_style_toplevel_folders_and_localized_sent(tmp_path):
+    # Exchange-Layout: Ordner liegen direkt unter dem Konto (nicht unter INBOX), deutsch benannt.
+    v10 = tmp_path / "V10"
+    acct = v10 / ACCT_A
+    _msg(acct / "Posteingang.mbox", 1, _mail("ich@firma.example", frm="extern@x.example"))
+    _msg(acct / "Gesendete Elemente.mbox", 2, _mail("kunde@x.example", frm="ich@firma.example"))
+    a = next(x for x in am.find_accounts(v10) if x.uuid == ACCT_A)
+    assert sorted(f.path for f in a.folders) == ["Gesendete Elemente", "Posteingang"]
+    # Ohne Accounts-DB zählt im Sende-Ordner der Absender -> eigene Adresse führt die Heuristik an
+    addr, src, _ = am.resolve_address(a, None)
+    assert addr == "ich@firma.example" and src == "headers"
+
+
 def test_find_v10_dirs(mailroot):
     base, v10, _ = mailroot
     assert v10 in am.find_v10_dirs(base)          # über V*-Unterordner
