@@ -601,5 +601,8 @@
   "Lesbare Fassung als PDF/A mit Prüfwerten; die Original-Mail (.eml) wird eingebettet": "Readable version as PDF/A with checksums; the original message (.eml) is embedded",
   "Markierte Mails als PDF …": "Selected messages as PDF …",
   "PDF gespeichert (PDF/A, Original-Mail eingebettet).\nSHA-256: {0}": "PDF saved (PDF/A, original message embedded).\nSHA-256: {0}",
-  "PDF konnte nicht erstellt werden:\n{0}": "Could not create the PDF:\n{0}"
+  "PDF konnte nicht erstellt werden:\n{0}": "Could not create the PDF:\n{0}",
+  "leer = Gmail per App-Passwort": "empty = Gmail via app password",
+  "Nur für ein eigenes Google-Projekt (z. B. Google Workspace der Behörde, Zielgruppe „Intern“). Erst mit eingetragener Client-ID erscheint bei der Anmeldung „Google (OAuth)“. Ohne: Anmeldung per App-Passwort.": "Only for your own Google project (e.g. the agency's Google Workspace, audience “Internal”). “Google (OAuth)” appears at sign-in only once a client ID is entered. Without: sign in with an app password.",
+  "Yahoo: App-Passwort eingeben, nicht das normale Passwort – erzeugen unter {0} → „App-Passwort generieren“. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.": "Yahoo: enter an app password, not the normal password – create it at {0} → “Generate app password”. Kept in memory only – never stored or logged."
 }

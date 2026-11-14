@@ -22,6 +22,7 @@ class Provider(StrEnum):
     GENERIC = "generic"
     GOOGLE = "google"
     MICROSOFT = "microsoft"
+    YAHOO = "yahoo"
 
 
 @dataclass
@@ -40,7 +41,13 @@ KNOWN_PROVIDERS = {
     "outlook.office.com": Provider.MICROSOFT,
     "imap-mail.outlook.com": Provider.MICROSOFT,
     "imap.outlook.com": Provider.MICROSOFT,
+    "imap.mail.yahoo.com": Provider.YAHOO,
+    "export.imap.mail.yahoo.com": Provider.YAHOO,
 }
+
+# Yahoo nennt für das Herunterladen/Sichern ganzer Postfächer einen eigenen Server (gleiche Anmeldung per
+# App-Passwort, Port 993/SSL); der normale Server ist für Mail-Programme gedacht.
+YAHOO_EXPORT_HOST = "export.imap.mail.yahoo.com"
 
 
 def parse_autoconfig_xml(xml: bytes | str, email: str) -> ImapSettings | None:
@@ -110,7 +117,21 @@ def _port_open(host: str, port: int, timeout: float) -> bool:
         return False
 
 
-def discover(
+def discover(email: str, proxy: str = "", timeout: float = 8.0, http_get=None, dns_lookup=None,
+             port_open=None) -> tuple[ImapSettings | None, list[str]]:
+    """Führt die Autoerkennung aus. Rückgabe: (Einstellungen oder None, Protokoll je Versuch).
+
+    ``http_get``, ``dns_lookup`` und ``port_open`` sind für Tests austauschbar. Bei Yahoo wird der
+    Export-Server für Sicherungen eingesetzt (steht im Protokoll).
+    """
+    s, log = _discover(email, proxy, timeout, http_get, dns_lookup, port_open)
+    if s is not None and s.provider is Provider.YAHOO and s.host.lower() == "imap.mail.yahoo.com":
+        s.host = YAHOO_EXPORT_HOST
+        log.append(t("Yahoo: Server für Sicherungen eingesetzt ({host})", host=YAHOO_EXPORT_HOST))
+    return s, log
+
+
+def _discover(
     email: str,
     proxy: str = "",
     timeout: float = 8.0,

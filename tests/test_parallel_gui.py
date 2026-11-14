@@ -442,3 +442,28 @@ def test_device_code_clipboard_and_link(monkeypatch):
     p._open_link("https://www.microsoft.com/link")
     assert opened == ["https://www.microsoft.com/link"]
     p.deleteLater()
+
+
+def test_google_oauth_only_with_client_id_and_yahoo_hint():
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core.config import Config
+    from fed.gui.assistant import AccountPage, State
+
+    cfg = Config()
+    p = AccountPage(State(cfg))
+    p.show()
+    assert p.method.buttons["google"].isHidden()
+    assert not p.method.buttons["google_app"].isHidden() and not p.method.buttons["microsoft"].isHidden()
+    cfg.oauth_google.client_id = "123.apps.googleusercontent.com"
+    p.hide()
+    p.show()  # Einstellungen geändert -> beim nächsten Anzeigen sichtbar
+    assert not p.method.buttons["google"].isHidden()
+
+    p.method.set_value("password")
+    p._method_changed("password")
+    p.server.setText("export.imap.mail.yahoo.com")
+    t = p.pw_hint.text()
+    assert "Yahoo" in t and 'href="https://login.yahoo.com/account/security"' in t and 'href="yahoo"' in t
+    p.hide()
+    p.deleteLater()
+    app.processEvents()

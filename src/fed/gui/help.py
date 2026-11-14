@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QDialog, QDialogButtonBox, QTextBrowser, QVBoxLayo
 from fed.core.msg import current_language
 
 # Abschnitt -> Wort in der Überschrift (## …), die angesprungen wird
-SECTIONS = {"microsoft": "Microsoft", "google": "Google"}
+SECTIONS = {"microsoft": "Microsoft", "google": "Google", "yahoo": "Yahoo"}
 
 
 def help_text(topic: str, language: str | None = None) -> str:

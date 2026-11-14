@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFo
 from fed.core import acquisition as acq
 from fed.core import autoconfig, keepawake, oauth, syscheck
 from fed.core import timefmt as tf
-from fed.core.auth import (APP_PASSWORD_URL, OAuthSession, is_gmail, is_microsoft, log_oauth_login, make_connector,
+from fed.core.auth import (APP_PASSWORD_URL, YAHOO_APP_PASSWORD_URL, OAuthSession, is_gmail, is_microsoft, is_yahoo, log_oauth_login, make_connector,
                            normalize_app_password)
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
@@ -494,6 +494,7 @@ class AccountPage(QWidget):
         self.method = Segmented([("password", self.tr("Passwort")), ("google_app", self.tr("Google (App-Passwort)")),
                                  ("google", "Google (OAuth)"), ("microsoft", "Microsoft 365 (OAuth)")])
         self.method.changed.connect(self._method_changed)
+        self._sync_google_oauth()
         c2.add(self.method)
         self.pw_label = label(self.tr("Passwort"), "H2")
         self.password = PasswordField()
@@ -652,6 +653,7 @@ class AccountPage(QWidget):
         m = {"oauth_google": "google", "oauth_microsoft": "microsoft",
              "app_password_google": "google_app"}.get(row[4], "password")
         self.method.set_value(m)
+        self._sync_google_oauth(keep=m == "google")
         self._method_changed(m)
         self.found = None
         self.acc_notes.set_value(o.get("notes", ""), o.get("notes_html"))
@@ -713,6 +715,16 @@ class AccountPage(QWidget):
         self.test_state.setText(self.tr("noch nicht getestet"))
         restyle(self.test_state, "Muted")
 
+    def _sync_google_oauth(self, keep: bool = False) -> None:
+        """„Google (OAuth)“ nur mit eigener Google-Client-ID zeigen (FED hat keine eigene Google-App –
+        Gmail läuft über das App-Passwort). Ein Konto, das schon so angemeldet war, behält die Schaltfläche."""
+        show = bool(self.st.cfg.oauth_google.client_id) or keep or self.method.value() == "google"
+        self.method.buttons["google"].setVisible(show)
+
+    def showEvent(self, e) -> None:  # Einstellungen können sich geändert haben
+        self._sync_google_oauth()
+        super().showEvent(e)
+
     def _method_changed(self, m: str) -> None:
         pw = m in ("password", "google_app")
         if self._recalled:
@@ -761,11 +773,18 @@ class AccountPage(QWidget):
             self.pw_hint.setText(self._with_help_link(self._ms_password_text(), "microsoft"))
             restyle(self.pw_hint, "Warn")
             return
-        self.pw_hint.setText(
+        if m == "password" and is_yahoo(self.server.text()):
+            self.pw_hint.setText(self._with_help_link(self.tr(
+                "Yahoo: App-Passwort eingeben, nicht das normale Passwort – erzeugen unter {0} → „App-Passwort "
+                "generieren“. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.").format(YAHOO_APP_PASSWORD_URL),
+                "yahoo"))
+            restyle(self.pw_hint, "Hint")
+            return
+        self.pw_hint.setText(linkify(
             self.tr("16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale "
                     "Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.")
             .format(APP_PASSWORD_URL) if m == "google_app"
-            else self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt."))
+            else self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.")))
         restyle(self.pw_hint, "Hint")
 
     def _discover(self) -> None:
@@ -798,6 +817,9 @@ class AccountPage(QWidget):
                 elif s.provider is autoconfig.Provider.MICROSOFT:
                     self.method.set_value("microsoft")
                     self._method_changed("microsoft")
+                elif s.provider is autoconfig.Provider.YAHOO:
+                    self.method.set_value("password")  # mit Yahoo-App-Passwort (Hinweis unter dem Feld)
+                    self._method_changed("password")
             else:
                 self.discover_info.setText(self.tr("Nichts gefunden – bitte Server manuell eintragen."))
                 restyle(self.discover_info, "Warn")

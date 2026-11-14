@@ -163,6 +163,10 @@
         <translation>Open guide</translation>
     </message>
     <message>
+        <source>Yahoo: App-Passwort eingeben, nicht das normale Passwort – erzeugen unter {0} → „App-Passwort generieren“. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
+        <translation>Yahoo: enter an app password, not the normal password – create it at {0} → “Generate app password”. Kept in memory only – never stored or logged.</translation>
+    </message>
+    <message>
         <source>16 Buchstaben aus {0} (erfordert 2-Schritt-Bestätigung; Leerzeichen egal). Das normale Google-Passwort funktioniert nicht. Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
         <translation>16 letters from {0} (requires 2-Step Verification; spaces don't matter). The normal Google password does not work. Only in memory – never stored or logged.</translation>
     </message>
@@ -2530,6 +2534,14 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Google / Microsoft 365</source>
         <translation>Google / Microsoft 365</translation>
+    </message>
+    <message>
+        <source>leer = Gmail per App-Passwort</source>
+        <translation>empty = Gmail via app password</translation>
+    </message>
+    <message>
+        <source>Nur für ein eigenes Google-Projekt (z. B. Google Workspace der Behörde, Zielgruppe „Intern“). Erst mit eingetragener Client-ID erscheint bei der Anmeldung „Google (OAuth)“. Ohne: Anmeldung per App-Passwort.</source>
+        <translation>Only for your own Google project (e.g. the agency's Google Workspace, audience “Internal”). “Google (OAuth)” appears at sign-in only once a client ID is entered. Without: sign in with an app password.</translation>
     </message>
     <message>
         <source>Google Client-ID</source>
