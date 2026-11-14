@@ -145,3 +145,20 @@ def test_find_v10_dirs(mailroot):
     base, v10, _ = mailroot
     assert v10 in am.find_v10_dirs(base)          # über V*-Unterordner
     assert v10 in am.find_v10_dirs(v10.parent)    # direkt angegeben
+
+
+def test_find_in_image_tree_and_prefer_main_accounts_db(tmp_path):
+    # Abbild/Home-Abzug: tief liegendes Library/Mail/V9 und Library/Accounts mit Sicherung
+    home = tmp_path / "Users" / "maik" / "Library"
+    v9 = home / "Mail" / "V9"
+    _msg(v9 / ACCT_A / "INBOX.mbox", 1, _mail("a@b.example"))
+    acc = home / "Accounts"
+    (acc / "VerifiedBackup").mkdir(parents=True)
+    (acc / "Accounts4.sqlite").write_bytes(b"main")
+    (acc / "VerifiedBackup" / "Accounts4.sqlite").write_bytes(b"backup")
+    # Nur die Wurzel des Abzugs angeben – FED findet V9 und die Haupt-DB (nicht die Sicherung)
+    assert am.find_v10_dirs(tmp_path) == [v9]
+    db = am.find_accounts_db(tmp_path)
+    assert db == acc / "Accounts4.sqlite" and "VerifiedBackup" not in db.parts
+    # .mbox-Bündel werden bei der Suche nicht betreten (keine Fehltreffer, nicht langsam)
+    assert am.find_v10_dirs(v9 / ACCT_A / "INBOX.mbox") == []

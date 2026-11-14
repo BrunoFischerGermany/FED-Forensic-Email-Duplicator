@@ -167,28 +167,59 @@ def find_accounts(v10_dir: Path) -> list[AppleAccount]:
     return accounts
 
 
-def find_v10_dirs(root: Path) -> list[Path]:
-    """Sucht ``V#``-Verzeichnisse (``V10`` …) unter ``root`` – direkt, unter ``Mail/`` oder ``Library/Mail/``.
+_VERSION_DIR = re.compile(r"V\d+")
 
-    Kein vollständiger Platten-Scan: nur die bekannten Stellen relativ zum angegebenen Ort.
+
+def _has_uuid_child(d: Path) -> bool:
+    try:
+        return any(c.is_dir() and _UUID.match(c.name) for c in d.iterdir())
+    except OSError:
+        return False
+
+
+def _bounded_dirs(root: Path, max_depth: int):
+    """Verzeichnisse bis zur Tiefe ``max_depth`` (``root`` = 0). Steigt nicht in ``.mbox``-Bündel oder
+    bereits erkannte ``V#``-Speicher ab – gezielte Suche, kein vollständiger Platten-Scan."""
+    stack = [(root, 0)]
+    while stack:
+        d, depth = stack.pop()
+        yield d
+        if depth >= max_depth or d.name.endswith(".mbox") or _VERSION_DIR.fullmatch(d.name):
+            continue
+        try:
+            for c in sorted(d.iterdir()):
+                if c.is_dir():
+                    stack.append((c, depth + 1))
+        except OSError:
+            continue
+
+
+def find_v10_dirs(root: Path, max_depth: int = 10) -> list[Path]:
+    """Sucht Mail-Speicher (``V9``/``V10`` … mit UUID-Konten) unter ``root``.
+
+    Findet sie auch tief in einem Abbild/Home-Abzug (``Users/<name>/Library/Mail/V#``). Gezielt nach
+    dem bekannten Muster, kein blinder Platten-Scan: Suche ist tiefenbegrenzt und meidet ``.mbox``.
     """
     found: list[Path] = []
-    candidates = [root, root / "Mail", root / "Library" / "Mail"]
-    for base in candidates:
-        if not base.is_dir():
-            continue
-        if _UUID_child(base):
-            found.append(base)
-        for sub in sorted(base.glob("V*")):
-            if sub.is_dir() and re.fullmatch(r"V\d+", sub.name) and _UUID_child(sub):
-                found.append(sub)
-    # Doppelte (gleicher Pfad) entfernen, Reihenfolge erhalten
+    for d in _bounded_dirs(root, max_depth):
+        if _VERSION_DIR.fullmatch(d.name) and _has_uuid_child(d):
+            found.append(d)
     seen: set[Path] = set()
     return [p for p in found if not (p in seen or seen.add(p))]
 
 
-def _UUID_child(d: Path) -> bool:
-    return any(c.is_dir() and _UUID.match(c.name) for c in d.iterdir())
+def find_accounts_db(root: Path, max_depth: int = 10) -> Path | None:
+    """Sucht ``Library/Accounts/Accounts4.sqlite`` unter ``root`` (für die maßgebliche Adresszuordnung).
+
+    Bevorzugt die Haupt-Datenbank gegenüber einer Sicherung (``VerifiedBackup``)."""
+    hits: list[Path] = []
+    for d in _bounded_dirs(root, max_depth):
+        if d.name == "Accounts":
+            f = d / "Accounts4.sqlite"
+            if f.is_file():
+                hits.append(f)
+    hits.sort(key=lambda p: ("VerifiedBackup" in p.parts, len(p.parts)))
+    return hits[0] if hits else None
 
 
 @dataclass
