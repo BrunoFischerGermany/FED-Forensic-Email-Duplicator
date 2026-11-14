@@ -84,6 +84,8 @@ class AttemptResult:
     skipped_existing: int = 0
     expected: int = 0
     warnings: list[str] = field(default_factory=list)
+    size_differs: int = 0  # Mails, deren geladene Größe von RFC822.SIZE des Servers abweicht
+    size_examples: list[dict] = field(default_factory=list)
 
 
 Connector = Callable[[], ReadOnlyImap]
@@ -374,6 +376,12 @@ def run_attempt(
                          (utc_now(), result.status, prog.bytes_done / elapsed, attempt_id))
         case.unmark_live(attempt_id)
         _cleanup_part_files(account_dir)
+        if result.size_differs:
+            case.log("WARNING", "size_differs", {
+                "count": result.size_differs, "examples": result.size_examples,
+                "note": _t("Geladene Größe weicht von der Größenangabe des Servers (RFC822.SIZE) ab. Vollständig "
+                           "übertragen laut IMAP-Antwort; beide Werte stehen je Mail in der Fall-Datei. Bei "
+                           "Exchange/Outlook bekannt – dort ist RFC822.SIZE nur ein Schätzwert.")}, attempt_id)
         case.log("INFO", "attempt_ended", {"status": result.status, "saved": result.saved,
                                            "expected": result.expected}, attempt_id)
     return result
@@ -440,9 +448,14 @@ def _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, 
     case.log("INFO", "download_started", {"connections": n, "tasks": len(tasks), "mails": prog.mails_total},
              attempt_id)
 
-    def report(msg, worker_id: int) -> None:
+    def report(msg, worker_id: int, folder: str) -> None:
         with lock:
             result.saved += 1
+            if len(msg.raw) != msg.size_server:
+                result.size_differs += 1
+                if len(result.size_examples) < 5:
+                    result.size_examples.append({"folder": folder, "uid": msg.uid, "loaded": len(msg.raw),
+                                                 "server": msg.size_server})
             prog.mails_done += 1
             prog.bytes_done += msg.size_server
             prog.current_uid = msg.uid
@@ -511,7 +524,7 @@ def _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, 
                             continue
                         _store_message(case, attempt_id, task.row, task.folder, msg, email, account_dir, cfg,
                                        None, prog)
-                        report(msg, worker_id)
+                        report(msg, worker_id, task.folder.name)
                 with lock:
                     active.pop(worker_id, None)
         except BaseException as e:  # an den Haupt-Thread weitergeben

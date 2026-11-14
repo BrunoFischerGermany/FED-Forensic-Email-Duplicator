@@ -92,3 +92,53 @@ def test_guard_allows_peek(cmd):
     from fed.core.imap_reader import guard
 
     guard(cmd)
+
+
+def _fake_sizes(imap, monkeypatch, delta):
+    """Server meldet eine falsche RFC822.SIZE (wie Exchange/Outlook.com)."""
+    import re
+
+    orig = imap.imap.uid
+
+    def fix(b):
+        return re.sub(rb"RFC822\.SIZE (\d+)", lambda m: b"RFC822.SIZE %d" % max(0, int(m.group(1)) + delta), b)
+
+    def uid(*args):
+        typ, data = orig(*args)
+        out = []
+        for d in data:
+            if isinstance(d, tuple):
+                out.append((fix(d[0]), d[1]))
+            elif isinstance(d, bytes):
+                out.append(fix(d))
+            else:
+                out.append(d)
+        return typ, out
+
+    monkeypatch.setattr(imap.imap, "uid", uid)
+
+
+@pytest.mark.parametrize("delta", [50000, -500])
+def test_wrong_server_size_is_not_fatal(imap, test_mails, monkeypatch, delta):
+    big = next(m for m in test_mails if m.folder == "Groß")
+    _fake_sizes(imap, monkeypatch, delta)
+    folder = next(f for f in imap.list_folders() if f.name == "Groß")
+    imap.examine(folder)
+    (uid,) = imap.search_uids()
+    for chunk in (None, 1024 * 1024, 4096):
+        msg = imap.fetch(uid, chunk_bytes=chunk)
+        assert msg.raw == big.raw and msg.size_server == len(big.raw) + delta
+    inbox = next(f for f in imap.list_folders() if f.name == "INBOX")
+    imap.examine(inbox)
+    uids = imap.search_uids()
+    got = imap.fetch_many(uids)
+    expected = {hashlib.sha256(m.raw).hexdigest() for m in test_mails if m.folder == "INBOX"}
+    assert {hashlib.sha256(m.raw).hexdigest() for m in got.values()} == expected
+
+
+def test_truncated_literal_detected():
+    from fed.core.imap_reader import ImapError, _check_literal
+
+    _check_literal(1, b"1 (UID 1 BODY[] {5}", b"12345")
+    with pytest.raises(ImapError, match="unvollständig"):
+        _check_literal(1, b"1 (UID 1 BODY[] {7}", b"12345")

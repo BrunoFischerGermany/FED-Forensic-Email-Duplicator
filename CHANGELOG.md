@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.7 (in Entwicklung)
+
+- Outlook.com/Exchange: Sicherung brach mit „UID …: … Bytes geladen, Server meldet …“ ab, weil Exchange als
+  RFC822.SIZE nur einen Schätzwert liefert. Die Vollständigkeit wird jetzt über die Längenangabe der
+  IMAP-Antwort selbst geprüft (unvollständige Übertragung bleibt ein Fehler); weicht RFC822.SIZE ab, steht
+  einmal je Versuch eine Warnung `size_differs` mit Anzahl und Beispielen im Log, beide Werte je Mail in der
+  Fall-Datei. Stückweises Laden großer Mails endet am ersten kurzen Stück statt an RFC822.SIZE (eine zu
+  kleine Angabe hätte sonst abgeschnitten)
+
 ## 1.0.6 (in Entwicklung)
 
 - Testpostfach (Tests und Validierung) läuft mit Dovecot 2.3 **und** 2.4 – die Version wird erkannt und das

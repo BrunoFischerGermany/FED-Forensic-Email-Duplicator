@@ -104,6 +104,14 @@ class FetchedMessage:
     gm_thrid: str | None = None
 
 
+def _check_literal(uid: int, head: bytes, raw: bytes) -> None:
+    """Vollständig übertragen? Die Antwort kündigt die Länge als IMAP-Literal ``{n}`` an."""
+    m = re.search(rb"\{(\d+)\}\s*$", head)
+    if m and int(m.group(1)) != len(raw):
+        raise ImapError(t("UID {uid}: unvollständig übertragen ({got} von {n} Bytes)",
+                          uid=uid, got=len(raw), n=int(m.group(1))))
+
+
 def quote(raw_name: str) -> str:
     return '"' + raw_name.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -356,18 +364,21 @@ class ReadOnlyImap:
         gm_msgid, gm_thrid, gm_labels = parse_gmail(meta) if gm else (None, None, ())
 
         if chunk_bytes and size > chunk_bytes:
+            # Bis zum ersten kurzen Stück laden – nicht bis RFC822.SIZE: Exchange/Outlook meldet dort oft eine
+            # abweichende Größe (zu klein würde sonst abschneiden, zu groß nur ein leeres Stück mehr anfragen).
             parts = []
             offset = 0
-            while offset < size:
-                parts.append(self._body(uid, f"BODY.PEEK[]<{offset}.{chunk_bytes}>"))
-                if not parts[-1]:
+            while True:
+                part = self._body(uid, f"BODY.PEEK[]<{offset}.{chunk_bytes}>")
+                parts.append(part)
+                offset += len(part)
+                if len(part) < chunk_bytes:
                     break
-                offset += len(parts[-1])
             raw = b"".join(parts)
         else:
             raw = self._body(uid, "BODY.PEEK[]")
-        if len(raw) != size:
-            raise ImapError(t("UID {uid}: {got} Bytes geladen, Server meldet {size}", uid=uid, got=len(raw), size=size))
+        # Vollständigkeit prüft _body über die Literal-Länge der Antwort; RFC822.SIZE bleibt als Server-Angabe
+        # erhalten (size_server) und wird bei Abweichung protokolliert.
         return FetchedMessage(uid, raw, flags, idate, size, gm_msgid, gm_labels, gm_thrid)
 
     def fetch_many(self, uids: list[int]) -> dict[int, FetchedMessage]:
@@ -402,8 +413,7 @@ class ReadOnlyImap:
             if not (um and sm and im):
                 raise ImapError(t("Unvollständige FETCH-Antwort: {data}", data=repr(meta[:200])))
             uid, size = int(um.group(1)), int(sm.group(1))
-            if len(raw) != size:
-                raise ImapError(t("UID {uid}: {got} Bytes geladen, Server meldet {size}", uid=uid, got=len(raw), size=size))
+            _check_literal(uid, head, raw)
             fm = re.search(rb"FLAGS \(([^)]*)\)", meta)
             gm_id, gm_thr, gm_lab = parse_gmail(meta) if gm else (None, None, ())
             result[uid] = FetchedMessage(
@@ -417,6 +427,7 @@ class ReadOnlyImap:
             raise ImapError(f"FETCH {item} UID {uid} fehlgeschlagen: {data}")
         for d in data:
             if isinstance(d, tuple) and b"BODY[" in d[0]:
+                _check_literal(uid, d[0], d[1])
                 return d[1]
         return b""
 
