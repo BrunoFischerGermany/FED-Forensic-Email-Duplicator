@@ -2,6 +2,12 @@
 
 ## 1.0.7 (in Entwicklung)
 
+- Apple-Mail-Import (GUI): „Apple-Mail importieren …“ auf der Fall-Seite (bei offenem Fall). Ordner
+  oder Abzug/Image wählen – FED findet `Library/Mail/V#` und `Accounts4.sqlite`, listet die Konten mit
+  vorbelegter Adresse (maßgeblich aus der Accounts-DB, sonst aus den Kopfzeilen zum Bestätigen) und legt
+  je Adresse ein Asservat an. Mails werden byte-genau als `.eml` mit Hash in denselben Fall gelesen
+  (`fed.core.applemail_import`), Herkunft `apple_mail` und `partial` je Mail vermerkt; daraus baut der
+  normale Weg ZIP und Bericht. An echten Daten aus macOS 12.6/V10/26.4 geprüft (IMAP, Exchange, lokal)
 - Apple-Mail-Import (erster Baustein, nur Lesen): `fed.core.applemail` liest ein macOS-`~/Library/Mail/V#`-
   Verzeichnis – Konten (UUID-Ordner), verschachtelte `.mbox`-Ordner, `.emlx`/`.partial.emlx` byte-genau
   (Längenzeile + N Bytes rohe Mail), Flags/Datum aus dem Apple-Plist. Konto→Adresse maßgeblich aus

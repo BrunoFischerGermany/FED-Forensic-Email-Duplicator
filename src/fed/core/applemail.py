@@ -229,6 +229,20 @@ class AccountInfo:
     address: str = ""
     name: str = ""  # ZACCOUNTDESCRIPTION, z. B. „Freenet.de“
     aliases: tuple[str, ...] = ()
+    host: str = ""  # IMAP-/Exchange-Server (für eine spätere Online-Ergänzung)
+
+
+def _archived_strings(blob: object) -> list[str]:
+    """Liest die lesbaren Strings aus einem NSKeyedArchiver-Plist (``$objects``), ohne Strukturschlüssel."""
+    if not isinstance(blob, (bytes, bytearray)):
+        return []
+    try:
+        d = plistlib.loads(bytes(blob))
+    except (plistlib.InvalidFileException, ValueError):
+        return []
+    objs = d.get("$objects", []) if isinstance(d, dict) else []
+    skip = {"$null", "DisplayName", "IsEnabled", "EmailAddresses", "IsPrimary", "EmailAddress", "IsDefault"}
+    return [o for o in objs if isinstance(o, str) and o not in skip]
 
 
 def _archived_emails(blob: object) -> list[str]:
@@ -283,7 +297,9 @@ def accounts_map(sqlite_path: Path) -> dict[str, AccountInfo]:
                 user = (r["ZUSERNAME"] or "").strip()
                 address = identity[0] if identity else (user if "@" in user else "")
                 aliases = _archived_emails(props.get("EmailAliases"))
-                info = AccountInfo(address, (r["ZACCOUNTDESCRIPTION"] or "").strip(), tuple(dict.fromkeys(aliases)))
+                host = _archived_strings(props.get("Hostname"))
+                info = AccountInfo(address, (r["ZACCOUNTDESCRIPTION"] or "").strip(), tuple(dict.fromkeys(aliases)),
+                                   host[0] if host else "")
                 if info.address or info.name:
                     result[uuid] = info
         finally:

@@ -160,6 +160,7 @@ def ask_device_owner(parent: QWidget | None, at_start: bool = False) -> str | No
 
 class CasePage(QWidget):
     next = Signal()
+    imported = Signal()  # nach einem Offline-Import (Apple Mail): Historie/Status aktualisieren
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -224,8 +225,13 @@ class CasePage(QWidget):
         self.go.setObjectName("Primary")
         self.go.clicked.connect(self._go_clicked)
         self.open_btn = open_btn
+        self.import_btn = QPushButton(self.tr("Apple-Mail importieren …"))
+        self.import_btn.setToolTip(self.tr("Mails aus einem Apple-Mail-Ordner oder Abzug offline in den Fall einlesen"))
+        self.import_btn.clicked.connect(self._import_applemail)
+        self.import_btn.setVisible(False)
         btns = QHBoxLayout()
         btns.addStretch(1)
+        btns.addWidget(self.import_btn)
         btns.addWidget(open_btn)
         btns.addWidget(self.go)
         lay.addLayout(btns)
@@ -329,6 +335,17 @@ class CasePage(QWidget):
         self.browse_btn.setEnabled(not is_open)
         self.go.setText(self.tr("Weiter") if is_open else self.tr("Fall anlegen und weiter"))
         self.open_btn.setVisible(not is_open)
+        self.import_btn.setVisible(is_open and not (case.info().get("closed_utc") if is_open else False))
+
+    def _import_applemail(self) -> None:
+        from fed.gui.applemail_dialog import AppleMailImportDialog
+
+        case = self.st.case
+        if case is None:
+            return
+        dlg = AppleMailImportDialog(self, case)
+        if dlg.exec():
+            self.imported.emit()  # Historie/Status aktualisieren
 
     def _device_owner(self) -> str | None:
         """Antwort vom Programmstart; nur falls dort nicht gefragt wurde, jetzt fragen."""
@@ -1864,6 +1881,8 @@ class Assistant(QWidget):
         for p in (self.p_case, self.p_acc, self.p_fold, self.p_acq, self.p_fin):
             self.stack.addWidget(p)
         self.p_case.next.connect(self._after_case)
+        self.p_case.imported.connect(self.refresh_accounts)
+        self.p_case.imported.connect(self.case_changed.emit)
         self.p_acc.back.connect(lambda: self._show(0, 0))
         self.p_acc.next.connect(self._after_account)
         self.p_fold.back.connect(lambda: self._show(1, 2))

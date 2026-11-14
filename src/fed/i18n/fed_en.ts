@@ -307,7 +307,7 @@
     </message>
     <message>
         <source>Asservat</source>
-        <translation>Evidence</translation>
+        <translation>Evidence no.</translation>
     </message>
     <message>
         <source>Konto</source>
@@ -577,6 +577,85 @@ No = delete permanently.</translation>
     </message>
 </context>
 <context>
+    <name>AppleMailImportDialog</name>
+    <message>
+        <source>Apple-Mail importieren</source>
+        <translation>Import Apple Mail</translation>
+    </message>
+    <message>
+        <source>Ordner mit Apple-Mail-Daten wählen – ein „V#“-Ordner, ein „Mail“-Ordner oder die Wurzel eines Abzugs/Images. FED findet die Postfächer und (falls vorhanden) die Zuordnung der Adressen aus „Accounts4.sqlite“.</source>
+        <translation>Choose a folder with Apple Mail data – a “V#” folder, a “Mail” folder or the root of a capture/image. FED finds the mailboxes and (if present) the address mapping from “Accounts4.sqlite”.</translation>
+    </message>
+    <message>
+        <source>Kein Ordner gewählt</source>
+        <translation>No folder chosen</translation>
+    </message>
+    <message>
+        <source>Ordner wählen …</source>
+        <translation>Choose folder …</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <source>Importieren</source>
+        <translation>Import</translation>
+    </message>
+    <message>
+        <source>Ordner mit Apple-Mail-Daten</source>
+        <translation>Folder with Apple Mail data</translation>
+    </message>
+    <message>
+        <source>Hier wurde kein Apple-Mail-Speicher gefunden.</source>
+        <translation>No Apple Mail store was found here.</translation>
+    </message>
+    <message>
+        <source>Adressen aus Accounts4.sqlite</source>
+        <translation>Addresses from Accounts4.sqlite</translation>
+    </message>
+    <message>
+        <source>Ohne Accounts4.sqlite – Adressen aus den Kopfzeilen, bitte prüfen</source>
+        <translation>Without Accounts4.sqlite – addresses from the headers, please check</translation>
+    </message>
+    <message>
+        <source>Accounts-DB</source>
+        <translation>Accounts DB</translation>
+    </message>
+    <message>
+        <source>Kopfzeilen (prüfen)</source>
+        <translation>Headers (check)</translation>
+    </message>
+    <message>
+        <source>unbekannt</source>
+        <translation>unknown</translation>
+    </message>
+    <message>
+        <source>Bitte mindestens ein Konto anhaken.</source>
+        <translation>Please tick at least one account.</translation>
+    </message>
+    <message>
+        <source>Asservatennummer und Adresse dürfen nicht leer sein.</source>
+        <translation>Evidence number and address must not be empty.</translation>
+    </message>
+    <message>
+        <source>{n} Konten importiert.</source>
+        <translation>{n} accounts imported.</translation>
+    </message>
+    <message>
+        <source>Fehlgeschlagen:</source>
+        <translation>Failed:</translation>
+    </message>
+    <message>
+        <source>Importiere …</source>
+        <translation>Importing …</translation>
+    </message>
+    <message>
+        <source>Importiere {addr} …</source>
+        <translation>Importing {addr} …</translation>
+    </message>
+</context>
+<context>
     <name>Assistant</name>
     <message>
         <source>ZIP-Archive bei mehreren Konten</source>
@@ -782,6 +861,14 @@ The answer is documented in the log and in the report.</translation>
     <message>
         <source>Fall anlegen und weiter</source>
         <translation>Create case and continue</translation>
+    </message>
+    <message>
+        <source>Apple-Mail importieren …</source>
+        <translation>Import Apple Mail …</translation>
+    </message>
+    <message>
+        <source>Mails aus einem Apple-Mail-Ordner oder Abzug offline in den Fall einlesen</source>
+        <translation>Read mail from an Apple Mail folder or capture into the case, offline</translation>
     </message>
     <message>
         <source>Zielordner wählen</source>
@@ -1166,7 +1253,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     </message>
     <message>
         <source>Ordner</source>
-        <translation>Folder</translation>
+        <translation>Folders</translation>
     </message>
     <message>
         <source>Mails</source>
@@ -1289,7 +1376,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <name>HistoryTab</name>
     <message>
         <source>Ordner</source>
-        <translation>Folder</translation>
+        <translation>Folders</translation>
     </message>
     <message>
         <source>Eingangszeit (UTC)</source>
