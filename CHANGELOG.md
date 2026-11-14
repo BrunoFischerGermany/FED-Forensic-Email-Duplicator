@@ -2,6 +2,12 @@
 
 ## 1.0.7 (in Entwicklung)
 
+- Outlook.com/Exchange: Sicherung brach mit „UID …: … Bytes geladen, Server meldet …“ ab, weil Exchange als
+  RFC822.SIZE nur einen Schätzwert liefert. Die Vollständigkeit wird jetzt über die Längenangabe der
+  IMAP-Antwort selbst geprüft (unvollständige Übertragung bleibt ein Fehler); weicht RFC822.SIZE ab, steht
+  einmal je Versuch eine Warnung `size_differs` mit Anzahl und Beispielen im Log, beide Werte je Mail in der
+  Fall-Datei. Stückweises Laden großer Mails endet am ersten kurzen Stück statt an RFC822.SIZE (eine zu
+  kleine Angabe hätte sonst abgeschnitten)
 - Microsoft ohne Einrichtung: FED bringt eine eigene App-Registrierung mit (mehrinstanzenfähig und für
   private Konten, öffentlicher Client ohne Secret). Bleibt *Microsoft Client-ID* in den Einstellungen leer,
   wird sie genutzt; eine eigene Client-ID hat weiter Vorrang. Das Log (`oauth_login`) nennt die verwendete
