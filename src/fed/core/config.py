@@ -53,10 +53,24 @@ class OAuthGoogle:
     client_secret: str = ""
 
 
+# App-Registrierung des FED-Projekts in Microsoft Entra (öffentlicher Client, kein Secret; mehrinstanzenfähig
+# und für persönliche Microsoft-Konten). Die Client-ID ist nicht geheim. Eine eigene ID in den Einstellungen
+# (z. B. aus dem Tenant der Behörde) hat Vorrang.
+FED_MICROSOFT_CLIENT_ID = "8de90383-c0ec-4221-9ed6-bd9300cd455c"
+
+
 @dataclass
 class OAuthMicrosoft:
-    client_id: str = ""
+    client_id: str = ""  # leer = App-Registrierung von FED
     tenant: str = "organizations"
+
+    @property
+    def effective_client_id(self) -> str:
+        return self.client_id.strip() or FED_MICROSOFT_CLIENT_ID
+
+    @property
+    def builtin(self) -> bool:
+        return not self.client_id.strip()
 
 
 @dataclass

@@ -117,3 +117,31 @@ def test_xoauth2_login_against_dovecot(imap_server, oauth_provider):
     with pytest.raises(imaplib.IMAP4.error):
         bad.login_xoauth2(imap_server.user, "ungueltiges-token")
     bad.logout()
+
+
+def test_builtin_microsoft_client_id():
+    from fed.core.config import FED_MICROSOFT_CLIENT_ID, OAuthMicrosoft
+
+    assert OAuthMicrosoft().effective_client_id == FED_MICROSOFT_CLIENT_ID
+    assert OAuthMicrosoft().builtin
+    own = OAuthMicrosoft(client_id=" 11111111-2222-3333-4444-555555555555 ")
+    assert own.effective_client_id == "11111111-2222-3333-4444-555555555555" and not own.builtin
+    import uuid
+    uuid.UUID(FED_MICROSOFT_CLIENT_ID)
+
+
+def test_hint_authenticated_not_connected():
+    from fed.core import oauth
+
+    h = oauth.explain_error("microsoft", "User is authenticated but not connected.")
+    assert "IMAP" in h and "outlook.live.com" in h
+
+
+def test_linkify():
+    from fed.gui.assistant import linkify
+
+    h = linkify("Outlook.com: outlook.live.com → x\n3. account.live.com/activity: <b> a@b.de")
+    assert '<a href="https://outlook.live.com">outlook.live.com</a>' in h
+    assert '<a href="https://account.live.com/activity">account.live.com/activity</a>' in h
+    assert "Outlook.com:" in h and 'href="https://Outlook' not in h
+    assert "&lt;b&gt;" in h and "<br>" in h and "b.de</a>" not in h
