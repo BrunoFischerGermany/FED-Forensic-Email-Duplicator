@@ -144,6 +144,36 @@ class _SafeBrowser(QTextBrowser):
         return None
 
 
+def export_pdf(parent: QWidget, case: Case, message_ids: list[int], default_name: str) -> None:
+    """Mails als PDF/A speichern (Speichern-Dialog); Kopie in ``exports/`` des Falls, Eintrag im Log."""
+    from PySide6.QtGui import QCursor
+    from PySide6.QtWidgets import QApplication
+
+    from fed.core import mailpdf
+
+    target, _ = QFileDialog.getSaveFileName(
+        parent, QCoreApplication.translate("MailViewer", "Als PDF exportieren"), str(Path.home() / default_name),
+        "PDF (*.pdf)")
+    if not target:
+        return
+    path = Path(target)
+    if path.suffix.lower() != ".pdf":
+        path = path.with_name(path.name + ".pdf")
+    QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+    try:
+        sha = mailpdf.write(case, message_ids, path)
+    except Exception as e:  # Datei fehlt, Ziel nicht beschreibbar o. Ä.
+        QApplication.restoreOverrideCursor()
+        QMessageBox.warning(parent, "FED", QCoreApplication.translate(
+            "MailViewer", "PDF konnte nicht erstellt werden:\n{0}").format(e))
+        return
+    QApplication.restoreOverrideCursor()
+    copy = "" if case.closed else "\n\n" + QCoreApplication.translate(
+        "MailViewer", "Eine Kopie liegt im Fall-Ordner unter „exports“.")
+    QMessageBox.information(parent, "FED", QCoreApplication.translate(
+        "MailViewer", "PDF gespeichert (PDF/A, Original-Mail eingebettet).\nSHA-256: {0}").format(sha) + copy)
+
+
 def _table(cols: list[str]) -> QTableWidget:
     t = QTableWidget(0, len(cols))
     t.setHorizontalHeaderLabels(cols)
@@ -193,16 +223,25 @@ class MailViewer(QDialog):
         tabs.addTab(self._route_tab(), self.tr("Weg (Received)"))
         tabs.addTab(self._auth_tab(), self.tr("Echtheit"))
 
+        pdf = QPushButton(self.tr("Als PDF exportieren …"))
+        pdf.setToolTip(self.tr("Lesbare Fassung als PDF/A mit Prüfwerten; die Original-Mail (.eml) wird eingebettet"))
+        pdf.clicked.connect(self._export_pdf)
         close = QPushButton(self.tr("Schließen"))
         close.clicked.connect(self.accept)
         bottom = QHBoxLayout()
         bottom.addWidget(note, 1)
+        bottom.addWidget(pdf)
         bottom.addWidget(close)
         lay = QVBoxLayout(self)
         lay.addWidget(head)
         lay.addWidget(integrity)
         lay.addWidget(tabs, 1)
         lay.addLayout(bottom)
+
+    def _export_pdf(self) -> None:
+        from fed.core.mailpdf import export_name
+
+        export_pdf(self, self.case, [self.view.message_id], export_name(self.view))
 
     # ------------------------------------------------------------ Tabs
     def _content_tab(self) -> QWidget:

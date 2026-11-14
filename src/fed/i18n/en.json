@@ -586,5 +586,15 @@
   "Aktuelle Uhrzeit einfügen (Gerätezeit)": "Insert current time (device time)",
   "Ja – eigenes Gerät\nNein – Gerät der betroffenen Person\nFED beenden – Programm schließen\n\nDie Antwort wird in jedem Fall dieser Sitzung im Protokoll und im Bericht dokumentiert.": "Yes – own device\nNo – device of the person concerned\nQuit FED – close the program\n\nThe answer is documented in the log and report of every case in this session.",
   "eigenes Gerät": "own device",
-  "Gerät der betroffenen Person": "device of the person concerned"
+  "Gerät der betroffenen Person": "device of the person concerned",
+  "Alle markierten Mails in ein PDF/A (je Mail eine neue Seite, Original-Mails eingebettet)": "All selected messages in one PDF/A (each message on a new page, original messages embedded)",
+  "Als PDF exportieren": "Export as PDF",
+  "Als PDF exportieren …": "Export as PDF …",
+  "Bitte zuerst eine oder mehrere Mails markieren.": "Please select one or more messages first.",
+  "Doppelklick: Mail ansehen (nur lesend) · mehrere markieren: Strg/Umschalt": "Double-click: view message (read-only) · select several: Ctrl/Shift",
+  "Eine Kopie liegt im Fall-Ordner unter „exports“.": "A copy is stored in the case folder under “exports”.",
+  "Lesbare Fassung als PDF/A mit Prüfwerten; die Original-Mail (.eml) wird eingebettet": "Readable version as PDF/A with checksums; the original message (.eml) is embedded",
+  "Markierte Mails als PDF …": "Selected messages as PDF …",
+  "PDF gespeichert (PDF/A, Original-Mail eingebettet).\nSHA-256: {0}": "PDF saved (PDF/A, original message embedded).\nSHA-256: {0}",
+  "PDF konnte nicht erstellt werden:\n{0}": "Could not create the PDF:\n{0}"
 }

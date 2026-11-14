@@ -199,6 +199,8 @@ jobs:
           url="${{ github.server_url }}/${{ github.repository }}/releases/download/$tag/FED-$v-validation-report-en.pdf"
           [ -n "$tag" ] || url=""
           python -m validation.run --out validation-report --lang de,en --notes validation-notes.md --report-url "$url"
+      - name: PDF/A-3b prüfen (veraPDF)
+        run: bash packaging/verapdf.sh validation-report
       - name: Dateien benennen
         if: always()
         run: |

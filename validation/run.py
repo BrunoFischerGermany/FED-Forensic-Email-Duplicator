@@ -838,7 +838,7 @@ def write_pdf(rep: Report, lang: str, path: Path) -> None:
             self.cell(0, 5, f"{L['page']} {self.page_no()} / {{nb}}", align="R")
             self.set_text_color(0, 0, 0)
 
-    pdf = P(format="A4")
+    pdf = P(format="A4", enforce_compliance="PDFA_3B")  # PDF/A-3b wie alle FED-PDFs
     pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(True, 18)
     pdf.add_font("DejaVu", "", str(fonts / "DejaVuSans.ttf"))
@@ -846,6 +846,7 @@ def write_pdf(rep: Report, lang: str, path: Path) -> None:
     pdf.add_font("Mono", "", str(fonts / "DejaVuSansMono.ttf"))
     pdf.set_title(f"{APP_NAME} – {L['title']}")
     pdf.set_creator(rep.environment["tool"])
+    pdf.set_lang("de-DE" if lang == "de" else "en")
     pdf.add_page()
     pdf.set_font("DejaVu", "B", 15)
     pdf.cell(0, 9, L["title"], new_x="LMARGIN", new_y="NEXT")
