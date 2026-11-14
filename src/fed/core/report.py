@@ -27,6 +27,9 @@ def _load_labels() -> dict[str, dict[str, str]]:
             out[f.name[7:-5]] = json.loads(f.read_text(encoding="utf-8"))
     return out
 
+# Alle PDFs von FED sind PDF/A-3b (Archivformat: eingebettete Schriften, sRGB, XMP-Metadaten, Anhänge erlaubt).
+PDFA = "PDFA_3B"
+
 
 LABELS = _load_labels()
 
@@ -558,7 +561,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
             self.cell(0, 5, f"{L['page']} {self.page_no()} {L['of']} {{nb}}", align="R")
             self.set_text_color(0, 0, 0)
 
-    pdf = Report(format="A4")
+    pdf = Report(format="A4", enforce_compliance=PDFA)
     pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(True, 18)
     pdf.add_font("DejaVu", "", str(fonts / "DejaVuSans.ttf"))
@@ -572,6 +575,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdftext.setup(pdf, shaping=pdftext.needs_shaping(json.dumps(d, ensure_ascii=False, default=str)))
     pdf.set_title(f"{_title(d, L)} – {info['case_number']}")
     pdf.set_creator(f"{APP_NAME} {__version__}")
+    pdf.set_lang("de-DE" if language == "de" else "en")
     pdf.add_page()
     pdf.set_font("DejaVu", "B", 16)
     pdf.multi_cell(0, 9, _title(d, L), new_x="LMARGIN", new_y="NEXT")

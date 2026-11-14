@@ -1432,8 +1432,16 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Read-only from case.sqlite · every check is itself logged</translation>
     </message>
     <message>
-        <source>Doppelklick: Mail ansehen (nur lesend)</source>
-        <translation>Double-click: view mail (read-only)</translation>
+        <source>Doppelklick: Mail ansehen (nur lesend) · mehrere markieren: Strg/Umschalt</source>
+        <translation>Double-click: view message (read-only) · select several: Ctrl/Shift</translation>
+    </message>
+    <message>
+        <source>Markierte Mails als PDF …</source>
+        <translation>Selected messages as PDF …</translation>
+    </message>
+    <message>
+        <source>Alle markierten Mails in ein PDF/A (je Mail eine neue Seite, Original-Mails eingebettet)</source>
+        <translation>All selected messages in one PDF/A (each message on a new page, original messages embedded)</translation>
     </message>
     <message>
         <source>Konten</source>
@@ -1500,6 +1508,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>✗ {0} von {1} Dateien abweichend oder fehlend</source>
         <translation>✗ {0} of {1} files different or missing</translation>
+    </message>
+    <message>
+        <source>Bitte zuerst eine oder mehrere Mails markieren.</source>
+        <translation>Please select one or more messages first.</translation>
     </message>
     <message>
         <source>Ansicht als CSV speichern</source>
@@ -1816,6 +1828,26 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>unknown</translation>
     </message>
     <message>
+        <source>Als PDF exportieren</source>
+        <translation>Export as PDF</translation>
+    </message>
+    <message>
+        <source>PDF konnte nicht erstellt werden:
+{0}</source>
+        <translation>Could not create the PDF:
+{0}</translation>
+    </message>
+    <message>
+        <source>Eine Kopie liegt im Fall-Ordner unter „exports“.</source>
+        <translation>A copy is stored in the case folder under “exports”.</translation>
+    </message>
+    <message>
+        <source>PDF gespeichert (PDF/A, Original-Mail eingebettet).
+SHA-256: {0}</source>
+        <translation>PDF saved (PDF/A, original message embedded).
+SHA-256: {0}</translation>
+    </message>
+    <message>
         <source>Mail ansehen – {0}</source>
         <translation>View mail – {0}</translation>
     </message>
@@ -1890,6 +1922,14 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Echtheit</source>
         <translation>Authenticity</translation>
+    </message>
+    <message>
+        <source>Als PDF exportieren …</source>
+        <translation>Export as PDF …</translation>
+    </message>
+    <message>
+        <source>Lesbare Fassung als PDF/A mit Prüfwerten; die Original-Mail (.eml) wird eingebettet</source>
+        <translation>Readable version as PDF/A with checksums; the original message (.eml) is embedded</translation>
     </message>
     <message>
         <source>Schließen</source>

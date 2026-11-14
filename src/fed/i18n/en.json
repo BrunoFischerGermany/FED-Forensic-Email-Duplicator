@@ -591,5 +591,15 @@
   "Leer lassen, um die App-Registrierung des FED-Projekts zu nutzen (funktioniert für Outlook.com und alle Organisationen). Eine eigene Client-ID, z. B. aus dem Tenant der Behörde, hat Vorrang.": "Leave empty to use the FED project's app registration (works for Outlook.com and all organisations). Your own client ID, e.g. from the agency's tenant, takes precedence.",
   "Angemeldet wurde als {0} – nicht als das zu sichernde Postfach.": "Signed in as {0} – not as the mailbox to be acquired.",
   "Der Code ist in der Zwischenablage.": "The code has been copied to the clipboard.",
-  "Erneut kopieren": "Copy again"
+  "Erneut kopieren": "Copy again",
+  "Alle markierten Mails in ein PDF/A (je Mail eine neue Seite, Original-Mails eingebettet)": "All selected messages in one PDF/A (each message on a new page, original messages embedded)",
+  "Als PDF exportieren": "Export as PDF",
+  "Als PDF exportieren …": "Export as PDF …",
+  "Bitte zuerst eine oder mehrere Mails markieren.": "Please select one or more messages first.",
+  "Doppelklick: Mail ansehen (nur lesend) · mehrere markieren: Strg/Umschalt": "Double-click: view message (read-only) · select several: Ctrl/Shift",
+  "Eine Kopie liegt im Fall-Ordner unter „exports“.": "A copy is stored in the case folder under “exports”.",
+  "Lesbare Fassung als PDF/A mit Prüfwerten; die Original-Mail (.eml) wird eingebettet": "Readable version as PDF/A with checksums; the original message (.eml) is embedded",
+  "Markierte Mails als PDF …": "Selected messages as PDF …",
+  "PDF gespeichert (PDF/A, Original-Mail eingebettet).\nSHA-256: {0}": "PDF saved (PDF/A, original message embedded).\nSHA-256: {0}",
+  "PDF konnte nicht erstellt werden:\n{0}": "Could not create the PDF:\n{0}"
 }

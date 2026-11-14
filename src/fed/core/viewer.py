@@ -66,7 +66,8 @@ class MailView:
 
 def _row(case: Case, message_id: int) -> dict:
     cur = case.conn.execute(
-        "SELECT m.*, f.display_name AS folder, a.email AS account, a.evidence_number AS evidence, f.account_id "
+        "SELECT m.*, f.display_name AS folder, f.uidvalidity, a.email AS account, a.evidence_number AS evidence, "
+        "f.account_id "
         "FROM message m JOIN folder f ON f.id = m.folder_id JOIN account a ON a.id = f.account_id WHERE m.id = ?",
         (message_id,))
     r = cur.fetchone()

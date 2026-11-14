@@ -11,6 +11,18 @@
   mit einem anderen Konto an als dem zu sichernden, steht das direkt bei der Fehlermeldung
 - Gerätecode: Code groß angezeigt und automatisch in der Zwischenablage („Erneut kopieren“), Adresse anklickbar;
   Webadressen in Hinweisen öffnen den Browser
+- Mail als PDF: im Mail-Betrachter „Als PDF exportieren …“, in der Historie „Markierte Mails als PDF …“
+  (mehrere Mails in einem PDF, je Mail eine neue Seite). Inhalt: Zuordnung (Konto, Ordner, Datei im Archiv,
+  SHA-256 mit Prüfung, UID/UIDVALIDITY, INTERNALDATE), Kopfdaten, Echtheit (DKIM/SPF/DMARC), Text (bei reinen
+  HTML-Mails die Textfassung, ohne externe Inhalte), eingebettete Bilder, Anlagen mit erkanntem Format und
+  Auffälligkeiten, Weg (Received) und vollständige Kopfzeilen. Die Original-Mail (.eml) ist im PDF eingebettet
+  (PDF/A-3, Beziehung „Source“); jeder Export steht mit SHA-256 des PDF im Log, eine Kopie liegt im Fall-Ordner
+  unter `exports/` (nicht bei abgeschlossenem Fall). Sprache wie der Bericht des Falls
+- Alle PDFs von FED (Bericht, Mail-Export, Validierungsbericht) sind PDF/A-3b; CI prüft sie mit veraPDF.
+  Hinweis: PDF/A ist ein Archivformat (eingebettete Schriften, festgelegte Farben, Metadaten) – kein
+  Manipulationsschutz; maßgeblich bleiben die SHA-256-Werte im Log
+- Historie: die Aktualisierung alle 3 Sekunden setzt Markierung und Scrollposition nicht mehr zurück
+- fpdf2 ≥ 2.9 erforderlich
 
 ## 1.0.6 (in Entwicklung)
 

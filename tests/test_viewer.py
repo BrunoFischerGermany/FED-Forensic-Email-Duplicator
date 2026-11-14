@@ -1,4 +1,5 @@
 import hashlib
+import pytest
 
 from fed.core.config import Config
 from fed.core.finalize import finish_case
@@ -193,4 +194,53 @@ def test_gui_renders_real_image_pdf_and_cid(acquired):
     dlg._render_preview(exe, check("x.pdf", exe))
     assert dlg.preview.currentWidget() is dlg.pv_msg
     dlg.deleteLater()
+    app.processEvents()
+
+
+def test_gui_pdf_export_single_and_selection(acquired, monkeypatch, tmp_path):
+    import os
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6 import QtWidgets
+    from PySide6.QtCore import QItemSelectionModel
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.gui.history import HistoryTab
+    from fed.gui.viewer import MailViewer
+
+    case = acquired
+    asked = []
+
+    def save_name(parent, title, default, flt=""):
+        asked.append(default)
+        return str(tmp_path / f"out{len(asked)}"), flt
+
+    monkeypatch.setattr(QtWidgets.QFileDialog, "getSaveFileName", save_name)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", lambda *a, **k: 0)
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning", lambda *a, **k: pytest.fail(str(a)))
+
+    mid = _id(case, "Rechnung 2026-1187")
+    dlg = MailViewer(case, mid)
+    dlg._export_pdf()
+    assert asked[0].endswith(".pdf") and "uid" in asked[0]
+    assert (tmp_path / "out1.pdf").read_bytes().startswith(b"%PDF")
+    dlg.deleteLater()
+
+    page = HistoryTab(lambda: case)
+    page.show()
+    page.tabs.setCurrentWidget(page.mails)
+    page.refresh()
+    sel = page.mails.view.selectionModel()
+    for r in (0, 1):
+        sel.select(page.mails.proxy.index(r, 0),
+                   QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows)
+    page.refresh()  # Aktualisierung darf die Markierung nicht verlieren
+    assert len(page.selected_mail_ids()) == 2
+    page.export_pdf()
+    data = (tmp_path / "out2.pdf").read_bytes()
+    assert data.count(b"/AFRelationship /Source") == 2
+    assert len(list((case.root / "exports").glob("*.pdf"))) == 2
+    page.timer.stop()
+    page.hide()
+    page.deleteLater()
     app.processEvents()
