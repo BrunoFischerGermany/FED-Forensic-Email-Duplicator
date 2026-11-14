@@ -449,6 +449,7 @@ class AccountPage(QWidget):
     back = Signal()
     finish = Signal()
     new_account = Signal()
+    imported = Signal()  # nach einem Apple-Mail-Import: Konten/Historie aktualisieren
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -457,6 +458,14 @@ class AccountPage(QWidget):
         w, lay = page(self.tr("Konto einrichten"),
                       self.tr("Adresse eingeben – Server, Port und Verschlüsselung werden wie bei Thunderbird "
                               "automatisch ermittelt."))
+        self.import_btn = QPushButton(self.tr("Oder: Apple-Mail offline importieren …"))
+        self.import_btn.setToolTip(self.tr("Mails aus einem Apple-Mail-Ordner oder Abzug/Image offline in den Fall "
+                                           "einlesen (ohne Server, je Adresse ein Asservat)"))
+        self.import_btn.clicked.connect(self._import_applemail)
+        import_row = QHBoxLayout()
+        import_row.addWidget(self.import_btn)
+        import_row.addStretch(1)
+        lay.addLayout(import_row)
         self.accounts_card = Card(self.tr("Bereits in diesem Fall"))
         self.accounts = AccountsTable()
         self.accounts_card.add(self.accounts)
@@ -657,6 +666,18 @@ class AccountPage(QWidget):
                                         (account_id,)).fetchone()
         if row and normalize_email(self.email.text()) == row[0]:
             self.acc_notes.set_value(row[1], row[2])
+
+    def _import_applemail(self) -> None:
+        from fed.gui.applemail_dialog import AppleMailImportDialog
+
+        case = self.st.case
+        if case is None:
+            return
+        dlg = AppleMailImportDialog(self, case)
+        if dlg.exec():
+            rows = self.accounts.refresh(case)
+            self.accounts_card.setVisible(bool(rows))
+            self.imported.emit()
 
     def _pick(self, o: dict) -> None:
         """Konto aus der Übersicht übernehmen (Server, Port, Benutzer aus der Case-Datei)."""
@@ -1883,6 +1904,8 @@ class Assistant(QWidget):
         self.p_case.next.connect(self._after_case)
         self.p_case.imported.connect(self.refresh_accounts)
         self.p_case.imported.connect(self.case_changed.emit)
+        self.p_acc.imported.connect(self.refresh_accounts)
+        self.p_acc.imported.connect(self.case_changed.emit)
         self.p_acc.back.connect(lambda: self._show(0, 0))
         self.p_acc.next.connect(self._after_account)
         self.p_fold.back.connect(lambda: self._show(1, 2))

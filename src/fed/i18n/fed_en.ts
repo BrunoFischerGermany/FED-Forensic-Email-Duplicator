@@ -11,6 +11,14 @@
         <translation>Enter the address – server, port and encryption are detected automatically, like in Thunderbird.</translation>
     </message>
     <message>
+        <source>Oder: Apple-Mail offline importieren …</source>
+        <translation>Or: import Apple Mail offline …</translation>
+    </message>
+    <message>
+        <source>Mails aus einem Apple-Mail-Ordner oder Abzug/Image offline in den Fall einlesen (ohne Server, je Adresse ein Asservat)</source>
+        <translation>Read mail from an Apple Mail folder or capture/image into the case, offline (no server, one evidence item per address)</translation>
+    </message>
+    <message>
         <source>Bereits in diesem Fall</source>
         <translation>Already in this case</translation>
     </message>

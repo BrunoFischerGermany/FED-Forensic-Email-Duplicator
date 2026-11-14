@@ -625,5 +625,7 @@
   "{n} Konten importiert.": "{n} accounts imported.",
   "Fehlgeschlagen:": "Failed:",
   "Importiere …": "Importing …",
-  "Importiere {addr} …": "Importing {addr} …"
+  "Importiere {addr} …": "Importing {addr} …",
+  "Oder: Apple-Mail offline importieren …": "Or: import Apple Mail offline …",
+  "Mails aus einem Apple-Mail-Ordner oder Abzug/Image offline in den Fall einlesen (ohne Server, je Adresse ein Asservat)": "Read mail from an Apple Mail folder or capture/image into the case, offline (no server, one evidence item per address)"
 }
