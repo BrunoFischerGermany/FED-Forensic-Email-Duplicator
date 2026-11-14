@@ -191,6 +191,10 @@ class SettingsTab(QWidget):
         self.g_id, self.g_secret, self.m_id, self.m_tenant = QLineEdit(), PasswordField(), QLineEdit(), QLineEdit()
         f.addRow(self.tr("Google Client-ID"), self.g_id)
         f.addRow(self.tr("Google Client-Secret"), self.g_secret)
+        self.m_id.setPlaceholderText(self.tr("leer = App-Registrierung von FED"))
+        self.m_id.setToolTip(self.tr("Leer lassen, um die App-Registrierung des FED-Projekts zu nutzen (funktioniert "
+                                     "für Outlook.com und alle Organisationen). Eine eigene Client-ID, z. B. aus dem "
+                                     "Tenant der Behörde, hat Vorrang."))
         f.addRow(self.tr("Microsoft Client-ID"), self.m_id)
         f.addRow(self.tr("Microsoft Tenant"), self.m_tenant)
         o.add(f)

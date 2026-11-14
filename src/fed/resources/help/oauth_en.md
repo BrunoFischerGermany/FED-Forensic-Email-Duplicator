@@ -26,7 +26,23 @@ Live, MSN) on 16 Sept 2024. App passwords count as basic auth and are rejected a
 if some guides on the web say otherwise. FED therefore only offers **"Microsoft 365 (OAuth)"**
 for Microsoft.
 
-### Register the app
+### No setup: FED's app registration
+
+FED ships with its own app registration (**"FED – Forensic Email Duplicator"**, client ID
+`8de90383-c0ec-4221-9ed6-bd9300cd455c`). Leave *Microsoft client ID* under **Settings → Google / Microsoft 365** **empty**
+to use it. It works for personal accounts (Outlook.com, Hotmail, Live) and for accounts of
+any organisation. FED only receives `IMAP.AccessAsUser.All` (read the mailbox via IMAP),
+`offline_access`, `openid`, `email` and `profile`; there is no client secret.
+
+**Organisation accounts:** many organisations only let users consent to apps they have
+approved. If "Admin approval required" appears (AADSTS65001 / AADSTS90094), a tenant
+administrator can approve FED once for everyone:
+`https://login.microsoftonline.com/<tenant ID or domain>/adminconsent?client_id=8de90383-c0ec-4221-9ed6-bd9300cd455c`
+Alternatively the organisation registers its own app (next section).
+
+### Optional: your own app registration
+
+For agencies that only allow apps from their own tenant:
 
 1. Open the [Microsoft Entra admin center](https://entra.microsoft.com/) → *Entra ID* →
    *App registrations* → *New registration*.
@@ -73,10 +89,11 @@ microsoft.com/devicelogin.
 | Message contains | Cause | Fix |
 |---|---|---|
 | AADSTS50020, AADSTS700016, "not enabled for consumers" | Account type not allowed in the app registration | Add personal accounts to the account types, tenant `common` |
-| AADSTS65001 | Consent missing | Admin: *Grant admin consent* |
+| AADSTS65001, AADSTS90094 | Consent missing (organisation only allows approved apps) | Admin approves FED (link above) or *Grant admin consent* for your own app |
 | AADSTS7000218 | Device code not allowed | *Allow public client flows = Yes* |
 | AADSTS53003 | Conditional Access policy | Ask the tenant administrator |
 | AUTHENTICATE failed after successful sign-in | IMAP disabled for the mailbox | Allow IMAP (see above) |
+| “User is authenticated but not connected” | Sign-in OK, Microsoft refuses the mailbox: IMAP off or only just switched on, other account in the browser, sign-in not confirmed, too many connections | Allow IMAP and wait a while; [account.live.com/activity](https://account.live.com/activity) → “This was me”; close other mail programs, retry later |
 
 ---
 

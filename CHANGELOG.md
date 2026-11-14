@@ -2,6 +2,15 @@
 
 ## 1.0.7 (in Entwicklung)
 
+- Microsoft ohne Einrichtung: FED bringt eine eigene App-Registrierung mit (mehrinstanzenfähig und für
+  private Konten, öffentlicher Client ohne Secret). Bleibt *Microsoft Client-ID* in den Einstellungen leer,
+  wird sie genutzt; eine eigene Client-ID hat weiter Vorrang. Das Log (`oauth_login`) nennt die verwendete
+  Client-ID. Anleitung: Freigabe-Link für Administratoren von Organisationen, die nur freigegebene Apps zulassen
+- Verbindungstest Microsoft: bei „User is authenticated but not connected“ (Anmeldung ok, Postfach abgelehnt)
+  konkrete Hinweise (IMAP erlauben, Anmeldung bestätigen, andere Programme schließen); meldet sich jemand
+  mit einem anderen Konto an als dem zu sichernden, steht das direkt bei der Fehlermeldung
+- Gerätecode: Code groß angezeigt und automatisch in der Zwischenablage („Erneut kopieren“), Adresse anklickbar;
+  Webadressen in Hinweisen öffnen den Browser
 - Mail als PDF: im Mail-Betrachter „Als PDF exportieren …“, in der Historie „Markierte Mails als PDF …“
   (mehrere Mails in einem PDF, je Mail eine neue Seite). Inhalt: Zuordnung (Konto, Ordner, Datei im Archiv,
   SHA-256 mit Prüfung, UID/UIDVALIDITY, INTERNALDATE), Kopfdaten, Echtheit (DKIM/SPF/DMARC), Text (bei reinen

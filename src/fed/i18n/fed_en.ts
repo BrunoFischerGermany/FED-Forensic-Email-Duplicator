@@ -207,6 +207,10 @@
         <translation>Enter code {0} at {1}</translation>
     </message>
     <message>
+        <source>Der Code ist in der Zwischenablage.</source>
+        <translation>The code has been copied to the clipboard.</translation>
+    </message>
+    <message>
         <source>✓ erfolgreich</source>
         <translation>✓ successful</translation>
     </message>
@@ -241,6 +245,10 @@
     <message>
         <source>Bitte prüfen: Benutzername und Passwort korrekt? Bei vielen Anbietern muss der Zugriff per IMAP erst im Webmail freigeschaltet werden (z. B. GMX/WEB.DE: Einstellungen → POP3/IMAP Abruf), oder es ist ein App-Passwort nötig (z. B. bei aktivierter Zwei-Faktor-Anmeldung, iCloud, Yahoo).</source>
         <translation>Please check: are user name and password correct? Many providers require IMAP access to be enabled in the webmail first (e.g. GMX/WEB.DE: Settings → POP3/IMAP), or an app password is needed (e.g. with two-factor sign-in enabled, iCloud, Yahoo).</translation>
+    </message>
+    <message>
+        <source>Angemeldet wurde als {0} – nicht als das zu sichernde Postfach.</source>
+        <translation>Signed in as {0} – not as the mailbox to be acquired.</translation>
     </message>
     <message>
         <source>✗ fehlgeschlagen: </source>
@@ -2530,6 +2538,14 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Google Client-Secret</source>
         <translation>Google client secret</translation>
+    </message>
+    <message>
+        <source>leer = App-Registrierung von FED</source>
+        <translation>empty = FED's app registration</translation>
+    </message>
+    <message>
+        <source>Leer lassen, um die App-Registrierung des FED-Projekts zu nutzen (funktioniert für Outlook.com und alle Organisationen). Eine eigene Client-ID, z. B. aus dem Tenant der Behörde, hat Vorrang.</source>
+        <translation>Leave empty to use the FED project's app registration (works for Outlook.com and all organisations). Your own client ID, e.g. from the agency's tenant, takes precedence.</translation>
     </message>
     <message>
         <source>Microsoft Client-ID</source>

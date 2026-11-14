@@ -421,3 +421,24 @@ def test_workers_are_released_in_gui_thread():
     assert sorted(results) == [0, 2, 4, 6, 8]
     _pump(app, lambda: not any(w in widgets._running for w in workers), 5)
     assert all(not w.thread.isRunning() and w.relay is None for w in workers)
+
+
+def test_device_code_clipboard_and_link(monkeypatch):
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core import oauth
+    from fed.core.config import Config
+    from fed.gui.assistant import AccountPage, State
+
+    p = AccountPage(State(Config()))
+    p._show_device_code(oauth.DeviceCode("ABCD1234", "https://www.microsoft.com/link", "", "x"))
+    assert app.clipboard().text() == "ABCD1234"
+    t = p.test_state.text()
+    assert '<a href="https://www.microsoft.com/link">' in t and "ABCD1234" in t
+    opened = []
+    monkeypatch.setattr("fed.gui.assistant.QDesktopServices.openUrl", lambda u: opened.append(u.toString()))
+    app.clipboard().setText("")
+    p._open_link("copy:")
+    assert app.clipboard().text() == "ABCD1234"
+    p._open_link("https://www.microsoft.com/link")
+    assert opened == ["https://www.microsoft.com/link"]
+    p.deleteLater()
