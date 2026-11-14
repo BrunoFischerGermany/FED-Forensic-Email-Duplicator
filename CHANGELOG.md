@@ -2,6 +2,11 @@
 
 ## 1.0.7 (in Entwicklung)
 
+- Apple-Mail-Import (erster Baustein, nur Lesen): `fed.core.applemail` liest ein macOS-`~/Library/Mail/V#`-
+  Verzeichnis – Konten (UUID-Ordner), verschachtelte `.mbox`-Ordner, `.emlx`/`.partial.emlx` byte-genau
+  (Längenzeile + N Bytes rohe Mail), Flags/Datum aus dem Apple-Plist. Konto→Adresse maßgeblich aus
+  `~/Library/Accounts/Accounts4.sqlite` (inkl. `IdentityEmailAddress`, Aliase, Name), sonst Heuristik aus
+  den Kopfzeilen zur Bestätigung. Noch ohne GUI/Sicherungs-Anbindung (folgt)
 - Yahoo: wird erkannt; FED stellt den von Yahoo für Sicherungen genannten Server `export.imap.mail.yahoo.com`
   ein (steht im Protokoll der Autoerkennung) und zeigt unter dem Passwortfeld den Hinweis auf das Yahoo-App-Passwort
   mit Link zur Kontosicherheit und zur Anleitung (neuer Abschnitt „Yahoo“)
