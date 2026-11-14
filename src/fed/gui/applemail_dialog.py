@@ -93,7 +93,11 @@ class AppleMailImportDialog(QDialog):
             self.ok.setEnabled(False)
             self.info.setText(self.tr("Hier wurde kein Apple-Mail-Speicher gefunden."))
             return
+        # Accounts4.sqlite im gewählten Ordner – oder neben dem Mail-Speicher (~/Library/Accounts liegt
+        # neben ~/Library/Mail, nicht darin).
         db = applemail.find_accounts_db(root)
+        if db is None:
+            db = next((d for v in v10s if (d := applemail.accounts_db_near(v))), None)
         self.choices = [c for v in v10s for c in imp.scan(v, db)]
         self._fill()
         src = self.tr("Adressen aus Accounts4.sqlite") if db else self.tr(

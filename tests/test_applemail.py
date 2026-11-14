@@ -162,3 +162,16 @@ def test_find_in_image_tree_and_prefer_main_accounts_db(tmp_path):
     assert db == acc / "Accounts4.sqlite" and "VerifiedBackup" not in db.parts
     # .mbox-Bündel werden bei der Suche nicht betreten (keine Fehltreffer, nicht langsam)
     assert am.find_v10_dirs(v9 / ACCT_A / "INBOX.mbox") == []
+
+
+def test_accounts_db_found_next_to_mail(tmp_path):
+    # Reales Layout: Accounts liegt NEBEN Mail, nicht darin
+    lib = tmp_path / "Users" / "x" / "Library"
+    v10 = lib / "Mail" / "V10"
+    _msg(v10 / ACCT_A / "INBOX.mbox", 1, _mail("a@b.example"))
+    (lib / "Accounts").mkdir(parents=True)
+    (lib / "Accounts" / "Accounts4.sqlite").write_bytes(b"x")
+    # In ~/Library/Mail selbst steckt keine Accounts-DB ...
+    assert am.find_accounts_db(lib / "Mail") is None
+    # ... aber daneben wird sie gefunden
+    assert am.accounts_db_near(v10) == lib / "Accounts" / "Accounts4.sqlite"

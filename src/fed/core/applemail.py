@@ -222,6 +222,20 @@ def find_accounts_db(root: Path, max_depth: int = 10) -> Path | None:
     return hits[0] if hits else None
 
 
+def accounts_db_near(v10_dir: Path) -> Path | None:
+    """``Accounts4.sqlite`` **neben** dem Mail-Speicher finden.
+
+    ``~/Library/Accounts`` liegt neben ``~/Library/Mail`` (nicht darin). Steigt vom ``V#``-Ordner die
+    Eltern hoch bis zu ``Library`` und prüft dort ``Accounts/Accounts4.sqlite``."""
+    for anc in v10_dir.parents:
+        cand = anc / "Accounts" / "Accounts4.sqlite"
+        if cand.is_file():
+            return cand
+        if anc.name == "Library":
+            break
+    return None
+
+
 @dataclass
 class AccountInfo:
     """Maßgebliche Konto-Angaben aus ``~/Library/Accounts/Accounts4.sqlite``."""
