@@ -599,6 +599,14 @@ No = delete permanently.</translation>
         <translation>No folder chosen</translation>
     </message>
     <message>
+        <source>Apple Mail dieses Macs</source>
+        <translation>This Mac's Apple Mail</translation>
+    </message>
+    <message>
+        <source>Direkt das Postfach des angemeldeten Benutzers (~/Library/Mail) einlesen</source>
+        <translation>Read the signed-in user's mailbox directly (~/Library/Mail)</translation>
+    </message>
+    <message>
         <source>Ordner wählen …</source>
         <translation>Choose folder …</translation>
     </message>

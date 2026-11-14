@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDir, Qt
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel,
                                QMessageBox, QProgressDialog, QPushButton, QTableWidget, QTableWidgetItem,
                                QVBoxLayout, QWidget)
@@ -35,9 +35,15 @@ class AppleMailImportDialog(QDialog):
             "Adressen aus „Accounts4.sqlite“.")))
         top = QHBoxLayout()
         self.path_lbl = QLabel(self.tr("Kein Ordner gewählt"))
+        top.addWidget(self.path_lbl, 1)
+        self.this_mac = QPushButton(self.tr("Apple Mail dieses Macs"))
+        self.this_mac.setToolTip(self.tr("Direkt das Postfach des angemeldeten Benutzers (~/Library/Mail) einlesen"))
+        self.this_mac.clicked.connect(lambda: self.load(_this_mac_mail()))
+        if _this_mac_mail() is None:
+            self.this_mac.setVisible(False)
         browse = QPushButton(self.tr("Ordner wählen …"))
         browse.clicked.connect(self._choose)
-        top.addWidget(self.path_lbl, 1)
+        top.addWidget(self.this_mac)
         top.addWidget(browse)
         lay.addLayout(top)
 
@@ -65,9 +71,16 @@ class AppleMailImportDialog(QDialog):
 
     # ------------------------------------------------------------ Ordner wählen und einlesen
     def _choose(self) -> None:
-        d = QFileDialog.getExistingDirectory(self, self.tr("Ordner mit Apple-Mail-Daten"))
-        if d:
-            self.load(Path(d))
+        # macOS blendet ~/Library aus: Dialog gleich dort öffnen, wo die Mail-Daten liegen, und
+        # versteckte Ordner zeigen (nicht-nativer Dialog), damit „Library“ sichtbar ist.
+        start = _this_mac_mail() or Path.home()
+        opts = QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ShowDirsOnly
+        dlg = QFileDialog(self, self.tr("Ordner mit Apple-Mail-Daten"), str(start))
+        dlg.setFileMode(QFileDialog.FileMode.Directory)
+        dlg.setOptions(opts)
+        dlg.setFilter(dlg.filter() | QDir.Filter.Hidden)
+        if dlg.exec() and dlg.selectedFiles():
+            self.load(Path(dlg.selectedFiles()[0]))
 
     def load(self, root: Path) -> None:
         """Sucht Mail-Speicher und Accounts-DB unter ``root`` und füllt die Tabelle (auch für Tests)."""
@@ -156,3 +169,9 @@ class AppleMailImportDialog(QDialog):
 
 def _partials(choice: imp.AccountChoice) -> int:
     return sum(1 for f in choice.account.folders for m in f.messages() if m.partial)
+
+
+def _this_mac_mail() -> Path | None:
+    """``~/Library/Mail`` des angemeldeten Benutzers, falls vorhanden (nur auf dem laufenden Mac)."""
+    p = Path.home() / "Library" / "Mail"
+    return p if p.is_dir() else None
