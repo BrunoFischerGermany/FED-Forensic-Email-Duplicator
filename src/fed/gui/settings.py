@@ -189,6 +189,10 @@ class SettingsTab(QWidget):
         o = Card(self.tr("Google / Microsoft 365"))
         f = QFormLayout()
         self.g_id, self.g_secret, self.m_id, self.m_tenant = QLineEdit(), PasswordField(), QLineEdit(), QLineEdit()
+        self.g_id.setPlaceholderText(self.tr("leer = Gmail per App-Passwort"))
+        self.g_id.setToolTip(self.tr("Nur für ein eigenes Google-Projekt (z. B. Google Workspace der Behörde, "
+                                     "Zielgruppe „Intern“). Erst mit eingetragener Client-ID erscheint bei der "
+                                     "Anmeldung „Google (OAuth)“. Ohne: Anmeldung per App-Passwort."))
         f.addRow(self.tr("Google Client-ID"), self.g_id)
         f.addRow(self.tr("Google Client-Secret"), self.g_secret)
         self.m_id.setPlaceholderText(self.tr("leer = App-Registrierung von FED"))

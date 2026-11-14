@@ -122,6 +122,7 @@
   "Versuch {nr}: {status} · gesichert {saved} · bereits vorhanden {skipped} · erwartet {expected}": "Attempt {nr}: {status} · saved {saved} · already present {skipped} · expected {expected}",
   "WERT": "VALUE",
   "Wiederholen: ": "Repeat: ",
+  "Yahoo: Server für Sicherungen eingesetzt ({host})": "Yahoo: server for backups used ({host})",
   "ZIP-Aufteilung unbekannt: {mode}": "Unknown ZIP mode: {mode}",
   "ZIP-Prüfsumme (CRC) fehlerhaft": "ZIP checksum (CRC) faulty",
   "ZIP-Verifikation fehlgeschlagen: {problems}": "ZIP verification failed: {problems}",

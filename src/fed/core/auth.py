@@ -21,11 +21,16 @@ AUTH_METHODS = ("password", "app_password_google", "oauth_google", "oauth_micros
 
 GMAIL_HOSTS = {"imap.gmail.com", "imap.googlemail.com"}
 APP_PASSWORD_URL = "https://myaccount.google.com/apppasswords"
+YAHOO_APP_PASSWORD_URL = "https://login.yahoo.com/account/security"
 _APP_PW = re.compile(r"^\s*([a-z]{4})\s*([a-z]{4})\s*([a-z]{4})\s*([a-z]{4})\s*$")
 
 
 def is_gmail(host: str) -> bool:
     return host.strip().lower().rstrip(".") in GMAIL_HOSTS
+
+
+def is_yahoo(host: str) -> bool:
+    return host.strip().lower().endswith("mail.yahoo.com")
 
 
 def is_microsoft(host: str) -> bool:

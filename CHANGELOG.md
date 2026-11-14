@@ -2,6 +2,12 @@
 
 ## 1.0.7 (in Entwicklung)
 
+- Yahoo: wird erkannt; FED stellt den von Yahoo für Sicherungen genannten Server `export.imap.mail.yahoo.com`
+  ein (steht im Protokoll der Autoerkennung) und zeigt unter dem Passwortfeld den Hinweis auf das Yahoo-App-Passwort
+  mit Link zur Kontosicherheit und zur Anleitung (neuer Abschnitt „Yahoo“)
+- Google: „Google (OAuth)“ erscheint nur noch, wenn in den Einstellungen eine eigene Google-Client-ID eingetragen
+  ist (FED hat keine eigene Google-App); Standard für Gmail ist das App-Passwort. Anleitung entsprechend umgebaut
+  (App-Passwort zuerst, eigenes Google-Projekt optional), Links im Google-Hinweis anklickbar
 - Outlook.com/Exchange: Sicherung brach mit „UID …: … Bytes geladen, Server meldet …“ ab, weil Exchange als
   RFC822.SIZE nur einen Schätzwert liefert. Die Vollständigkeit wird jetzt über die Längenangabe der
   IMAP-Antwort selbst geprüft (unvollständige Übertragung bleibt ein Fehler); weicht RFC822.SIZE ab, steht

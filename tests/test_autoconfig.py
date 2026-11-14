@@ -63,3 +63,19 @@ def test_umlaut_domain_idna():
 
 def test_is_removable_does_not_crash(tmp_path):
     assert is_removable(tmp_path) in (True, False, None)
+
+
+def test_yahoo_uses_export_server():
+    from fed.core.autoconfig import YAHOO_EXPORT_HOST, Provider
+
+    xml = b"""<clientConfig><emailProvider id="yahoo.com"><incomingServer type="imap">
+      <hostname>imap.mail.yahoo.com</hostname><port>993</port><socketType>SSL</socketType>
+      <username>%EMAILADDRESS%</username></incomingServer></emailProvider></clientConfig>"""
+
+    def get(url):
+        return xml if "ispdb" in url or "autoconfig.thunderbird" in url or "v1.1/" in url else None
+
+    s, log = discover("duplicator.imap@yahoo.com", http_get=get, dns_lookup=lambda *a: [],
+                      port_open=lambda *a: False)
+    assert s.provider is Provider.YAHOO and s.host == YAHOO_EXPORT_HOST and s.port == 993
+    assert any("Yahoo" in ln for ln in log)

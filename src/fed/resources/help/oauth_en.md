@@ -1,11 +1,14 @@
-# Setting up sign-in for Google and Microsoft
+# Signing in with Google, Microsoft and Yahoo
 
-Gmail/Google Workspace and Microsoft 365/Outlook.com only allow IMAP for modern accounts
-via **OAuth**. For this, FED must be **registered as an app** with the provider once. Each
-agency creates this registration itself (about 15 minutes per provider) and enters the ID
-under **Settings → Google / Microsoft 365**.
+Which sign-in FED uses per provider:
 
-What FED does:
+- **Microsoft 365 / Outlook.com:** **OAuth** only. FED ships its own app registration –
+  no setup needed.
+- **Gmail / Google Workspace:** **app password** (default). OAuth only with the agency's own
+  Google project.
+- **Yahoo:** **app password**.
+
+What FED does with OAuth:
 
 - Sign-in takes place in the computer's **browser** or via **device code** on another
   device. FED never sees the account password; 2FA works as usual.
@@ -99,31 +102,16 @@ microsoft.com/devicelogin.
 
 ## Google (Gmail, Google Workspace)
 
-1. **Create a project:** [Google Cloud Console](https://console.cloud.google.com/) →
-   *New project*, e.g. "FED Sample Forensics".
-2. **Google Auth Platform → Branding:** app name (e.g. "FED – Sample Forensics Ltd"),
-   support email, contact. The name appears in the consent window.
-3. **Audience:**
-   - *Internal* – only accounts of your own Google Workspace organization, no review by
-     Google needed.
-   - *External* – any Google account. In **Testing** status only registered test users
-     (max. 100) can consent, and consent **expires after 7 days**. For third-party accounts,
-     add the account as a test user or publish the app (Google then reviews the Gmail scope).
-4. **Data Access:** add the scope `https://mail.google.com/`, plus `openid` and `email`.
-5. **Clients → Create client:** application type **Desktop app**. Copy client ID and
-   client secret.
-6. In FED, under **Settings → Google / Microsoft 365**, enter *Google client ID* and
-   *Google client secret* (intended for desktop apps, not considered secret).
-
 Server `imap.gmail.com`, port 993, SSL. IMAP must be enabled in the Gmail account.
 
 Gmail shows labels as folders: a message with several labels is in several folders
 (including "All Mail"). FED stores `X-GM-MSGID` so duplicates are recognized in the report.
 
-### Without OAuth: Google app password
+### Default: Google app password
 
-If no Google client ID is entered, FED automatically suggests **"Google (app password)"** for
-Gmail.
+FED has **no Google app of its own**: for full Gmail access Google requires a public app to
+pass a review and possibly an annual security assessment – not feasible for an open-source
+project. Gmail therefore uses **"Google (app password)"**.
 
 1. Turn on **2-Step Verification** in the Google account (prerequisite).
 2. Create an app password at
@@ -133,9 +121,41 @@ Gmail.
 4. After the acquisition, **delete** the app password on the same page.
 
 In Google Workspace the administrator must allow app passwords; accounts with "Advanced
-Protection" have no app passwords.
+Protection" have no app passwords. Then only your own Google project helps (next section).
+
+### Optional: your own Google project (OAuth)
+
+For agencies with Google Workspace whose administrator has turned off app passwords.
+**"Google (OAuth)"** appears at sign-in only once a Google client ID is entered.
+
+1. **Create a project:** [Google Cloud Console](https://console.cloud.google.com/) →
+   *New project*, e.g. "FED Sample Forensics".
+2. **Google Auth Platform → Branding:** app name (e.g. "FED – Sample Forensics Ltd"),
+   support email, contact. The name appears in the consent window.
+3. **Audience:**
+   - *Internal* – only accounts of your own Google Workspace organization, no review by
+     Google needed. **Recommended.**
+   - *External* – any Google account. In **Testing** status only registered test users
+     (max. 100) can consent, and consent **expires after 7 days** – for tests only.
+4. **Data Access:** add the scope `https://mail.google.com/`, plus `openid` and `email`.
+5. **Clients → Create client:** application type **Desktop app**. Copy client ID and
+   client secret.
+6. In FED, under **Settings → Google / Microsoft 365**, enter *Google client ID* and
+   *Google client secret* (intended for desktop apps, not considered secret).
 
 ---
+
+## Yahoo
+
+Yahoo only accepts an **app password** for IMAP, not the normal password.
+
+1. At [login.yahoo.com/account/security](https://login.yahoo.com/account/security)
+   (Account security) choose **"Generate app password"**, name e.g. "FED", copy the password.
+2. Enter the Yahoo address in FED. FED sets the **server for backups**
+   `export.imap.mail.yahoo.com` (port 993, SSL) – Yahoo names it for downloading whole
+   mailboxes; `imap.mail.yahoo.com` is meant for mail programs.
+3. Sign-in method **"Password"**, enter the app password.
+4. After the acquisition, **delete** the app password in Account security again.
 
 ## After the acquisition
 
