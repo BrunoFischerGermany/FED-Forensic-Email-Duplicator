@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, Signal
 from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QFrame, QHeaderView, QLabel,
                                QProgressBar, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
@@ -47,6 +49,16 @@ def _short_time(value: str | None) -> str:
 def incomplete(case: Case) -> list[dict]:
     """Konten, die noch nicht vollständig gesichert sind."""
     return [o for o in accounts_overview(case) if o["state"] != "done"]
+
+
+def _evidence_key(ev: str) -> list:
+    """Natürlicher Sortierschlüssel für Asservatennummern: „A-2“ vor „A-10“."""
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", ev or "")]
+
+
+def by_evidence(rows: list[dict]) -> list[dict]:
+    """Konten nach Asservatennummer A→Z sortieren (für die Anzeige in Leiste und Tabelle)."""
+    return sorted(rows, key=lambda o: _evidence_key(o.get("evidence", "")))
 
 
 NOTE_COL = 8
@@ -109,6 +121,7 @@ class AccountsTable(QWidget):
         self.case: Case | None = None
         self._current = ""
         self.table = QTableWidget(0, len(self.COLS))
+        self.table.setCursor(Qt.CursorShape.PointingHandCursor)
         self.table.cellClicked.connect(self._clicked)
         self.table.cellDoubleClicked.connect(self._double_clicked)
         self.table.setHorizontalHeaderLabels([_tr(c) for c in self.COLS])
@@ -139,8 +152,13 @@ class AccountsTable(QWidget):
         return self.case is not None and not self.case.closed
 
     def _clicked(self, r: int, c: int) -> None:
-        if c == NOTE_COL and r < len(self.rows) and self.editable:
-            self.edit_note(r)
+        if r >= len(self.rows):
+            return
+        if c == NOTE_COL:
+            if self.editable:
+                self.edit_note(r)
+        else:  # Einfachklick wie in der linken Leiste: Konto öffnen bzw. laufende Sicherung ansehen
+            self.picked.emit(self.rows[r])
 
     def _double_clicked(self, r: int, c: int) -> None:
         if c != NOTE_COL and r < len(self.rows):
@@ -167,7 +185,7 @@ class AccountsTable(QWidget):
         from fed.gui import theme
 
         self.case, self._current = case, current_email
-        self.rows = accounts_overview(case) if case else []
+        self.rows = by_evidence(accounts_overview(case)) if case else []
         t = theme.tokens()
         self.table.setRowCount(len(self.rows))
         for r, o in enumerate(self.rows):
@@ -287,7 +305,7 @@ class AccountsRail(QWidget):
         self.jobs = None  # JobManager
 
     def refresh(self, case: Case | None) -> None:
-        rows = accounts_overview(case) if case else []
+        rows = by_evidence(accounts_overview(case)) if case else []
         self.add_btn.setVisible(case is not None and not case.closed)
         jobs = self.jobs
         live = {j.account_id for j in jobs.running()} if jobs else set()

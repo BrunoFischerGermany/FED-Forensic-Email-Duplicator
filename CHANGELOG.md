@@ -2,6 +2,11 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- Konten werden in der linken Leiste und in der Tabelle „Konten in diesem Fall" nach Asservatennummer
+  **A→Z** sortiert (natürlich: „A-2" vor „A-10")
+- Tabelle „Konten in diesem Fall" ist jetzt **per Klick** bedienbar wie die linke Leiste: Einfachklick auf
+  eine Zeile öffnet das Konto bzw. zeigt eine laufende Sicherung an (die Notiz-Spalte bleibt zum Bearbeiten)
+
 - Apple-Mail-Import: Adressen aus `Accounts4.sqlite` (Quelle „Accounts-DB") sind jetzt
   **schreibgeschützt** – sie stammen autoritativ aus den Konteneinstellungen und dürfen nicht verändert
   werden. Nur nicht-autoritative Adressen („Kopfzeilen (prüfen)" / „unbekannt") bleiben editierbar, damit

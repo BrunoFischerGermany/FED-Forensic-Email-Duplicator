@@ -31,8 +31,8 @@
         <translation>Already in this case</translation>
     </message>
     <message>
-        <source>Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues Konto unten die Adresse eingeben.</source>
-        <translation>Double-click an account to resume it; for a new account enter the address below.</translation>
+        <source>Klick auf ein Konto übernimmt es zum Fortsetzen; für ein neues Konto unten die Adresse eingeben.</source>
+        <translation>Click an account to resume it; for a new account enter the address below.</translation>
     </message>
     <message>
         <source>E-Mail-Adresse *</source>

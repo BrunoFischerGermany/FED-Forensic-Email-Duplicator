@@ -100,7 +100,7 @@
   "Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden.": "This case is closed and can only be viewed in the history.",
   "Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Asservatennummer bleibt {0}.": "This account is already in the case ({0}, {1} {2}) – it will be resumed, the evidence number stays {0}.",
   "Differenz": "Difference",
-  "Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues Konto unten die Adresse eingeben.": "Double-click an account to resume it; for a new account enter the address below.",
+  "Klick auf ein Konto übernimmt es zum Fortsetzen; für ein neues Konto unten die Adresse eingeben.": "Click an account to resume it; for a new account enter the address below.",
   "Doppelklick: Mail ansehen (nur lesend)": "Double-click: view mail (read-only)",
   "Dunkel": "Dark",
   "Durchsuchen …": "Browse …",
