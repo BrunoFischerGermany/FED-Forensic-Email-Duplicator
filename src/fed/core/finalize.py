@@ -438,3 +438,30 @@ def zip_mode_for(case: Case, cfg: Config | None = None) -> str:
         return "gesamt"
     mode = case.zip_mode() or (cfg or Config()).programm.zip_aufteilung
     return mode if mode in case.ZIP_MODES else "gesamt"
+
+
+def preview_zip_names(case: Case, cfg: Config | None = None,
+                      when: datetime | None = None) -> list[tuple[str, str]]:
+    """Dateinamen der ZIP-Archive, die ``finish_case`` erzeugen würde – ohne etwas zu schreiben.
+
+    Spiegelt die Namensbildung aus :func:`build_zip` (gleiches Muster, gleiche Eindeutigkeit per
+    ``_unique_zip``, das nur prüft, nichts anlegt). Rückgabe je Archiv ``(Bezeichnung, Dateiname)``:
+    bei ``gesamt`` ein Eintrag mit leerer Bezeichnung, bei ``je_konto`` einer je Konto mit
+    Asservatennummer (sonst Adresse) als Bezeichnung. ``when`` nur für reproduzierbare Tests;
+    zeitabhängige Muster (``{zeit}`` …) sind in der Vorschau naturgemäß nur ein Momentwert.
+    """
+    cfg = cfg or Config()
+    info = case.info()
+    pattern = cfg.programm.zip_name_muster
+    now = when or datetime.now(UTC)
+    if zip_mode_for(case, cfg) == "je_konto":
+        out: list[tuple[str, str]] = []
+        for _aid, email, evidence in case.conn.execute(
+                "SELECT id, email, evidence_number FROM account ORDER BY id"):
+            base = zip_basename(pattern, case_number=info["case_number"], evidence=evidence or "",
+                                email=email, when=now, spaces_to_underscore=case.replace_spaces)
+            out.append((evidence or email, _unique_zip(case.root, base).name))
+        return out
+    base = zip_basename(pattern, case_number=info["case_number"], when=now,
+                        spaces_to_underscore=case.replace_spaces)
+    return [("", _unique_zip(case.root, base).name)]
