@@ -40,6 +40,7 @@ CSV_COLUMNS = [
     "Size", "File", "SHA256", "MD5", "SHA512", "Attempt",
     "DKIM", "DKIM_Domain", "DKIM_Detail", "Provider_SPF", "Provider_DKIM", "Provider_DMARC", "Provider_Authserv",
     "Gmail_MsgID", "Gmail_ThrID", "Gmail_Labels", "Gmail_Duplicate",
+    "Source", "Partial",
 ]
 _CHUNK = 1024 * 1024
 
@@ -69,7 +70,8 @@ def message_rows(case: Case) -> list[dict]:
         "m.attachments, m.subject, m.message_id, m.size, m.zip_path, m.sha256, m.md5, m.sha512, t.nr, "
         "m.dkim_result, m.dkim_domain, m.dkim_detail, m.auth_results, m.gm_msgid, m.gm_thrid, m.gm_labels, "
         "(SELECT COUNT(*) FROM message m2 JOIN folder f2 ON f2.id = m2.folder_id WHERE m2.status = 'valid' "
-        " AND m2.gm_msgid = m.gm_msgid AND f2.account_id = f.account_id) "
+        " AND m2.gm_msgid = m.gm_msgid AND f2.account_id = f.account_id), "
+        "m.source, m.partial "
         "FROM message m JOIN folder f ON f.id = m.folder_id JOIN account a ON a.id = f.account_id "
         "JOIN attempt t ON t.id = m.attempt_id WHERE m.status = 'valid' ORDER BY m.zip_path")
     rows = []
@@ -81,7 +83,8 @@ def message_rows(case: Case) -> list[dict]:
             _j(r[11]), r[12], r[13], names, r[15] or "", r[16] or "", r[17], r[18], r[19], r[20] or "",
             r[21] or "", r[22], r[23] or "", r[24] or "", r[25] or "", ar.get("spf", ""), ar.get("dkim", ""),
             ar.get("dmarc", ""), ar.get("authserv", ""), r[27] or "", r[28] or "",
-            ", ".join(json.loads(r[29])) if r[29] else "", "yes" if r[27] and r[30] > 1 else ""], strict=True)))
+            ", ".join(json.loads(r[29])) if r[29] else "", "yes" if r[27] and r[30] > 1 else "",
+            "apple_mail" if r[31] == "apple_mail" else "imap", "yes" if r[32] else ""], strict=True)))
     return rows
 
 
