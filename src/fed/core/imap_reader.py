@@ -12,7 +12,6 @@ from __future__ import annotations
 import hashlib
 import imaplib
 import re
-import ssl
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta, timezone
 
@@ -169,7 +168,8 @@ class ReadOnlyImap:
         self.port = port
         self.security = security
         self.timeout = timeout
-        self.ssl_context = ssl.create_default_context(cafile=cafile)  # Zertifikat wird geprüft
+        from fed.core.tls import ssl_context
+        self.ssl_context = ssl_context(cafile)  # verifiziert; fällt auf gebündeltes CA-Bundle zurück
         self._imap: imaplib.IMAP4 | None = None
         self.current: FolderInfo | None = None
 

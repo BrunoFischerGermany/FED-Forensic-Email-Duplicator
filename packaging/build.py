@@ -79,6 +79,7 @@ def nuitka_args(system: str, v: str) -> list[str]:
         "--include-package=fed",
         "--include-package-data=fed",
         "--include-package-data=fpdf",
+        "--include-package-data=certifi",   # cacert.pem mitliefern (TLS-Verifikation im Paket)
         "--include-package=dns",
         "--include-package=dkim",
         "--include-package=uharfbuzz",
