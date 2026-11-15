@@ -344,3 +344,28 @@ def test_finish_with_slash_and_spaces_in_case_number(tmp_path, imap_server, test
     assert {"report_DF_001.pdf", "report_DF_002.pdf"} <= set(names)
     assert not any("/" in n or " " in n for n in names)
     case.close()
+
+
+def test_zip_dedups_duplicate_folder_entries(acquired):
+    """Gleichnamige Ordner (z. B. aus einem Apple-Mail-Import) dürfen keine „Duplicate name“-Warnung
+    und keine doppelten Verzeichniseinträge im ZIP erzeugen."""
+    import warnings
+
+    case = acquired
+    acc_id, name, delim = case.conn.execute(
+        "SELECT account_id, display_name, delimiter FROM folder WHERE selected = 1 LIMIT 1").fetchone()
+    # zweite Ordner-Zeile mit gleichem Anzeigenamen/Delimiter, aber anderem raw_name -> gleicher Archiv-Pfad
+    with case.conn:
+        case.conn.execute(
+            "INSERT INTO folder (account_id, raw_name, display_name, delimiter, namespace, count_server, selected) "
+            "VALUES (?,?,?,?,?,?,1)", (acc_id, (name or "X") + "#dup", name, delim, "personal", 0))
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        res = finish_case(case, Config())
+    assert not any("Duplicate name" in str(w.message) for w in caught)
+    assert res.zip.verified
+
+    with zipfile.ZipFile(res.zip.path) as zf:
+        dirs = [n for n in zf.namelist() if n.endswith("/")]
+    assert len(dirs) == len(set(dirs))  # keine doppelten Verzeichniseinträge

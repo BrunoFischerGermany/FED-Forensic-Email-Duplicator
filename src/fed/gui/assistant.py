@@ -502,7 +502,7 @@ class AccountPage(QWidget):
         self.accounts_card = Card(self.tr("Bereits in diesem Fall"))
         self.accounts = AccountsTable()
         self.accounts_card.add(self.accounts)
-        self.accounts_card.add(label(self.tr("Doppelklick auf ein Konto übernimmt es zum Fortsetzen; für ein neues "
+        self.accounts_card.add(label(self.tr("Klick auf ein Konto übernimmt es zum Fortsetzen; für ein neues "
                                              "Konto unten die Adresse eingeben."), "Hint", wrap=True))
         self.accounts.picked.connect(self._pick)
         self.accounts.notes_changed.connect(self._notes_changed)
@@ -1441,6 +1441,7 @@ class AcquirePage(QWidget):
     finished = Signal(object)
     another = Signal()
     finish = Signal()
+    picked = Signal(dict)  # Klick auf ein Konto in der Tabelle „Konten in diesem Fall“
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -1514,6 +1515,7 @@ class AcquirePage(QWidget):
         cols.addWidget(lc, 2)
         self.accounts_card = Card(self.tr("Konten in diesem Fall"))
         self.accounts = AccountsTable()
+        self.accounts.picked.connect(self.picked)
         self.accounts_card.add(self.accounts)
         zr = QHBoxLayout()
         self.zip_lbl = label("", "Muted")
@@ -2078,6 +2080,7 @@ class Assistant(QWidget):
         self.p_fold.next.connect(lambda: (self._show(3, 5), self.p_acq.start()))
         self.p_acq.another.connect(self._another)
         self.p_acq.finish.connect(self._finish)
+        self.p_acq.picked.connect(self._rail_pick)
         self.p_acq.finished.connect(lambda _: self.case_changed.emit())
         self.p_fin.new_case.connect(self._new_case)
         self.p_fin.retry.connect(self._finish)

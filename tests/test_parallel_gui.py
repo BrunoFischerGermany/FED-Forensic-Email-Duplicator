@@ -490,3 +490,12 @@ def test_resolve_case_dir_tolerant(tmp_path):
     case2.mkdir()
     (case2 / "case.sqlite").write_bytes(b"x")
     assert CasePage._resolve_case_dir(tmp_path) is None
+
+
+def test_accounts_sorted_by_evidence_natural():
+    """Konten werden nach Asservatennummer natürlich sortiert (A-2 vor A-10)."""
+    from fed.gui.accounts import by_evidence
+
+    rows = [{"evidence": "A-10"}, {"evidence": "A-2"}, {"evidence": "A-01"},
+            {"evidence": "B-1"}, {"evidence": "A-3"}]
+    assert [o["evidence"] for o in by_evidence(rows)] == ["A-01", "A-2", "A-3", "A-10", "B-1"]

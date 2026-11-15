@@ -24,7 +24,7 @@ class EncryptDialog(QDialog):
             "Das Original bleibt unverändert. Das Passwort wird nirgends gespeichert; bitte getrennt übermitteln."))
         intro.setWordWrap(True)
         self.enable = QCheckBox(self.tr("Verschlüsselte Kopie erstellen"))
-        self.enable.setChecked(True)
+        self.enable.setChecked(False)  # Standard: ohne Passwort; der Prüfer hakt bei Bedarf an
         self.gen = QRadioButton(self.tr("Sicheres Passwort erzeugen"))
         self.own = QRadioButton(self.tr("Eigenes Passwort"))
         self.gen.setChecked(True)

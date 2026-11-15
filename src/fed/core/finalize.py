@@ -165,12 +165,17 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     try:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
             zf.write(csv_path, "log.csv")
-            # Ordnerstruktur inkl. leerer, gewählter Ordner
+            # Ordnerstruktur inkl. leerer, gewählter Ordner (gleiche Archiv-Pfade nur einmal schreiben,
+            # sonst warnt zipfile „Duplicate name“, z. B. bei gleichnamigen Ordnern aus einem Apple-Mail-Import)
+            written_dirs: set[str] = set()
             for email, name, delim in case.conn.execute(
                     "SELECT a.email, f.display_name, f.delimiter FROM folder f JOIN account a ON a.id = f.account_id "
                     "WHERE f.selected = 1" + account_sql + " ORDER BY a.id, f.id", account_args):
-                zi = zipfile.ZipInfo(f"{sanitize_component(email)}/{folder_to_zip_path(name, delim)}/",
-                                     date_time=_zip_time(datetime.now(UTC).timestamp()))
+                arc = f"{sanitize_component(email)}/{folder_to_zip_path(name, delim)}/"
+                if arc in written_dirs:
+                    continue
+                written_dirs.add(arc)
+                zi = zipfile.ZipInfo(arc, date_time=_zip_time(datetime.now(UTC).timestamp()))
                 zi.external_attr = 0o40755 << 16 | 0x10
                 zf.writestr(zi, b"")
             for r in rows:

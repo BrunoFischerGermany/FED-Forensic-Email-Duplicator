@@ -113,7 +113,14 @@ class AppleMailImportDialog(QDialog):
             check.setCheckState(Qt.CheckState.Checked if (c.address and c.messages) else Qt.CheckState.Unchecked)
             self.table.setItem(r, 0, check)
             self.table.setItem(r, 1, QTableWidgetItem(f"A-{r + 1:02d}"))
-            self.table.setItem(r, 2, QTableWidgetItem(c.address))
+            addr_item = QTableWidgetItem(c.address)
+            if c.address_source == "accounts_db":
+                # Adresse stammt autoritativ aus Accounts4.sqlite – forensisch nicht editierbar.
+                addr_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                addr_item.setToolTip(self.tr("Aus Accounts4.sqlite – nicht editierbar"))
+            else:
+                addr_item.setToolTip(self.tr("Nicht autoritativ ermittelt – bitte prüfen bzw. ergänzen"))
+            self.table.setItem(r, 2, addr_item)
             source = {"accounts_db": self.tr("Accounts-DB"), "headers": self.tr("Kopfzeilen (prüfen)")}.get(
                 c.address_source, self.tr("unbekannt"))
             for col, text, editable in ((3, source, False), (4, str(c.folders), False),

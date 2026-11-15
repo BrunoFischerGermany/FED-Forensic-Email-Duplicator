@@ -2,6 +2,23 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- Verschlüsselte Weitergabe-Kopie: Der Abschluss-Dialog erscheint weiterhin, die Option „Verschlüsselte
+  Kopie erstellen" ist jetzt aber **standardmäßig aus** – Standard ist das geprüfte Original ohne Passwort.
+  Wer eine Kopie möchte, hakt die Option im Dialog an. Ob der Dialog überhaupt erscheint, bleibt in den
+  Einstellungen umschaltbar („beim Abschluss fragen" / „aus")
+- ZIP-Archiv: gleichnamige Ordner (z. B. aus einem Apple-Mail-Import) erzeugen keinen doppelten
+  Verzeichniseintrag mehr – die Warnung „Duplicate name …" beim Packen entfällt
+
+- Konten werden in der linken Leiste und in der Tabelle „Konten in diesem Fall" nach Asservatennummer
+  **A→Z** sortiert (natürlich: „A-2" vor „A-10")
+- Tabelle „Konten in diesem Fall" ist jetzt **per Klick** bedienbar wie die linke Leiste: Einfachklick auf
+  eine Zeile öffnet das Konto bzw. zeigt eine laufende Sicherung an (die Notiz-Spalte bleibt zum Bearbeiten)
+
+- Apple-Mail-Import: Adressen aus `Accounts4.sqlite` (Quelle „Accounts-DB") sind jetzt
+  **schreibgeschützt** – sie stammen autoritativ aus den Konteneinstellungen und dürfen nicht verändert
+  werden. Nur nicht-autoritative Adressen („Kopfzeilen (prüfen)" / „unbekannt") bleiben editierbar, damit
+  der Examiner sie ergänzen/prüfen kann (mit erklärenden Tooltips)
+
 - Eckdaten aus früherem Fall übernehmen: Auf der Konto-Seite neuer Knopf „Eckdaten aus früherem Fall …".
   Man wählt einen anderen Fall, ein Konto daraus, und Server/Port/Sicherheit/Anmeldeart/Asservatennummer
   füllen das Formular – die Mails werden normal frisch erfasst. Der frühere Fall wird nur **schreibgeschützt**
