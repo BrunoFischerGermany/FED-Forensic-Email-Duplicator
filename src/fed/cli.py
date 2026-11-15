@@ -103,6 +103,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from fed.core import tls
+    tls.install()  # CA-Bundle (certifi) für alle TLS-Verbindungen verfügbar machen
     set_language(_choose_language(argv))
     args = build_parser().parse_args(argv)
     if args.command == "new-case":

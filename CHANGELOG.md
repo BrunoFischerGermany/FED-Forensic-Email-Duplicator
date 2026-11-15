@@ -2,6 +2,12 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- TLS-Zertifikatsprüfung im eigenständigen Paket korrigiert: Auf macOS schlug jede TLS-Verbindung
+  mit „CERTIFICATE_VERIFY_FAILED – unable to get local issuer certificate“ fehl (IMAP wie Microsoft-365-
+  OAuth), weil das Paket keine CA-Wurzelzertifikate mitbrachte und Python sie auf dem Mac nicht aus dem
+  Schlüsselbund liest. FED bündelt jetzt `certifi` und richtet alle TLS-Pfade (IMAP, OAuth/HTTP, Autoconfig)
+  darauf aus (`SSL_CERT_FILE` prozessweit plus expliziter Context in IMAP-Reader und OAuth)
+
 - macOS 12 (Monterey) wieder lauffähig: Der Build mit PySide6 6.10 startete auf macOS 12.6 nicht
   (Qt 6.8+ setzt macOS 13 voraus – fehlendes libc++-Symbol `__libcpp_verbose_abort`). macOS baut jetzt
   mit PySide6 6.9.x (letzte Qt-Reihe mit macOS-12-Unterstützung) auf Python 3.13; Windows/Linux bleiben

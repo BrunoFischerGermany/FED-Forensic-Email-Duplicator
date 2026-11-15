@@ -141,6 +141,9 @@ def selftest(out: Path) -> int:
 def main() -> int:
     import os
 
+    from fed.core import tls
+    tls.install()  # CA-Bundle (certifi) für alle TLS-Verbindungen verfügbar machen
+
     if os.environ.get("FED_SELFTEST"):
         return selftest(Path(os.environ["FED_SELFTEST"]))
 

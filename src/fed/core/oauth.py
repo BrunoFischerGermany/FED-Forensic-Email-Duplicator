@@ -178,7 +178,9 @@ def id_token_account(id_token: str | None) -> str | None:
 
 
 def _post(url: str, data: dict, proxy: str = "", timeout: float = 30) -> dict:
-    handlers = [urllib.request.ProxyHandler({"http": proxy, "https": proxy})] if proxy else []
+    from fed.core.tls import ssl_context
+    handlers: list = [urllib.request.ProxyHandler({"http": proxy, "https": proxy})] if proxy else []
+    handlers.append(urllib.request.HTTPSHandler(context=ssl_context()))  # gebündeltes CA-Bundle
     opener = urllib.request.build_opener(*handlers)
     req = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode(),
                                  headers={"Content-Type": "application/x-www-form-urlencoded",
