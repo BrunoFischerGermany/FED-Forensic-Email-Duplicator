@@ -91,6 +91,14 @@ def collect(case: Case, account_id: int | None = None) -> dict:
             "SELECT f.account_id, m.dkim_result, COUNT(*) FROM message m JOIN folder f ON f.id = m.folder_id "
             "WHERE m.status = 'valid' GROUP BY f.account_id, m.dkim_result"):
         dkim_counts.setdefault(acc, {})[res or "unchecked"] = n
+    source_counts: dict = {}
+    for acc, src, part, n in case.conn.execute(
+            "SELECT f.account_id, m.source, m.partial, COUNT(*) FROM message m JOIN folder f ON f.id = m.folder_id "
+            "WHERE m.status = 'valid' GROUP BY f.account_id, m.source, m.partial"):
+        d = source_counts.setdefault(acc, {"imap": 0, "apple_mail": 0, "partial": 0})
+        d["apple_mail" if src == "apple_mail" else "imap"] += n
+        if part:
+            d["partial"] += n
     dkim_issues = _q(case, "SELECT f.account_id, a.evidence_number, f.display_name, m.uid, m.subject, m.dkim_result, "
                            "m.dkim_domain, m.dkim_detail FROM message m JOIN folder f ON f.id = m.folder_id "
                            "JOIN account a ON a.id = f.account_id WHERE m.status = 'valid' "
@@ -135,6 +143,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "issues": issues,
         "outputs": outputs,
         "dkim_counts": dkim_counts,
+        "source_counts": source_counts,
         "gmail": gmail,
         "dkim_issues": dkim_issues,
         "dns": dns_rows,
@@ -322,8 +331,25 @@ def _attempt_end(x: dict) -> str:
     return f"{tf.both_short(x['ended_utc'])}\n({fmt_duration(_seconds(x['started_utc'], x['ended_utc']))})"
 
 
+def _provenance_items(sc: dict | None, L: dict) -> list[tuple[str, str]]:
+    """Zeile „Herkunft der Mails“ – nur wenn Offline-importierte oder unvollständige Mails vorkommen
+    (reine IMAP-Konten brauchen sie nicht)."""
+    sc = sc or {}
+    if not (sc.get("apple_mail") or sc.get("partial")):
+        return []
+    parts = []
+    if sc.get("imap"):
+        parts.append(L["prov_imap"].format(sc["imap"]))
+    if sc.get("apple_mail"):
+        imp = L["prov_import"].format(sc["apple_mail"])
+        if sc.get("partial"):
+            imp += " (" + L["prov_partial"].format(sc["partial"]) + ")"
+        parts.append(imp)
+    return [(L["provenance"], " · ".join(parts))]
+
+
 def _account_items(a: dict, L: dict, dkim_counts: dict | None = None,
-                   attempts: list[dict] | None = None) -> list[tuple[str, str]]:
+                   attempts: list[dict] | None = None, source_counts: dict | None = None) -> list[tuple[str, str]]:
     rng = "–"
     if a["date_from"] or a["date_to"]:
         rng = f"{a['date_from'] or '…'} – {a['date_to'] or '…'} ({L['partial']})"
@@ -333,6 +359,7 @@ def _account_items(a: dict, L: dict, dkim_counts: dict | None = None,
         (L["auth"], L.get(f"auth_{a['auth_method']}", a["auth_method"])), (L["source"], describe(a["autoconfig_source"]) or "–"),
         (L["cert"], a["tls_cert_sha256"] or "–"), (L["server_id"], a["server_id"] or "–"), (L["range"], rng),
         (L["dkim"], _dkim_summary((dkim_counts or {}).get(a["id"], {}), L)),
+        *_provenance_items((source_counts or {}).get(a["id"]), L),
         *_filter_items(a, L),
         *_duration_items([x for x in (attempts or []) if x["account_id"] == a["id"]], L),
     ]
@@ -453,7 +480,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
     for a in d["accounts"]:
         head = f"{L['account']} {a['evidence_number']} · {a['email']}"
         out += [head, "=" * len(head),
-                *_kv_txt(_account_items(a, L, d["dkim_counts"], d["attempts"]) + _gmail_items(a, d, L))]
+                *_kv_txt(_account_items(a, L, d["dkim_counts"], d["attempts"], d["source_counts"]) + _gmail_items(a, d, L))]
         if a.get("notes"):
             out += ["", f"{L['account_notes']}:", *("  " + x for x in a["notes"].splitlines())]
         out += ["", f"{L['attempts']}:"]
@@ -642,7 +669,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         if account_id is None:
             pdf.add_page()
         h2(f"{L['account']} {a['evidence_number']} · {a['email']}")
-        kv(_account_items(a, L, d["dkim_counts"], d["attempts"]) + _gmail_items(a, d, L))
+        kv(_account_items(a, L, d["dkim_counts"], d["attempts"], d["source_counts"]) + _gmail_items(a, d, L))
         if a.get("notes"):
             h3(L["account_notes"])
             note(a["notes"], a.get("notes_html"))

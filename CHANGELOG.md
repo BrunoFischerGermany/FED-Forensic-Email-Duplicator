@@ -6,6 +6,10 @@
   als `<Ziel>/<Aktenzeichen>` an), findet FED jetzt den eindeutigen Fall-Ordner eine Ebene tiefer und öffnet
   ihn. Enthält der gewählte Ordner keinen oder mehrere Fälle, erscheint eine klare Meldung statt stillem
   Zurückfallen auf „Fall anlegen“
+- Herkunft je Nachricht sichtbar: `log.csv` hat zwei neue Spalten `Source` (`imap` = per IMAP geladen,
+  `apple_mail` = aus dem Offline-Import) und `Partial` (`yes` = unvollständig, z. B. aus `.partial.emlx`).
+  Der PDF-Bericht zeigt je Konto zusätzlich eine Zeile „Herkunft der Mails" (z. B. „40 per IMAP geladen ·
+  23 aus Offline-Import (davon 5 unvollständig)") – nur bei Konten mit Offline-/unvollständigen Mails
 
 - OAuth-/AUTHENTICATE-Anmeldung im eigenständigen Paket korrigiert: Im Nuitka-Build schlug jede
   `AUTHENTICATE`-Anmeldung (Microsoft-365-OAuth per XOAUTH2, Passwort mit Sonderzeichen per PLAIN) mit
