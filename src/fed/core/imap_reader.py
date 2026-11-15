@@ -64,6 +64,30 @@ class _GuardMixin:
         guard(f"{name} {text}")
         return super()._command(name, *args)
 
+    def authenticate(self, mechanism, authobject):
+        """Wie ``imaplib.IMAP4.authenticate``, aber mit einem Continuation-Producer, dessen
+        Methodentyp zu ``self._command`` passt.
+
+        imaplib erkennt den Producer in ``_command`` über ``type(self.literal) is type(self._command)``.
+        Weil ``_GuardMixin`` ``_command`` überschreibt, haben die beiden im kompilierten Paket (Nuitka)
+        verschiedene Methodentypen (``compiled_method`` vs. ``method`` von imaplibs ``_Authenticator``);
+        die Heuristik schlägt dann fehl und imaplib ruft ``len()`` auf die Producer-Methode
+        (``TypeError: object of type 'method' has no len()``). Das betraf jede ``AUTHENTICATE``-Anmeldung
+        (XOAUTH2, PLAIN mit Sonderzeichen). Indem wir den Producer als Methode *dieser* Klasse setzen,
+        stimmen die Typen in beiden Welten (interpretiert und kompiliert) überein.
+        """
+        self._authenticator = imaplib._Authenticator(authobject)
+        self.literal = self._run_authenticator
+        typ, dat = self._simple_command("AUTHENTICATE", self._atom(mechanism.upper()))
+        if typ != "OK":
+            raise self.error(dat[-1].decode("utf-8", "replace"))
+        self.state = "AUTH"
+        self._refresh_capabilities()
+        return typ, dat
+
+    def _run_authenticator(self, data):
+        return self._authenticator.process(data)
+
 
 class _IMAP4(_GuardMixin, imaplib.IMAP4):
     pass
