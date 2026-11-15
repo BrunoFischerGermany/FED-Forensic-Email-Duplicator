@@ -2,6 +2,11 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- macOS 12 (Monterey) wieder lauffähig: Der Build mit PySide6 6.10 startete auf macOS 12.6 nicht
+  (Qt 6.8+ setzt macOS 13 voraus – fehlendes libc++-Symbol `__libcpp_verbose_abort`). macOS baut jetzt
+  mit PySide6 6.9.x (letzte Qt-Reihe mit macOS-12-Unterstützung) auf Python 3.13; Windows/Linux bleiben
+  auf PySide6 6.10 / Python 3.14. Mindestsystem macOS fest auf 12.0. Quell-Builds auf macOS brauchen
+  daher Python 3.13 (`requires-python` jetzt `>=3.13`)
 - ZIP-Dateiname einstellbar: in den Einstellungen „Muster ZIP-Name“ mit Platzhaltern `{aktenzeichen}`,
   `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
   `{asservat}` beim Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` …
