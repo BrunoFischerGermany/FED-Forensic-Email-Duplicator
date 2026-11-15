@@ -2,6 +2,11 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- Eckdaten aus früherem Fall übernehmen: Auf der Konto-Seite neuer Knopf „Eckdaten aus früherem Fall …".
+  Man wählt einen anderen Fall, ein Konto daraus, und Server/Port/Sicherheit/Anmeldeart/Asservatennummer
+  füllen das Formular – die Mails werden normal frisch erfasst. Der frühere Fall wird nur **schreibgeschützt**
+  gelesen (keine Änderung an der Beweisdatei)
+
 - „Neuer Fall“ direkt aus einem geladenen Fall: Sobald ein Fall geöffnet ist, bietet die Fall-Seite einen
   Knopf „Neuer Fall“. Wird ein **abgeschlossener** Fall geöffnet, zeigt FED ihn jetzt schreibgeschützt an
   (statt stillem Hängenbleiben), blendet „Weiter“ aus und „Neuer Fall“ ein – so kommt man ohne Neustart
