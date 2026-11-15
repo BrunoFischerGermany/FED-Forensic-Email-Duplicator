@@ -10,6 +10,10 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read   # muss hier gewährt werden, weil der aufgerufene build.yml-Job "publish"
+                        # pull-requests: read anfordert; beim workflow_call darf ein Job nicht mehr
+                        # Rechte verlangen als der Aufrufer gewährt (sonst startup_failure, auch wenn
+                        # publish im Nightly per if übersprungen wird)
 
 jobs:
   check:

@@ -33,6 +33,15 @@ on:
       version:
         type: string
         required: true
+      # Müssen hier deklariert sein, weil Jobs inputs.release/inputs.prerelease lesen:
+      # beim workflow_call prüft GitHub die inputs streng, eine undeklarierte Referenz
+      # lässt den ganzen Aufruf mit startup_failure abbrechen (betraf den Nightly).
+      release:
+        type: boolean
+        default: false
+      prerelease:
+        type: boolean
+        default: false
   push:
     branches: ["main", "v1.0"]
     paths: [".github/workflows/build.yml", "packaging/**"]
