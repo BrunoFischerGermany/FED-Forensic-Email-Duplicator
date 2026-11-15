@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.7 (in Entwicklung)
+## 1.0.3 (in Entwicklung)
 
 - ZIP-Dateiname einstellbar: in den Einstellungen „Muster ZIP-Name“ mit Platzhaltern `{aktenzeichen}`,
   `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
@@ -59,9 +59,6 @@
   Manipulationsschutz; maßgeblich bleiben die SHA-256-Werte im Log
 - Historie: die Aktualisierung alle 3 Sekunden setzt Markierung und Scrollposition nicht mehr zurück
 - fpdf2 ≥ 2.9 erforderlich
-
-## 1.0.6 (in Entwicklung)
-
 - Testpostfach (Tests und Validierung) läuft mit Dovecot 2.3 **und** 2.4 – die Version wird erkannt und das
   passende Konfigurationsformat geschrieben; CI testet auf Ubuntu 24.04 (2.3) und 26.04 (2.4), die Validierung
   hängt nicht mehr an Ubuntu 24.04. `FED_DOVECOT` wählt ein anderes Dovecot-Programm
@@ -69,9 +66,6 @@
   bisher, aber unabhängig davon, wie lange GitHub den Runner ubuntu-22.04 anbietet (ca. April 2027)
 - Linux: alle Bibliotheken, gegen die Python gebaut ist (u. a. libsqlite3), werden ins Paket übernommen – vorher
   startete FED auf Systemen ohne installiertes SQLite nicht
-
-## 1.0.5 (in Entwicklung)
-
 - Schritt „Fall anlegen“ bei offenem Fall: „Weiter“ statt „Fall anlegen und weiter“, Felder gesperrt – kein
   „Fall existiert bereits“ mehr; gibt es den Fall im Zielordner schon, fragt FED, ob er geöffnet werden soll
 - „+ Weiteres Konto“ in der linken Leiste und neben „Fall abschließen“
@@ -91,9 +85,6 @@
 - Ersteinrichtung: Anschrift einzeilig wie in den Einstellungen
 - Qt-eigene Knöpfe (Ja/Nein, Abbrechen, Schließen, Dateidialog) werden im gebauten Programm sicher übersetzt;
   der Selbsttest prüft das
-
-## 1.0.3 (in Entwicklung)
-
 - macOS: Startet FED aus einer von macOS verschobenen Kopie („App Translocation“, z. B. direkt aus
   „Downloads“), werden config.toml und FED.ini neben dem echten FED.app gespeichert (sonst in
   ~/Library/Application Support/FED) statt im schreibgeschützten Temp-Ordner; Hinweis zur dauerhaften Lösung
