@@ -806,8 +806,8 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Case closed</translation>
     </message>
     <message>
-        <source>Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden.</source>
-        <translation>This case is closed and can only be viewed in the history.</translation>
+        <source>Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. Für eine neue Sicherung unten „Neuer Fall“ wählen.</source>
+        <translation>This case is closed and can only be viewed in the history. For a new acquisition, choose “New case” below.</translation>
     </message>
 </context>
 <context>
@@ -905,6 +905,14 @@ The answer is documented in the log and in the report.</translation>
     <message>
         <source>Mails aus einem Apple-Mail-Ordner oder Abzug offline in den Fall einlesen</source>
         <translation>Read mail from an Apple Mail folder or capture into the case, offline</translation>
+    </message>
+    <message>
+        <source>Neuer Fall</source>
+        <translation>New case</translation>
+    </message>
+    <message>
+        <source>Diesen Fall verlassen und einen neuen anlegen</source>
+        <translation>Leave this case and start a new one</translation>
     </message>
     <message>
         <source>Zielordner wählen</source>
