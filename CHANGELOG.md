@@ -2,6 +2,11 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- „Vorhandenen Fall öffnen …“ toleranter: Wird im Dialog der übergeordnete Ordner gewählt (FED legt Fälle
+  als `<Ziel>/<Aktenzeichen>` an), findet FED jetzt den eindeutigen Fall-Ordner eine Ebene tiefer und öffnet
+  ihn. Enthält der gewählte Ordner keinen oder mehrere Fälle, erscheint eine klare Meldung statt stillem
+  Zurückfallen auf „Fall anlegen“
+
 - OAuth-/AUTHENTICATE-Anmeldung im eigenständigen Paket korrigiert: Im Nuitka-Build schlug jede
   `AUTHENTICATE`-Anmeldung (Microsoft-365-OAuth per XOAUTH2, Passwort mit Sonderzeichen per PLAIN) mit
   „object of type 'method' has no len()“ fehl. Ursache: FED überschreibt `_command` für den Nur-Lese-Schutz;

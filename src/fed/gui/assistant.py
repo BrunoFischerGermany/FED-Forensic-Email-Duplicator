@@ -425,9 +425,28 @@ class CasePage(QWidget):
         if d:
             self._open(Path(d))
 
+    @staticmethod
+    def _resolve_case_dir(folder: Path) -> Path | None:
+        """Fall-Ordner zum gewählten Ordner: er selbst (hat ``case.sqlite``) oder – tolerant – der
+        eindeutige Unterordner mit ``case.sqlite`` (FED legt Fälle als ``<Ziel>/<Aktenzeichen>`` an,
+        daher wird oft der übergeordnete Ordner gewählt). Bei keinem oder mehreren Treffern: ``None``."""
+        if (folder / "case.sqlite").exists():
+            return folder
+        if not folder.is_dir():
+            return None
+        subs = sorted(p for p in folder.iterdir() if p.is_dir() and (p / "case.sqlite").exists())
+        return subs[0] if len(subs) == 1 else None
+
     def _open(self, folder: Path) -> None:
+        self.error.setText("")
+        resolved = self._resolve_case_dir(folder)
+        if resolved is None:
+            self.error.setText(self.tr(
+                "Im gewählten Ordner wurde kein Fall gefunden (keine „case.sqlite“). Bitte den Fall-Ordner "
+                "selbst wählen – oder den übergeordneten Ordner, wenn dort genau ein Fall liegt."))
+            return
         try:
-            case = Case.open(folder)
+            case = Case.open(resolved)
         except (FileNotFoundError, OSError) as e:
             self.error.setText(str(e))
             return
