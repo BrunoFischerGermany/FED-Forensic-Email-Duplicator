@@ -2,6 +2,10 @@
 
 ## 1.0.7 (in Entwicklung)
 
+- ZIP-Dateiname einstellbar: in den Einstellungen „Muster ZIP-Name“ mit Platzhaltern `{aktenzeichen}`,
+  `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
+  `{asservat}` beim Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` …
+  an. Standard weiter `{aktenzeichen}_{asservat}_{zeit}`
 - Apple-Mail-Import (erster Baustein, nur Lesen): `fed.core.applemail` liest ein macOS-`~/Library/Mail/V#`-
   Verzeichnis – Konten (UUID-Ordner), verschachtelte `.mbox`-Ordner, `.emlx`/`.partial.emlx` byte-genau
   (Längenzeile + N Bytes rohe Mail), Flags/Datum aus dem Apple-Plist. Konto→Adresse maßgeblich aus

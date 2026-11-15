@@ -14,7 +14,7 @@ from fed import APP_NAME, __version__
 from fed.core import config as cfgmod
 from fed.core import logo as logomod
 from fed.core.languages import report_languages, ui_languages
-from fed.core.naming import suggest_case_number
+from fed.core.naming import DEFAULT_ZIP_PATTERN, suggest_case_number, zip_basename
 from fed.gui import i18n
 from fed.gui import logo as logopick
 from fed.gui.help import show_help
@@ -158,6 +158,12 @@ class SettingsTab(QWidget):
         self.zipmode.addItem(self.tr("immer ein ZIP je Konto"), "je_konto")
         wl = QFormLayout()
         wl.addRow(self.tr("ZIP bei mehreren Konten"), self.zipmode)
+        self.zip_name = QLineEdit()
+        self.zip_name.setPlaceholderText(DEFAULT_ZIP_PATTERN)
+        wl.addRow(self.tr("Muster ZIP-Name"), self.zip_name)
+        self.zip_name_hint = label("", "Hint", wrap=True)
+        wl.addRow("", self.zip_name_hint)
+        self.zip_name.textChanged.connect(lambda _: self._update_zipname_hint())
         self.encmode = QComboBox()
         self.encmode.addItem(self.tr("beim Abschluss fragen"), "fragen")
         self.encmode.addItem(self.tr("aus"), "aus")
@@ -260,6 +266,8 @@ class SettingsTab(QWidget):
         self.spaces.setChecked(p.leerzeichen_ersetzen)
         self.workdel.setCurrentIndex(max(self.workdel.findData(p.arbeitsordner_loeschen), 0))
         self.zipmode.setCurrentIndex(max(self.zipmode.findData(p.zip_aufteilung), 0))
+        self.zip_name.setText(p.zip_name_muster)
+        self._update_zipname_hint()
         self.encmode.setCurrentIndex(max(self.encmode.findData(p.verschluesselung), 0))
         self.conns.setValue(p.verbindungen)
         self.chunk.setValue(p.chunk_mb)
@@ -271,6 +279,13 @@ class SettingsTab(QWidget):
         self.g_secret.setText(c.oauth_google.client_secret)
         self.m_id.setText(c.oauth_microsoft.client_id)
         self.m_tenant.setText(c.oauth_microsoft.tenant)
+
+    def _update_zipname_hint(self) -> None:
+        places = self.tr("Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}")
+        example = zip_basename(self.zip_name.text() or DEFAULT_ZIP_PATTERN, case_number="2026-0001",
+                               evidence="A-01", email="max@example.de")
+        self.zip_name_hint.setText(self.tr("Beispiel je Konto: {0}.zip").format(example) + "\n" + places)
+        restyle(self.zip_name_hint, "Hint")
 
     def _update_pattern_hint(self) -> None:
         places = self.tr("Platzhalter: {jahr} = 2026 · {jahr:2} = 26 · {monat} · {tag} · {lfd:04} = 0001")
@@ -354,6 +369,7 @@ class SettingsTab(QWidget):
         p.leerzeichen_ersetzen = self.spaces.isChecked()
         p.arbeitsordner_loeschen = self.workdel.currentData()
         p.zip_aufteilung = self.zipmode.currentData()
+        p.zip_name_muster = self.zip_name.text().strip() or DEFAULT_ZIP_PATTERN
         p.verschluesselung = self.encmode.currentData()
         p.verbindungen = self.conns.value()
         p.ntp, p.ntp_server = self.ntp.isChecked(), self.ntp_server.text()

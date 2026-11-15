@@ -28,7 +28,7 @@ from fed.core.cancel import CancelToken, Progress, ProgressCallback
 from fed.core.case import Case, utc_now
 from fed.core.config import Config
 from fed.core.hashing import MultiHasher, hash_file
-from fed.core.naming import folder_to_zip_path, sanitize_component
+from fed.core.naming import folder_to_zip_path, sanitize_component, zip_basename
 from fed.core.timefmt import local_str
 from fed.core.msg import code, describe
 from fed.core.msg import t as _t
@@ -110,6 +110,16 @@ def _ext_timestamp(mtime: float) -> bytes:
     return struct.pack("<HHBl", 0x5455, 5, 1, t)
 
 
+def _unique_zip(folder: Path, base: str) -> Path:
+    """`<base>.zip` im Ordner; existiert der Name schon, `_2`, `_3` … anhängen (Muster ohne Zeit)."""
+    target = folder / f"{base}.zip"
+    n = 2
+    while target.exists() or target.with_suffix(".zip.part").exists():
+        target = folder / f"{base}_{n}.zip"
+        n += 1
+    return target
+
+
 def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None = None,
               progress: ProgressCallback | None = None, account_id: int | None = None) -> ZipResult:
     """Packt alle Konten in ein ZIP – oder mit ``account_id`` nur dieses Konto
@@ -117,19 +127,24 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
     info = case.info()
-    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     rows = message_rows(case)
     account_sql, account_args = "", ()
+    pattern = cfg.programm.zip_name_muster
+    now = datetime.now(UTC)
     if account_id is None:
-        zip_path = case.root / f"{case.file_name(info['case_number'])}_{stamp}.zip"
+        base = zip_basename(pattern, case_number=info["case_number"], when=now,
+                            spaces_to_underscore=case.replace_spaces)
+        zip_path = _unique_zip(case.root, base)
         csv_path = case.root / "log.csv"
         scope = case.work_dir
     else:
         email, evidence = case.conn.execute("SELECT email, evidence_number FROM account WHERE id = ?",
                                             (account_id,)).fetchone()
         rows = [r for r in rows if r["Account"] == email]
+        base = zip_basename(pattern, case_number=info["case_number"], evidence=evidence or "", email=email,
+                            when=now, spaces_to_underscore=case.replace_spaces)
+        zip_path = _unique_zip(case.root, base)
         ev = case.file_name(evidence or email)
-        zip_path = case.root / f"{case.file_name(info['case_number'])}_{ev}_{stamp}.zip"
         csv_path = case.root / f"log_{ev}.csv"
         scope = case.work_dir / sanitize_component(email)
         account_sql, account_args = " AND a.id = ?", (account_id,)
