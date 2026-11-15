@@ -1012,6 +1012,10 @@ Open and continue this case?</translation>
         <source>Fall-Ordner wählen</source>
         <translation>Choose case folder</translation>
     </message>
+    <message>
+        <source>Im gewählten Ordner wurde kein Fall gefunden (keine „case.sqlite“). Bitte den Fall-Ordner selbst wählen – oder den übergeordneten Ordner, wenn dort genau ein Fall liegt.</source>
+        <translation>No case was found in the selected folder (no “case.sqlite”). Please choose the case folder itself – or the parent folder if it contains exactly one case.</translation>
+    </message>
 </context>
 <context>
     <name>ConnectionStatus</name>

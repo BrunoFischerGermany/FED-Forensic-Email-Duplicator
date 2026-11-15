@@ -467,3 +467,26 @@ def test_google_oauth_only_with_client_id_and_yahoo_hint():
     p.hide()
     p.deleteLater()
     app.processEvents()
+
+
+def test_resolve_case_dir_tolerant(tmp_path):
+    """„Vorhandenen Fall öffnen“: Fall-Ordner selbst ODER übergeordneter Ordner (eindeutig) öffnet."""
+    from fed.gui.assistant import CasePage
+
+    case_dir = tmp_path / "VG-1"
+    case_dir.mkdir()
+    (case_dir / "case.sqlite").write_bytes(b"x")
+
+    # direkt gewählter Fall-Ordner
+    assert CasePage._resolve_case_dir(case_dir) == case_dir
+    # übergeordneter Ordner mit genau einem Fall darunter -> wird gefunden
+    assert CasePage._resolve_case_dir(tmp_path) == case_dir
+    # leerer Ordner -> kein Fall
+    assert CasePage._resolve_case_dir(tmp_path / "leer") is None
+    (tmp_path / "leer").mkdir()
+    assert CasePage._resolve_case_dir(tmp_path / "leer") is None
+    # mehrdeutig (zwei Fälle) -> nicht raten
+    case2 = tmp_path / "VG-2"
+    case2.mkdir()
+    (case2 / "case.sqlite").write_bytes(b"x")
+    assert CasePage._resolve_case_dir(tmp_path) is None
