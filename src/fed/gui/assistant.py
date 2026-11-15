@@ -1055,6 +1055,14 @@ class AccountPage(QWidget):
 
     def _test_failed(self, err: str, tb: str) -> None:
         self.test_btn.setEnabled(True)
+        # Unerwartete interne Fehler (Programmierfehler): Fehlerstelle aus dem Traceback mitzeigen,
+        # damit sich das ohne Terminal diagnostizieren lässt.
+        if any(err.startswith(k) or f"{k}:" in (tb.strip().splitlines() or [""])[-1]
+               for k in ("object of type", "TypeError", "AttributeError", "KeyError", "IndexError")):
+            frames = re.findall(r'File "([^"]*/fed/[^"]+)", line (\d+), in (\S+)', tb)
+            if frames:
+                f, ln, fn = frames[-1]
+                err = f"{err}  [{f.split('/fed/')[-1]}:{ln} · {fn}]"
         hint = self._login_hint(err)
         m, host = self.method.value(), self.server.text()
         sess = self.st.oauth_session if m in ("google", "microsoft") else None
