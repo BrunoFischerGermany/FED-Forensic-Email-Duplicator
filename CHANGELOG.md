@@ -2,6 +2,10 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- Verschlüsselte Weitergabe-Kopie ist jetzt **standardmäßig aus**: Der Abschluss erzeugt das geprüfte
+  Original ohne Passwort, ohne Nachfrage. Wer die verschlüsselte Kopie möchte, stellt in den Einstellungen
+  „Verschlüsselte Weitergabe-Kopie" auf „beim Abschluss fragen" (Config-Default `verschluesselung = "aus"`)
+
 - Konten werden in der linken Leiste und in der Tabelle „Konten in diesem Fall" nach Asservatennummer
   **A→Z** sortiert (natürlich: „A-2" vor „A-10")
 - Tabelle „Konten in diesem Fall" ist jetzt **per Klick** bedienbar wie die linke Leiste: Einfachklick auf

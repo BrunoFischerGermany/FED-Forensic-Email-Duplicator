@@ -47,6 +47,7 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     cfg.examiner_name = "Max Mustermann"
     cfg.programm.zielpfad = str(tmp_path)
     cfg.programm.ntp = False
+    cfg.programm.verschluesselung = "fragen"  # dieser Walkthrough prüft die verschlüsselte Kopie (Standard ist „aus“)
     cfg.source_path = tmp_path / "config.toml"
     w = MainWindow(cfg, tmp_path)
     w.show()
