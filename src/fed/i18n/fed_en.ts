@@ -335,7 +335,7 @@
     </message>
     <message>
         <source>Asservat</source>
-        <translation>Evidence no.</translation>
+        <translation>Evidence</translation>
     </message>
     <message>
         <source>Konto</source>
@@ -1289,7 +1289,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     </message>
     <message>
         <source>Ordner</source>
-        <translation>Folders</translation>
+        <translation>Folder</translation>
     </message>
     <message>
         <source>Mails</source>
@@ -1412,7 +1412,7 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <name>HistoryTab</name>
     <message>
         <source>Ordner</source>
-        <translation>Folders</translation>
+        <translation>Folder</translation>
     </message>
     <message>
         <source>Eingangszeit (UTC)</source>
@@ -2607,6 +2607,10 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>ZIP with several accounts</translation>
     </message>
     <message>
+        <source>Muster ZIP-Name</source>
+        <translation>ZIP name pattern</translation>
+    </message>
+    <message>
         <source>aus</source>
         <translation>off</translation>
     </message>
@@ -2701,6 +2705,14 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Anleitung Google</source>
         <translation>Google guide</translation>
+    </message>
+    <message>
+        <source>Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}</source>
+        <translation>Placeholders: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}</translation>
+    </message>
+    <message>
+        <source>Beispiel je Konto: {0}.zip</source>
+        <translation>Example per account: {0}.zip</translation>
     </message>
     <message>
         <source>Platzhalter: {jahr} = 2026 · {jahr:2} = 26 · {monat} · {tag} · {lfd:04} = 0001</source>

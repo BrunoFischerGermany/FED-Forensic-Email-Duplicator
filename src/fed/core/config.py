@@ -11,6 +11,7 @@ import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from fed.core.msg import t
+from fed.core.naming import DEFAULT_ZIP_PATTERN, zip_basename
 
 CONFIG_FILENAME = "config.toml"
 ALLOWED_EXTRA_HASHES = {"md5", "sha1", "sha512"}
@@ -44,6 +45,7 @@ class Programm:
     leerzeichen_ersetzen: bool = True  # Leerzeichen in Case-Ordner- und Dateinamen durch _ ersetzen
     verschluesselung: str = "fragen"  # verschlüsselte Weitergabe-Kopie beim Abschluss: fragen | aus
     zip_aufteilung: str = "fragen"  # bei mehreren Konten: fragen | gesamt | je_konto
+    zip_name_muster: str = DEFAULT_ZIP_PATTERN  # Muster für den ZIP-Dateinamen (Platzhalter siehe naming.zip_basename)
     arbeitsordner_loeschen: str = "fragen"  # nach verifiziertem ZIP: fragen | ja | nein  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 
 
@@ -133,6 +135,9 @@ def validate(cfg: Config) -> None:
         raise ConfigError(t("{key} muss eins von {values} sein", key="verschluesselung", values=["fragen", "aus"]))
     if cfg.programm.zip_aufteilung not in {"fragen", "gesamt", "je_konto"}:
         raise ConfigError(t("{key} muss eins von {values} sein", key="zip_aufteilung", values=["fragen", "gesamt", "je_konto"]))
+    if not zip_basename(cfg.programm.zip_name_muster, case_number="2026-0001", evidence="A-01",
+                        email="max@example.de").strip():
+        raise ConfigError(t("{key} ergibt keinen gültigen Dateinamen", key="zip_name_muster"))
     if cfg.programm.arbeitsordner_loeschen not in {"fragen", "ja", "nein"}:
         raise ConfigError(t("{key} muss eins von {values} sein", key="arbeitsordner_loeschen", values=["fragen", "ja", "nein"]))
     if not 1 <= cfg.programm.verbindungen <= 10:

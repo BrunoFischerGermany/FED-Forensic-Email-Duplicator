@@ -2,6 +2,10 @@
 
 ## 1.0.7 (in Entwicklung)
 
+- ZIP-Dateiname einstellbar: in den Einstellungen „Muster ZIP-Name“ mit Platzhaltern `{aktenzeichen}`,
+  `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
+  `{asservat}` beim Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` …
+  an. Standard weiter `{aktenzeichen}_{asservat}_{zeit}`
 - Importiertes Apple-Mail-Konto online fortsetzen: Wählt man ein per Import angelegtes Asservat erneut,
   bestimmt FED Server/Port/Sicherheit per Autoerkennung aus der Adresse (der Import hatte keinen echten
   Server/Port – dadurch stand dort fälschlich „1“). Scannen/Fortsetzen funktioniert damit

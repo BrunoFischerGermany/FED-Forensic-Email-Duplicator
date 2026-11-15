@@ -115,7 +115,7 @@
   "Entfernen": "Remove",
   "Ereignis": "Event",
   "Erneut prüfen": "Check again",
-  "Asservat": "Evidence no.",
+  "Asservat": "Evidence",
   "Asservatennummer *": "Evidence number *",
   "Asservatennummer vorgeschlagen (nach {0}) – bitte prüfen.": "Evidence number suggested (after {0}) – please check.",
   "Examiner (Vorbelegung)": "Examiner (default)",
@@ -213,7 +213,7 @@
   "Nur lesend – die Datei wird nicht verändert. Ansehen und Speichern werden protokolliert.": "Read-only – the file is not modified. Viewing and saving are logged.",
   "OK · ": "OK · ",
   "Ohne Fall startet keine Sicherung. Examiner und Agentur kommen aus der config.toml.": "No acquisition starts without a case. Examiner and agency come from config.toml.",
-  "Ordner": "Folders",
+  "Ordner": "Folder",
   "Ordner Soll/Ist + Vorher/Nachher": "Folders expected/actual + before/after",
   "Ordner ist nicht auswählbar (\\Noselect)": "Folder cannot be selected (\\Noselect)",
   "Ordner wählen": "Select folders",
@@ -634,5 +634,8 @@
   "Das gespeicherte Passwort dieses Kontos aus dem Schlüsselbund des angemeldeten Mac-Benutzers übernehmen (nur auf dem laufenden Mac; macOS fragt einmal nach Erlaubnis)": "Take this account's stored password from the signed-in Mac user's Keychain (only on the running Mac; macOS asks for permission once)",
   "Erst Adresse und Server ausfüllen (ggf. „Verbindung testen“ für die Autoerkennung).": "Fill in address and server first (use “Test connection” for autodetection if needed).",
   "Passwort aus dem Schlüsselbund übernommen – nicht gespeichert.": "Password taken from the Keychain – not stored.",
-  "Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde verweigert). Bitte von Hand eingeben.": "No password for {host} / {acc} was found in the Keychain (or access was denied). Please enter it by hand."
+  "Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde verweigert). Bitte von Hand eingeben.": "No password for {host} / {acc} was found in the Keychain (or access was denied). Please enter it by hand.",
+  "Muster ZIP-Name": "ZIP name pattern",
+  "Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}": "Placeholders: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}",
+  "Beispiel je Konto: {0}.zip": "Example per account: {0}.zip"
 }

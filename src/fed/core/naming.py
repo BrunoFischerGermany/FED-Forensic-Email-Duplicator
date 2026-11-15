@@ -103,6 +103,38 @@ def file_name(text: str, spaces_to_underscore: bool = True) -> str:
     return re.sub(r"\s+", "_", name) if spaces_to_underscore else name
 
 
+# Platzhalter für den ZIP-Dateinamen (siehe zip_basename). Reihenfolge = Anzeige in den Einstellungen.
+ZIP_PLACEHOLDERS = ("aktenzeichen", "asservat", "email", "datum", "zeit", "jahr")
+DEFAULT_ZIP_PATTERN = "{aktenzeichen}_{asservat}_{zeit}"
+
+
+def zip_basename(pattern: str, *, case_number: str, evidence: str = "", email: str = "",
+                 when: object = None, spaces_to_underscore: bool = True) -> str:
+    """Baut den ZIP-Dateinamen (ohne ``.zip``) aus einem Muster mit Platzhaltern.
+
+    Platzhalter: ``{aktenzeichen} {asservat} {email} {datum} {zeit} {jahr}``. Jeder Wert wird wie ein
+    Dateiname bereinigt; leere Platzhalter (z. B. ``{asservat}`` beim Gesamt-ZIP) fallen mitsamt
+    angrenzendem Trenner weg. Unbekannte ``{…}`` bleiben unverändert stehen. Leeres Ergebnis -> das
+    bereinigte Aktenzeichen (bzw. ``archiv``)."""
+    from datetime import UTC, datetime
+
+    dt = when if when is not None else datetime.now(UTC)
+    raw = {
+        "aktenzeichen": case_number, "asservat": evidence, "email": email,
+        "datum": dt.strftime("%Y-%m-%d"), "zeit": dt.strftime("%Y%m%dT%H%M%SZ"), "jahr": dt.strftime("%Y"),
+    }
+    vals = {k: file_name(str(v), spaces_to_underscore) if v else "" for k, v in raw.items()}
+
+    def repl(m: re.Match) -> str:
+        key = m.group(1)
+        return vals.get(key, m.group(0))  # unbekannte Platzhalter unverändert lassen
+
+    name = re.sub(r"\{(\w+)\}", repl, pattern or DEFAULT_ZIP_PATTERN)
+    # leere Platzhalter hinterlassen doppelte/führende/abschließende Trenner – zusammenfassen
+    name = re.sub(r"[_\-.\s]{2,}", "_", name).strip("_-. ")
+    return name or file_name(case_number, spaces_to_underscore) or "archiv"
+
+
 def folder_to_zip_path(folder: str, delimiter: str | None) -> str:
     """IMAP-Ordnerpfad (dekodiert) in ZIP-Pfad mit ``/`` umwandeln."""
     parts = folder.split(delimiter) if delimiter else [folder]
