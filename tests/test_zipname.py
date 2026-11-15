@@ -56,3 +56,40 @@ def test_build_zip_uses_pattern_and_is_unique(acquired):
     # zweiter Lauf, gleiches Muster -> _2 (keine Überschreibung)
     z2 = build_zip(acquired, cfg, account_id=aid[0])
     assert z2.path.name == f"2026-0042_A-01_{aid[1]}_2.zip"
+
+
+def test_preview_gesamt_matches_and_writes_nothing(acquired):
+    from fed.core.config import Config
+    from fed.core.finalize import preview_zip_names
+
+    cfg = Config()
+    cfg.programm.zip_name_muster = "{aktenzeichen}"
+    # ein Konto -> Modus "gesamt" -> ein Archiv, leere Bezeichnung
+    assert preview_zip_names(acquired, cfg) == [("", "2026-0042.zip")]
+    # Vorschau ist seiteneffektfrei
+    assert not list(acquired.root.glob("*.zip"))
+
+
+def test_preview_je_konto_and_uniqueness(acquired, imap_server):
+    from fed.core.acquisition import AccountSpec, register_account
+    from fed.core.config import Config
+    from fed.core.finalize import preview_zip_names
+    from fed.core.imap_reader import ReadOnlyImap
+
+    c = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+    c.connect()
+    c.login_password(imap_server.user, imap_server.password)
+    register_account(acquired, AccountSpec("zweite@example.com", "A-02", imap_server.host, imap_server.port), c)
+    c.logout()
+    acquired.set_zip_mode("je_konto")
+
+    cfg = Config()
+    cfg.programm.zip_name_muster = "{aktenzeichen}_{asservat}"
+    pv = preview_zip_names(acquired, cfg)
+    assert pv == [("A-01", "2026-0042_A-01.zip"), ("A-02", "2026-0042_A-02.zip")]
+
+    # schon vorhandenes Archiv -> Vorschau zeigt _2 (spiegelt _unique_zip, ohne zu schreiben)
+    (acquired.root / "2026-0042_A-01.zip").write_bytes(b"x")
+    pv2 = preview_zip_names(acquired, cfg)
+    assert pv2[0] == ("A-01", "2026-0042_A-01_2.zip")
+    assert pv2[1] == ("A-02", "2026-0042_A-02.zip")

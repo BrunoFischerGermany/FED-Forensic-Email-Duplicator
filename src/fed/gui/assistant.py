@@ -24,7 +24,7 @@ from fed.core.auth import (APP_PASSWORD_URL, YAHOO_APP_PASSWORD_URL, OAuthSessio
                            normalize_app_password)
 from fed.core.case import Case, CaseInfo
 from fed.core.config import Config
-from fed.core.finalize import finish_case
+from fed.core.finalize import finish_case, preview_zip_names
 from fed.core.naming import next_evidence, normalize_email, suggest_case_number
 from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
@@ -1405,6 +1405,8 @@ class AcquirePage(QWidget):
         zr.addWidget(self.zip_btn)
         zr.addStretch(1)
         self.accounts_card.lay.addLayout(zr)
+        self.zip_preview = label("", "Muted", wrap=True, selectable=True)
+        self.accounts_card.lay.addWidget(self.zip_preview)
         self.accounts_card.setVisible(False)
         lay.addWidget(self.accounts_card)
         lay.addLayout(cols, 1)
@@ -1609,6 +1611,10 @@ class AcquirePage(QWidget):
         for x in (self.zip_lbl, self.zip_btn):
             x.setVisible(len(rows) > 1)
         self.zip_btn.setEnabled(not self.st.jobs.running())
+        if len(rows) > 1:
+            names = preview_zip_names(self.st.case, self.st.cfg)
+            self.zip_preview.setText("\n".join(f"{lbl} → {name}" if lbl else name for lbl, name in names))
+        self.zip_preview.setVisible(len(rows) > 1)
         cur = next((o for o in rows if o["email"] == email), None)
         if cur:
             nr = rows.index(cur) + 1

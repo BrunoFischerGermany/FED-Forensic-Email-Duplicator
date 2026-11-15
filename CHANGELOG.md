@@ -11,6 +11,9 @@
   `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
   `{asservat}` beim Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` …
   an. Standard weiter `{aktenzeichen}_{asservat}_{zeit}`
+- ZIP-Namen live im Ablauf: Bei mehreren Konten steht unter der Auswahl „ein ZIP je Konto“ jetzt direkt
+  die Liste der tatsächlich entstehenden Dateinamen je Asservat (bzw. der eine Gesamtname) – aus dem
+  eingestellten Muster berechnet, inkl. `_2`, falls ein Name schon existiert
 - Importiertes Apple-Mail-Konto online fortsetzen: Wählt man ein per Import angelegtes Asservat erneut,
   bestimmt FED Server/Port/Sicherheit per Autoerkennung aus der Adresse (der Import hatte keinen echten
   Server/Port – dadurch stand dort fälschlich „1“). Scannen/Fortsetzen funktioniert damit
