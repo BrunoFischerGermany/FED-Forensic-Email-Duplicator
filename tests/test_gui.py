@@ -38,7 +38,8 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     monkeypatch.setattr(QtWidgets.QMessageBox, "question", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
     from fed.gui import encrypt_dialog
 
-    def enc_exec(dlg):  # Abschluss: verschlüsselte Kopie mit erzeugtem Passwort
+    def enc_exec(dlg):  # Abschluss: verschlüsselte Kopie mit erzeugtem Passwort (Checkbox ist standardmäßig aus)
+        dlg.enable.setChecked(True)
         dlg._accept()
         return 1
 
@@ -564,3 +565,15 @@ def test_ask_device_owner_session_answer_used_for_case(app, tmp_path, monkeypatc
     w.close()
     w.deleteLater()
     app.processEvents()
+
+
+def test_encrypt_dialog_defaults_to_no_copy(app):
+    """Der Abschluss-Dialog erscheint, ist aber standardmäßig OHNE verschlüsselte Kopie (kein Passwort)."""
+    from fed.gui.encrypt_dialog import EncryptDialog
+
+    dlg = EncryptDialog()
+    assert not dlg.enable.isChecked()  # Checkbox standardmäßig aus
+    assert not dlg.options.isVisible()  # Passwort-Optionen ausgeblendet
+    dlg._accept()
+    assert dlg.password is None  # OK ohne Haken -> keine verschlüsselte Kopie
+    dlg.deleteLater()

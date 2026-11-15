@@ -2,9 +2,12 @@
 
 ## 1.0.3 (in Entwicklung)
 
-- Verschlüsselte Weitergabe-Kopie ist jetzt **standardmäßig aus**: Der Abschluss erzeugt das geprüfte
-  Original ohne Passwort, ohne Nachfrage. Wer die verschlüsselte Kopie möchte, stellt in den Einstellungen
-  „Verschlüsselte Weitergabe-Kopie" auf „beim Abschluss fragen" (Config-Default `verschluesselung = "aus"`)
+- Verschlüsselte Weitergabe-Kopie: Der Abschluss-Dialog erscheint weiterhin, die Option „Verschlüsselte
+  Kopie erstellen" ist jetzt aber **standardmäßig aus** – Standard ist das geprüfte Original ohne Passwort.
+  Wer eine Kopie möchte, hakt die Option im Dialog an. Ob der Dialog überhaupt erscheint, bleibt in den
+  Einstellungen umschaltbar („beim Abschluss fragen" / „aus")
+- ZIP-Archiv: gleichnamige Ordner (z. B. aus einem Apple-Mail-Import) erzeugen keinen doppelten
+  Verzeichniseintrag mehr – die Warnung „Duplicate name …" beim Packen entfällt
 
 - Konten werden in der linken Leiste und in der Tabelle „Konten in diesem Fall" nach Asservatennummer
   **A→Z** sortiert (natürlich: „A-2" vor „A-10")
