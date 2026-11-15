@@ -629,5 +629,10 @@
   "Oder: Apple-Mail offline importieren …": "Or: import Apple Mail offline …",
   "Mails aus einem Apple-Mail-Ordner oder Abzug/Image offline in den Fall einlesen (ohne Server, je Adresse ein Asservat)": "Read mail from an Apple Mail folder or capture/image into the case, offline (no server, one evidence item per address)",
   "Apple Mail dieses Macs": "This Mac's Apple Mail",
-  "Direkt das Postfach des angemeldeten Benutzers (~/Library/Mail) einlesen": "Read the signed-in user's mailbox directly (~/Library/Mail)"
+  "Direkt das Postfach des angemeldeten Benutzers (~/Library/Mail) einlesen": "Read the signed-in user's mailbox directly (~/Library/Mail)",
+  "Aus macOS-Schlüsselbund holen": "Get from macOS Keychain",
+  "Das gespeicherte Passwort dieses Kontos aus dem Schlüsselbund des angemeldeten Mac-Benutzers übernehmen (nur auf dem laufenden Mac; macOS fragt einmal nach Erlaubnis)": "Take this account's stored password from the signed-in Mac user's Keychain (only on the running Mac; macOS asks for permission once)",
+  "Erst Adresse und Server ausfüllen (ggf. „Verbindung testen“ für die Autoerkennung).": "Fill in address and server first (use “Test connection” for autodetection if needed).",
+  "Passwort aus dem Schlüsselbund übernommen – nicht gespeichert.": "Password taken from the Keychain – not stored.",
+  "Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde verweigert). Bitte von Hand eingeben.": "No password for {host} / {acc} was found in the Keychain (or access was denied). Please enter it by hand."
 }

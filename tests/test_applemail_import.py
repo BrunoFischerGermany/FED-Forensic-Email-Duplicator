@@ -37,7 +37,7 @@ def test_import_account_creates_asservat_byte_exact(tmp_path):
     assert res.saved == 3 and res.partial == 1 and res.folders == 2
     # Account/Ordner/Message in der Case-Datei
     row = case.conn.execute("SELECT email, evidence_number, autoconfig_source, auth_method FROM account").fetchone()
-    assert row == ("maik@freenet.example", "A-01", "apple_mail", "import")
+    assert row == ("maik@freenet.example", "A-01", "apple_mail", "password")  # ohne Accounts-DB: Platzhalter-Server, Passwort
     folders = {r[0] for r in case.conn.execute("SELECT raw_name FROM folder")}
     assert folders == {"INBOX", "INBOX/Sent"}
     srcs = {r[0] for r in case.conn.execute("SELECT DISTINCT source FROM message")}
@@ -67,3 +67,15 @@ def test_import_needs_address(tmp_path):
     with pytest.raises(ValueError, match="keine Adresse"):
         imp.import_account(case, acc, "   ", "B-01")
     case.close()
+
+
+def test_import_stores_connection_for_online_topup(tmp_path):
+    from fed.core import applemail_import as imp
+    from fed.core.applemail import AppleAccount
+
+    acc = AppleAccount("x", tmp_path)  # leer reicht; nur die Verbindungsableitung wird geprüft
+    srv = imp._connection("imap.web.example", 143, "starttls", False)
+    assert srv == ("imap.web.example", 143, "starttls", "password")
+    exch = imp._connection("", 0, "", True)
+    assert exch == ("outlook.office365.com", 993, "ssl", "oauth_microsoft")
+    assert acc.uuid == "x"

@@ -243,7 +243,10 @@ class AccountInfo:
     address: str = ""
     name: str = ""  # ZACCOUNTDESCRIPTION, z. B. „Freenet.de“
     aliases: tuple[str, ...] = ()
-    host: str = ""  # IMAP-/Exchange-Server (für eine spätere Online-Ergänzung)
+    host: str = ""  # IMAP-Server (für eine spätere Online-Ergänzung)
+    port: int = 0  # IMAP-Port aus der Accounts-DB (z. B. 143 oder 993)
+    security: str = ""  # "ssl" (direkt) | "starttls" | "" (unbekannt)
+    oauth: bool = False  # Exchange/Outlook: Online-Ergänzung läuft über OAuth, nicht Passwort
 
 
 def _archived_strings(blob: object) -> list[str]:
@@ -257,6 +260,21 @@ def _archived_strings(blob: object) -> list[str]:
     objs = d.get("$objects", []) if isinstance(d, dict) else []
     skip = {"$null", "DisplayName", "IsEnabled", "EmailAddresses", "IsPrimary", "EmailAddress", "IsDefault"}
     return [o for o in objs if isinstance(o, str) and o not in skip]
+
+
+def _archived_value(blob: object):
+    """Erster einfacher Wert (str/int/bool) aus einem NSKeyedArchiver-Plist – für Port, SSL-Schalter usw."""
+    if not isinstance(blob, (bytes, bytearray)):
+        return None
+    try:
+        d = plistlib.loads(bytes(blob))
+    except (plistlib.InvalidFileException, ValueError):
+        return None
+    objs = d.get("$objects", []) if isinstance(d, dict) else []
+    for o in objs:
+        if isinstance(o, (int, bool, str)) and o != "$null":
+            return o
+    return None
 
 
 def _archived_emails(blob: object) -> list[str]:
@@ -312,8 +330,13 @@ def accounts_map(sqlite_path: Path) -> dict[str, AccountInfo]:
                 address = identity[0] if identity else (user if "@" in user else "")
                 aliases = _archived_emails(props.get("EmailAliases"))
                 host = _archived_strings(props.get("Hostname"))
+                port = _archived_value(props.get("PortNumber"))
+                ssl_on = bool(_archived_value(props.get("SSLEnabled")))
+                ssl_direct = bool(_archived_value(props.get("SSLIsDirect")))
+                oauth = props.get("ExchangeOAuthSupportedKey") is not None or not host
+                security = ("ssl" if ssl_direct else "starttls") if ssl_on else ("starttls" if host else "")
                 info = AccountInfo(address, (r["ZACCOUNTDESCRIPTION"] or "").strip(), tuple(dict.fromkeys(aliases)),
-                                   host[0] if host else "")
+                                   host[0] if host else "", int(port) if isinstance(port, int) else 0, security, oauth)
                 if info.address or info.name:
                     result[uuid] = info
         finally:

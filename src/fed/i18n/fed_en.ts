@@ -71,6 +71,14 @@
         <translation>Google (app password)</translation>
     </message>
     <message>
+        <source>Aus macOS-Schlüsselbund holen</source>
+        <translation>Get from macOS Keychain</translation>
+    </message>
+    <message>
+        <source>Das gespeicherte Passwort dieses Kontos aus dem Schlüsselbund des angemeldeten Mac-Benutzers übernehmen (nur auf dem laufenden Mac; macOS fragt einmal nach Erlaubnis)</source>
+        <translation>Take this account's stored password from the signed-in Mac user's Keychain (only on the running Mac; macOS asks for permission once)</translation>
+    </message>
+    <message>
         <source>Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
         <translation>Only in memory – never stored or logged.</translation>
     </message>
@@ -141,6 +149,18 @@
     <message>
         <source>Asservatennummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
         <translation>Evidence number suggested (after {0}) – please check.</translation>
+    </message>
+    <message>
+        <source>Erst Adresse und Server ausfüllen (ggf. „Verbindung testen“ für die Autoerkennung).</source>
+        <translation>Fill in address and server first (use “Test connection” for autodetection if needed).</translation>
+    </message>
+    <message>
+        <source>Passwort aus dem Schlüsselbund übernommen – nicht gespeichert.</source>
+        <translation>Password taken from the Keychain – not stored.</translation>
+    </message>
+    <message>
+        <source>Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde verweigert). Bitte von Hand eingeben.</source>
+        <translation>No password for {host} / {acc} was found in the Keychain (or access was denied). Please enter it by hand.</translation>
     </message>
     <message>
         <source>Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Asservatennummer bleibt {0}.</source>

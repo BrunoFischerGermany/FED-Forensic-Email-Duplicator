@@ -39,6 +39,9 @@ class AccountChoice:
     folders: int
     messages: int
     candidates: list[tuple[str, int]]
+    port: int = 0
+    security: str = ""
+    oauth: bool = False
 
     @property
     def uuid(self) -> str:
@@ -67,8 +70,22 @@ def scan(v10_dir: Path, accounts_db: Path | None = None) -> list[AccountChoice]:
         address, source, candidates = applemail.resolve_address(acc, mapping)
         info = mapping.get(acc.uuid)
         out.append(AccountChoice(acc, address, source, info.name if info else "", info.host if info else "",
-                                 len(acc.folders), acc.message_count(), candidates))
+                                 len(acc.folders), acc.message_count(), candidates,
+                                 info.port if info else 0, info.security if info else "",
+                                 info.oauth if info else False))
     return out
+
+
+def _connection(host: str, port: int, security: str, oauth: bool) -> tuple[str, int, str, str]:
+    """Server/Port/Verschlüsselung/Anmeldeart fürs spätere Online-Scannen (aus der Accounts-DB).
+
+    Exchange/Outlook → OAuth über outlook.office365.com; IMAP → Passwort mit den gespeicherten Werten.
+    """
+    if oauth:
+        return host or "outlook.office365.com", 993, "ssl", "oauth_microsoft"
+    if host:
+        return host, port or 993, security or "ssl", "password"
+    return t("(Apple-Mail-Import)"), 993, "ssl", "password"
 
 
 def _message_time(meta: mailmeta.MailMeta, apple_meta: dict) -> tuple[datetime, str]:
@@ -87,21 +104,28 @@ def _message_time(meta: mailmeta.MailMeta, apple_meta: dict) -> tuple[datetime, 
 
 
 def import_account(case: Case, account: applemail.AppleAccount, email: str, evidence_number: str, *,
-                   host: str = "", name: str = "", notes: str = "") -> ImportResult:
-    """Legt ein Asservat aus einem Apple-Mail-Konto an und liest alle Ordner/Mails ein."""
+                   host: str = "", port: int = 0, security: str = "", oauth: bool = False,
+                   name: str = "", notes: str = "") -> ImportResult:
+    """Legt ein Asservat aus einem Apple-Mail-Konto an und liest alle Ordner/Mails ein.
+
+    Server/Port/Verschlüsselung/Anmeldeart stammen aus der Accounts-DB, damit das Konto später online
+    ergänzt (nachgesichert) werden kann.
+    """
     email = email.strip()
     if not email:
         raise ValueError(t("Für das Konto {uuid} ist keine Adresse angegeben.", uuid=account.uuid))
+    server, port_db, security_db, auth_method = _connection(host, port, security, oauth)
     with case.conn:
         cur = case.conn.execute(
             "INSERT INTO account (email, evidence_number, server, port, security, auth_method, username, "
             "autoconfig_source, notes) VALUES (?,?,?,?,?,?,?,?,?)",
-            (email, evidence_number, host or t("(Apple-Mail-Import)"), 0, "import", "import", email,
+            (email, evidence_number, server, port_db, security_db, auth_method, email,
              IMPORT_SOURCE, notes.strip() or None))
     account_id = cur.lastrowid
     case.log("INFO", "account_registered", {"email": email, "evidence": evidence_number,
                                             "source": IMPORT_SOURCE, "apple_uuid": account.uuid,
-                                            "apple_name": name, "host": host})
+                                            "apple_name": name, "server": f"{server}:{port_db}",
+                                            "security": security_db, "auth_method": auth_method})
     with case.conn:
         attempt_id = case.conn.execute(
             "INSERT INTO attempt (account_id, nr, mode, reason, started_utc, status, phase) VALUES (?,?,?,?,?,?,?)",

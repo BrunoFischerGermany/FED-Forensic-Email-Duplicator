@@ -162,8 +162,9 @@ class AppleMailImportDialog(QDialog):
             prog.setValue(i)
             prog.setLabelText(self.tr("Importiere {addr} …").format(addr=address))
             try:
-                res = imp.import_account(self.case, choice.account, address, evidence,
-                                         host=choice.host, name=choice.name)
+                res = imp.import_account(self.case, choice.account, address, evidence, host=choice.host,
+                                         port=choice.port, security=choice.security, oauth=choice.oauth,
+                                         name=choice.name)
                 out.append((address, res, None))
             except Exception as e:  # z. B. Adresse doppelt im Fall (UNIQUE), unlesbare Datei
                 out.append((address, None, str(e)))
