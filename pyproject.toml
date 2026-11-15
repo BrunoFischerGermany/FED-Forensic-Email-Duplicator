@@ -9,17 +9,21 @@ description = "FED - Forensic Email Duplicator: forensische Sicherung von E-Mail
 readme = "README.md"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 authors = [{ name = "Bruno Fischer" }]
 keywords = ["forensics", "imap", "email", "eml", "dfir"]
 classifiers = [
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "Topic :: Security",
     "Intended Audience :: Legal Industry",
 ]
 dependencies = [
-    "PySide6>=6.10",
+    # macOS: 6.9.x ist die letzte Qt-Reihe, die noch auf macOS 12 läuft (6.10 verlangt macOS 13,
+    # fehlendes libc++-Symbol __libcpp_verbose_abort). Windows/Linux bleiben auf aktuellem Qt.
+    "PySide6>=6.10; sys_platform != 'darwin'",
+    "PySide6>=6.9,<6.10; sys_platform == 'darwin'",
     "dnspython>=2.7",
     "idna>=3.7",
     "fpdf2>=2.9,<2.10",    # PDF/A-3b (enforce_compliance) ab 2.9; Bidi-Korrektur in fed.core.pdftext geprüft

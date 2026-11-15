@@ -47,7 +47,9 @@ python packaging/i18n.py            # builds fed_fr.qm – the language appears 
 
 ## Development
 
-Python 3.14 is required.
+Python 3.13 or newer is required. macOS needs Python 3.13 (the PySide6 6.9.x used there for
+macOS 12 compatibility does not support Python 3.14); Windows/Linux run on 3.14. The minimum
+macOS version is 12 (Monterey).
 
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate

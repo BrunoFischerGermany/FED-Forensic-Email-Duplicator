@@ -35,7 +35,9 @@ FED sichert E-Mail-Postfächer per IMAP forensisch und nur lesend:
 
 ## Entwicklung
 
-Python 3.14 wird vorausgesetzt.
+Python 3.13 oder neuer wird vorausgesetzt. Auf macOS ist Python 3.13 nötig (das dort für
+macOS-12-Kompatibilität verwendete PySide6 6.9.x unterstützt kein Python 3.14); Windows/Linux
+laufen mit 3.14. Mindestsystem macOS ist 12 (Monterey).
 
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
