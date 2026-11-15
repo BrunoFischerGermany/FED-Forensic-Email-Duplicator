@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import traceback
 from collections.abc import Callable
 
@@ -256,7 +257,11 @@ class Worker(QObject):
         try:
             self.done.emit(self.fn(self.cancel, self.progress.emit))
         except Exception as e:
-            self.failed.emit(str(e) or type(e).__name__, traceback.format_exc())
+            tb = traceback.format_exc()
+            # Unerwartete Fehler (Programmierfehler) sichtbar machen: auf stderr für einen Start
+            # aus dem Terminal; die Fehlerstelle geht zusätzlich über das failed-Signal in die GUI.
+            print(tb, file=sys.stderr, flush=True)
+            self.failed.emit(str(e) or type(e).__name__, tb)
         finally:
             self.finished.emit()
 
