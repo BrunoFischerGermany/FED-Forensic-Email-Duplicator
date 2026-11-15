@@ -2,6 +2,13 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- OAuth-/AUTHENTICATE-Anmeldung im eigenständigen Paket korrigiert: Im Nuitka-Build schlug jede
+  `AUTHENTICATE`-Anmeldung (Microsoft-365-OAuth per XOAUTH2, Passwort mit Sonderzeichen per PLAIN) mit
+  „object of type 'method' has no len()“ fehl. Ursache: FED überschreibt `_command` für den Nur-Lese-Schutz;
+  imaplibs Continuation-Erkennung vergleicht dann Methodentypen, die im kompilierten Paket nicht mehr
+  übereinstimmen. FED setzt den Continuation-Producer jetzt als eigene Methode, sodass die Typen passen
+  (im interpretierten wie im kompilierten Lauf). Reiner Passwort-`LOGIN` war nie betroffen
+
 - TLS-Zertifikatsprüfung im eigenständigen Paket korrigiert: Auf macOS schlug jede TLS-Verbindung
   mit „CERTIFICATE_VERIFY_FAILED – unable to get local issuer certificate“ fehl (IMAP wie Microsoft-365-
   OAuth), weil das Paket keine CA-Wurzelzertifikate mitbrachte und Python sie auf dem Mac nicht aus dem
