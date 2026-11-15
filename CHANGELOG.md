@@ -2,6 +2,11 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- Apple-Mail-Import: Adressen aus `Accounts4.sqlite` (Quelle „Accounts-DB") sind jetzt
+  **schreibgeschützt** – sie stammen autoritativ aus den Konteneinstellungen und dürfen nicht verändert
+  werden. Nur nicht-autoritative Adressen („Kopfzeilen (prüfen)" / „unbekannt") bleiben editierbar, damit
+  der Examiner sie ergänzen/prüfen kann (mit erklärenden Tooltips)
+
 - Eckdaten aus früherem Fall übernehmen: Auf der Konto-Seite neuer Knopf „Eckdaten aus früherem Fall …".
   Man wählt einen anderen Fall, ein Konto daraus, und Server/Port/Sicherheit/Anmeldeart/Asservatennummer
   füllen das Formular – die Mails werden normal frisch erfasst. Der frühere Fall wird nur **schreibgeschützt**

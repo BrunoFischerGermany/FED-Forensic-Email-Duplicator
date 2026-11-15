@@ -683,6 +683,14 @@ No = delete permanently.</translation>
         <translation>Without Accounts4.sqlite – addresses from the headers, please check</translation>
     </message>
     <message>
+        <source>Aus Accounts4.sqlite – nicht editierbar</source>
+        <translation>From Accounts4.sqlite – not editable</translation>
+    </message>
+    <message>
+        <source>Nicht autoritativ ermittelt – bitte prüfen bzw. ergänzen</source>
+        <translation>Not authoritatively determined – please verify or complete</translation>
+    </message>
+    <message>
         <source>Accounts-DB</source>
         <translation>Accounts DB</translation>
     </message>
