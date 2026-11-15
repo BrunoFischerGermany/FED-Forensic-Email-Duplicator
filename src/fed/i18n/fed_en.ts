@@ -19,6 +19,14 @@
         <translation>Read mail from an Apple Mail folder or capture/image into the case, offline (no server, one evidence item per address)</translation>
     </message>
     <message>
+        <source>Eckdaten aus früherem Fall …</source>
+        <translation>Details from earlier case …</translation>
+    </message>
+    <message>
+        <source>Server, Port, Anmeldeart und Asservatennummer eines Kontos aus einem anderen Fall ins Formular übernehmen – die Mails werden frisch erfasst</source>
+        <translation>Copy server, port, login method and evidence number of an account from another case into the form – the messages are acquired fresh</translation>
+    </message>
+    <message>
         <source>Bereits in diesem Fall</source>
         <translation>Already in this case</translation>
     </message>
@@ -161,6 +169,26 @@
     <message>
         <source>Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde verweigert). Bitte von Hand eingeben.</source>
         <translation>No password for {host} / {acc} was found in the Keychain (or access was denied). Please enter it by hand.</translation>
+    </message>
+    <message>
+        <source>Früheren Fall wählen</source>
+        <translation>Choose earlier case</translation>
+    </message>
+    <message>
+        <source>Im gewählten Ordner wurde kein Fall gefunden (keine „case.sqlite“).</source>
+        <translation>No case was found in the selected folder (no “case.sqlite”).</translation>
+    </message>
+    <message>
+        <source>Dieser Fall enthält keine Konten.</source>
+        <translation>This case contains no accounts.</translation>
+    </message>
+    <message>
+        <source>Konto aus früherem Fall übernehmen</source>
+        <translation>Reuse account from earlier case</translation>
+    </message>
+    <message>
+        <source>Nur die Eckdaten (Server, Anmeldeart, Asservatennummer) werden übernommen – die Mails werden frisch erfasst. Asservatennummer anschließend prüfen.</source>
+        <translation>Only the details (server, login method, evidence number) are copied – the messages are acquired fresh. Check the evidence number afterwards.</translation>
     </message>
     <message>
         <source>Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Asservatennummer bleibt {0}.</source>

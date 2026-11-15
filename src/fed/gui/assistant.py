@@ -490,8 +490,13 @@ class AccountPage(QWidget):
         self.import_btn.setToolTip(self.tr("Mails aus einem Apple-Mail-Ordner oder Abzug/Image offline in den Fall "
                                            "einlesen (ohne Server, je Adresse ein Asservat)"))
         self.import_btn.clicked.connect(self._import_applemail)
+        self.template_btn = QPushButton(self.tr("Eckdaten aus früherem Fall …"))
+        self.template_btn.setToolTip(self.tr("Server, Port, Anmeldeart und Asservatennummer eines Kontos aus einem "
+                                             "anderen Fall ins Formular übernehmen – die Mails werden frisch erfasst"))
+        self.template_btn.clicked.connect(self._from_other_case)
         import_row = QHBoxLayout()
         import_row.addWidget(self.import_btn)
+        import_row.addWidget(self.template_btn)
         import_row.addStretch(1)
         lay.addLayout(import_row)
         self.accounts_card = Card(self.tr("Bereits in diesem Fall"))
@@ -733,6 +738,83 @@ class AccountPage(QWidget):
             rows = self.accounts.refresh(case)
             self.accounts_card.setVisible(bool(rows))
             self.imported.emit()
+
+    def _from_other_case(self) -> None:
+        """Eckdaten eines Kontos aus einem früheren Fall ins Formular übernehmen (Mails werden frisch erfasst)."""
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QListWidget
+
+        start = str(self.st.case.root.parent) if self.st.case else ""
+        d = QFileDialog.getExistingDirectory(self, self.tr("Früheren Fall wählen"), start)
+        if not d:
+            return
+        folder = CasePage._resolve_case_dir(Path(d))
+        if folder is None:
+            QMessageBox.information(self, "FED", self.tr(
+                "Im gewählten Ordner wurde kein Fall gefunden (keine „case.sqlite“)."))
+            return
+        import sqlite3
+        # Nur lesend öffnen – den früheren Fall nicht anfassen (keine Schema-Migration o. Ä.).
+        try:
+            conn = sqlite3.connect(f"file:{folder / 'case.sqlite'}?mode=ro", uri=True)
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(account)")}
+            has_notes = "notes" in cols and "notes_html" in cols
+            sel = ("email, evidence_number, server, port, security, username, auth_method"
+                   + (", notes, notes_html" if has_notes else ""))
+            accounts = conn.execute(f"SELECT {sel} FROM account ORDER BY id").fetchall()
+            conn.close()
+        except sqlite3.Error as e:
+            QMessageBox.warning(self, "FED", str(e))
+            return
+        if not has_notes:  # Spalten auf die erwartete Form bringen
+            accounts = [(*a, None, None) for a in accounts]
+        if not accounts:
+            QMessageBox.information(self, "FED", self.tr("Dieser Fall enthält keine Konten."))
+            return
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("Konto aus früherem Fall übernehmen"))
+        v = QVBoxLayout(dlg)
+        v.addWidget(label(self.tr("Nur die Eckdaten (Server, Anmeldeart, Asservatennummer) werden übernommen – "
+                                  "die Mails werden frisch erfasst. Asservatennummer anschließend prüfen."), "Muted", wrap=True))
+        lst = QListWidget()
+        for a in accounts:
+            lst.addItem(f"{a[1] or '?'} · {a[0]} · {(a[2] or self.tr('(Import)'))}:{a[3] or ''} · {a[6]}")
+        lst.setCurrentRow(0)
+        lst.itemDoubleClicked.connect(dlg.accept)
+        v.addWidget(lst)
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(dlg.accept)
+        bb.rejected.connect(dlg.reject)
+        v.addWidget(bb)
+        if dlg.exec() == QDialog.DialogCode.Accepted and lst.currentRow() >= 0:
+            self._apply_template(accounts[lst.currentRow()])
+
+    def _apply_template(self, a) -> None:
+        """Formular aus den Eckdaten eines Kontos füllen (email, evidence, server, port, security, user, method)."""
+        email, evidence, server, port, security, username, auth_method, notes, notes_html = a
+        self.email.setText(email)
+        if evidence and not self.evidence.text().strip():
+            self.evidence.setText(evidence)
+        self.acc_notes.set_value(notes or "", notes_html)
+        self.found = None
+        if auth_method == "import" or not server:
+            # kein echter Server gespeichert (Offline-Import) -> Autoerkennung aus der Adresse
+            self.user.clear()
+            self.method.set_value("password")
+            self._sync_google_oauth()
+            self._method_changed("password")
+            self._discover()
+        else:
+            self.server.setText(server)
+            self.port.setValue(port or 993)
+            self.security.setCurrentText(security or "ssl")
+            self.user.setText(username if username and username != email else "")
+            m = {"oauth_google": "google", "oauth_microsoft": "microsoft",
+                 "app_password_google": "google_app"}.get(auth_method, "password")
+            self.method.set_value(m)
+            self._sync_google_oauth(keep=m == "google")
+            self._method_changed(m)
+        self._check_known()
+        self.password.setFocus()
 
     def _pick(self, o: dict) -> None:
         """Konto aus der Übersicht übernehmen (Server, Port, Benutzer aus der Case-Datei)."""
