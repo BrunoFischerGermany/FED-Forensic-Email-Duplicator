@@ -6,6 +6,18 @@
   `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
   `{asservat}` beim Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` …
   an. Standard weiter `{aktenzeichen}_{asservat}_{zeit}`
+- Importiertes Apple-Mail-Konto online fortsetzen: Wählt man ein per Import angelegtes Asservat erneut,
+  bestimmt FED Server/Port/Sicherheit per Autoerkennung aus der Adresse (der Import hatte keinen echten
+  Server/Port – dadurch stand dort fälschlich „1“). Scannen/Fortsetzen funktioniert damit
+- Passwort aus dem macOS-Schlüsselbund: auf dem laufenden Mac Knopf „Aus macOS-Schlüsselbund holen“ beim
+  Passwortfeld – übernimmt das gespeicherte IMAP-Passwort des Kontos (macOS fragt einmal um Erlaubnis).
+  Nur im Arbeitsspeicher, wird nie gespeichert oder geloggt (`fed.core.keychain`)
+- Apple-Mail-Import (GUI): „Apple-Mail importieren …“ auf der Fall-Seite (bei offenem Fall). Ordner
+  oder Abzug/Image wählen – FED findet `Library/Mail/V#` und `Accounts4.sqlite`, listet die Konten mit
+  vorbelegter Adresse (maßgeblich aus der Accounts-DB, sonst aus den Kopfzeilen zum Bestätigen) und legt
+  je Adresse ein Asservat an. Mails werden byte-genau als `.eml` mit Hash in denselben Fall gelesen
+  (`fed.core.applemail_import`), Herkunft `apple_mail` und `partial` je Mail vermerkt; daraus baut der
+  normale Weg ZIP und Bericht. An echten Daten aus macOS 12.6/V10/26.4 geprüft (IMAP, Exchange, lokal)
 - Apple-Mail-Import (erster Baustein, nur Lesen): `fed.core.applemail` liest ein macOS-`~/Library/Mail/V#`-
   Verzeichnis – Konten (UUID-Ordner), verschachtelte `.mbox`-Ordner, `.emlx`/`.partial.emlx` byte-genau
   (Längenzeile + N Bytes rohe Mail), Flags/Datum aus dem Apple-Plist. Konto→Adresse maßgeblich aus

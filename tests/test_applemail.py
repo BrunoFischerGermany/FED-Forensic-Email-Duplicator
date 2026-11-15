@@ -162,3 +162,36 @@ def test_find_in_image_tree_and_prefer_main_accounts_db(tmp_path):
     assert db == acc / "Accounts4.sqlite" and "VerifiedBackup" not in db.parts
     # .mbox-Bündel werden bei der Suche nicht betreten (keine Fehltreffer, nicht langsam)
     assert am.find_v10_dirs(v9 / ACCT_A / "INBOX.mbox") == []
+
+
+def test_accounts_db_found_next_to_mail(tmp_path):
+    # Reales Layout: Accounts liegt NEBEN Mail, nicht darin
+    lib = tmp_path / "Users" / "x" / "Library"
+    v10 = lib / "Mail" / "V10"
+    _msg(v10 / ACCT_A / "INBOX.mbox", 1, _mail("a@b.example"))
+    (lib / "Accounts").mkdir(parents=True)
+    (lib / "Accounts" / "Accounts4.sqlite").write_bytes(b"x")
+    # In ~/Library/Mail selbst steckt keine Accounts-DB ...
+    assert am.find_accounts_db(lib / "Mail") is None
+    # ... aber daneben wird sie gefunden
+    assert am.accounts_db_near(v10) == lib / "Accounts" / "Accounts4.sqlite"
+
+
+def test_accounts_map_reads_host_port_security(tmp_path):
+    import sqlite3
+    db = tmp_path / "Accounts4.sqlite"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE ZACCOUNT (Z_PK INTEGER PRIMARY KEY, ZIDENTIFIER TEXT, ZUSERNAME TEXT, "
+                "ZACCOUNTDESCRIPTION TEXT)")
+    con.execute("CREATE TABLE ZACCOUNTPROPERTY (Z_PK INTEGER PRIMARY KEY, ZOWNER INTEGER, ZKEY TEXT, ZVALUE BLOB)")
+    con.execute("INSERT INTO ZACCOUNT VALUES (1,?,?,?)", (ACCT_A, "u@web.example", "Web"))
+    con.execute("INSERT INTO ZACCOUNT VALUES (2,?,?,?)", (ACCT_B, "outlook.office365.com", "Exchange"))
+    for owner, key, val in ((1, "Hostname", _archiver("imap.web.example")), (1, "PortNumber", _archiver(143)),
+                            (1, "SSLEnabled", _archiver(True)), (1, "SSLIsDirect", _archiver(False)),
+                            (2, "ExchangeOAuthSupportedKey", _archiver(True))):
+        con.execute("INSERT INTO ZACCOUNTPROPERTY (ZOWNER, ZKEY, ZVALUE) VALUES (?,?,?)", (owner, key, val))
+    con.commit()
+    con.close()
+    m = am.accounts_map(db)
+    assert (m[ACCT_A].host, m[ACCT_A].port, m[ACCT_A].security, m[ACCT_A].oauth) == ("imap.web.example", 143, "starttls", False)
+    assert m[ACCT_B].oauth is True and not m[ACCT_B].host

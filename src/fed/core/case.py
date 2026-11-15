@@ -347,7 +347,9 @@ def _migrate(case: Case) -> None:
                             ("message", "auth_results", "TEXT"), ("message", "gm_thrid", "TEXT"),
                             ("account", "filters", "TEXT"), ("account", "notes_html", "TEXT"),
                             ("case_info", "notes_html", "TEXT"), ("case_info", "closing_note", "TEXT"),
-                            ("case_info", "closing_note_html", "TEXT"), ("case_info", "device_owner", "TEXT")):
+                            ("case_info", "closing_note_html", "TEXT"), ("case_info", "device_owner", "TEXT"),
+                            ("message", "source", "TEXT"),
+                            ("message", "partial", "INTEGER NOT NULL DEFAULT 0")):
         cols = {r[1] for r in case.conn.execute(f"PRAGMA table_info({table})")}
         if col not in cols:
             with case.conn:

@@ -140,7 +140,9 @@ CREATE TABLE IF NOT EXISTS message (
     dkim_domain     TEXT,
     dkim_selector   TEXT,
     dkim_detail     TEXT,
-    auth_results    TEXT                     -- JSON: Authentication-Results des Anbieters (spf, dkim, dmarc)
+    auth_results    TEXT,                    -- JSON: Authentication-Results des Anbieters (spf, dkim, dmarc)
+    source          TEXT,                    -- NULL/imap = per IMAP geladen; 'apple_mail' = Offline-Import
+    partial         INTEGER NOT NULL DEFAULT 0 -- 1 = unvollständig (z. B. .partial.emlx: Anhänge ggf. nur auf dem Server)
 );
 CREATE INDEX IF NOT EXISTS idx_message_folder_uid ON message (folder_id, uid);
 

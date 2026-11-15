@@ -222,6 +222,20 @@ def find_accounts_db(root: Path, max_depth: int = 10) -> Path | None:
     return hits[0] if hits else None
 
 
+def accounts_db_near(v10_dir: Path) -> Path | None:
+    """``Accounts4.sqlite`` **neben** dem Mail-Speicher finden.
+
+    ``~/Library/Accounts`` liegt neben ``~/Library/Mail`` (nicht darin). Steigt vom ``V#``-Ordner die
+    Eltern hoch bis zu ``Library`` und prüft dort ``Accounts/Accounts4.sqlite``."""
+    for anc in v10_dir.parents:
+        cand = anc / "Accounts" / "Accounts4.sqlite"
+        if cand.is_file():
+            return cand
+        if anc.name == "Library":
+            break
+    return None
+
+
 @dataclass
 class AccountInfo:
     """Maßgebliche Konto-Angaben aus ``~/Library/Accounts/Accounts4.sqlite``."""
@@ -229,6 +243,38 @@ class AccountInfo:
     address: str = ""
     name: str = ""  # ZACCOUNTDESCRIPTION, z. B. „Freenet.de“
     aliases: tuple[str, ...] = ()
+    host: str = ""  # IMAP-Server (für eine spätere Online-Ergänzung)
+    port: int = 0  # IMAP-Port aus der Accounts-DB (z. B. 143 oder 993)
+    security: str = ""  # "ssl" (direkt) | "starttls" | "" (unbekannt)
+    oauth: bool = False  # Exchange/Outlook: Online-Ergänzung läuft über OAuth, nicht Passwort
+
+
+def _archived_strings(blob: object) -> list[str]:
+    """Liest die lesbaren Strings aus einem NSKeyedArchiver-Plist (``$objects``), ohne Strukturschlüssel."""
+    if not isinstance(blob, (bytes, bytearray)):
+        return []
+    try:
+        d = plistlib.loads(bytes(blob))
+    except (plistlib.InvalidFileException, ValueError):
+        return []
+    objs = d.get("$objects", []) if isinstance(d, dict) else []
+    skip = {"$null", "DisplayName", "IsEnabled", "EmailAddresses", "IsPrimary", "EmailAddress", "IsDefault"}
+    return [o for o in objs if isinstance(o, str) and o not in skip]
+
+
+def _archived_value(blob: object):
+    """Erster einfacher Wert (str/int/bool) aus einem NSKeyedArchiver-Plist – für Port, SSL-Schalter usw."""
+    if not isinstance(blob, (bytes, bytearray)):
+        return None
+    try:
+        d = plistlib.loads(bytes(blob))
+    except (plistlib.InvalidFileException, ValueError):
+        return None
+    objs = d.get("$objects", []) if isinstance(d, dict) else []
+    for o in objs:
+        if isinstance(o, (int, bool, str)) and o != "$null":
+            return o
+    return None
 
 
 def _archived_emails(blob: object) -> list[str]:
@@ -283,7 +329,14 @@ def accounts_map(sqlite_path: Path) -> dict[str, AccountInfo]:
                 user = (r["ZUSERNAME"] or "").strip()
                 address = identity[0] if identity else (user if "@" in user else "")
                 aliases = _archived_emails(props.get("EmailAliases"))
-                info = AccountInfo(address, (r["ZACCOUNTDESCRIPTION"] or "").strip(), tuple(dict.fromkeys(aliases)))
+                host = _archived_strings(props.get("Hostname"))
+                port = _archived_value(props.get("PortNumber"))
+                ssl_on = bool(_archived_value(props.get("SSLEnabled")))
+                ssl_direct = bool(_archived_value(props.get("SSLIsDirect")))
+                oauth = props.get("ExchangeOAuthSupportedKey") is not None or not host
+                security = ("ssl" if ssl_direct else "starttls") if ssl_on else ("starttls" if host else "")
+                info = AccountInfo(address, (r["ZACCOUNTDESCRIPTION"] or "").strip(), tuple(dict.fromkeys(aliases)),
+                                   host[0] if host else "", int(port) if isinstance(port, int) else 0, security, oauth)
                 if info.address or info.name:
                     result[uuid] = info
         finally:

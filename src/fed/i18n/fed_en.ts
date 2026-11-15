@@ -11,6 +11,14 @@
         <translation>Enter the address – server, port and encryption are detected automatically, like in Thunderbird.</translation>
     </message>
     <message>
+        <source>Oder: Apple-Mail offline importieren …</source>
+        <translation>Or: import Apple Mail offline …</translation>
+    </message>
+    <message>
+        <source>Mails aus einem Apple-Mail-Ordner oder Abzug/Image offline in den Fall einlesen (ohne Server, je Adresse ein Asservat)</source>
+        <translation>Read mail from an Apple Mail folder or capture/image into the case, offline (no server, one evidence item per address)</translation>
+    </message>
+    <message>
         <source>Bereits in diesem Fall</source>
         <translation>Already in this case</translation>
     </message>
@@ -61,6 +69,14 @@
     <message>
         <source>Google (App-Passwort)</source>
         <translation>Google (app password)</translation>
+    </message>
+    <message>
+        <source>Aus macOS-Schlüsselbund holen</source>
+        <translation>Get from macOS Keychain</translation>
+    </message>
+    <message>
+        <source>Das gespeicherte Passwort dieses Kontos aus dem Schlüsselbund des angemeldeten Mac-Benutzers übernehmen (nur auf dem laufenden Mac; macOS fragt einmal nach Erlaubnis)</source>
+        <translation>Take this account's stored password from the signed-in Mac user's Keychain (only on the running Mac; macOS asks for permission once)</translation>
     </message>
     <message>
         <source>Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt.</source>
@@ -133,6 +149,18 @@
     <message>
         <source>Asservatennummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
         <translation>Evidence number suggested (after {0}) – please check.</translation>
+    </message>
+    <message>
+        <source>Erst Adresse und Server ausfüllen (ggf. „Verbindung testen“ für die Autoerkennung).</source>
+        <translation>Fill in address and server first (use “Test connection” for autodetection if needed).</translation>
+    </message>
+    <message>
+        <source>Passwort aus dem Schlüsselbund übernommen – nicht gespeichert.</source>
+        <translation>Password taken from the Keychain – not stored.</translation>
+    </message>
+    <message>
+        <source>Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde verweigert). Bitte von Hand eingeben.</source>
+        <translation>No password for {host} / {acc} was found in the Keychain (or access was denied). Please enter it by hand.</translation>
     </message>
     <message>
         <source>Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Asservatennummer bleibt {0}.</source>
@@ -577,6 +605,93 @@ No = delete permanently.</translation>
     </message>
 </context>
 <context>
+    <name>AppleMailImportDialog</name>
+    <message>
+        <source>Apple-Mail importieren</source>
+        <translation>Import Apple Mail</translation>
+    </message>
+    <message>
+        <source>Ordner mit Apple-Mail-Daten wählen – ein „V#“-Ordner, ein „Mail“-Ordner oder die Wurzel eines Abzugs/Images. FED findet die Postfächer und (falls vorhanden) die Zuordnung der Adressen aus „Accounts4.sqlite“.</source>
+        <translation>Choose a folder with Apple Mail data – a “V#” folder, a “Mail” folder or the root of a capture/image. FED finds the mailboxes and (if present) the address mapping from “Accounts4.sqlite”.</translation>
+    </message>
+    <message>
+        <source>Kein Ordner gewählt</source>
+        <translation>No folder chosen</translation>
+    </message>
+    <message>
+        <source>Apple Mail dieses Macs</source>
+        <translation>This Mac's Apple Mail</translation>
+    </message>
+    <message>
+        <source>Direkt das Postfach des angemeldeten Benutzers (~/Library/Mail) einlesen</source>
+        <translation>Read the signed-in user's mailbox directly (~/Library/Mail)</translation>
+    </message>
+    <message>
+        <source>Ordner wählen …</source>
+        <translation>Choose folder …</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <source>Importieren</source>
+        <translation>Import</translation>
+    </message>
+    <message>
+        <source>Ordner mit Apple-Mail-Daten</source>
+        <translation>Folder with Apple Mail data</translation>
+    </message>
+    <message>
+        <source>Hier wurde kein Apple-Mail-Speicher gefunden.</source>
+        <translation>No Apple Mail store was found here.</translation>
+    </message>
+    <message>
+        <source>Adressen aus Accounts4.sqlite</source>
+        <translation>Addresses from Accounts4.sqlite</translation>
+    </message>
+    <message>
+        <source>Ohne Accounts4.sqlite – Adressen aus den Kopfzeilen, bitte prüfen</source>
+        <translation>Without Accounts4.sqlite – addresses from the headers, please check</translation>
+    </message>
+    <message>
+        <source>Accounts-DB</source>
+        <translation>Accounts DB</translation>
+    </message>
+    <message>
+        <source>Kopfzeilen (prüfen)</source>
+        <translation>Headers (check)</translation>
+    </message>
+    <message>
+        <source>unbekannt</source>
+        <translation>unknown</translation>
+    </message>
+    <message>
+        <source>Bitte mindestens ein Konto anhaken.</source>
+        <translation>Please tick at least one account.</translation>
+    </message>
+    <message>
+        <source>Asservatennummer und Adresse dürfen nicht leer sein.</source>
+        <translation>Evidence number and address must not be empty.</translation>
+    </message>
+    <message>
+        <source>{n} Konten importiert.</source>
+        <translation>{n} accounts imported.</translation>
+    </message>
+    <message>
+        <source>Fehlgeschlagen:</source>
+        <translation>Failed:</translation>
+    </message>
+    <message>
+        <source>Importiere …</source>
+        <translation>Importing …</translation>
+    </message>
+    <message>
+        <source>Importiere {addr} …</source>
+        <translation>Importing {addr} …</translation>
+    </message>
+</context>
+<context>
     <name>Assistant</name>
     <message>
         <source>ZIP-Archive bei mehreren Konten</source>
@@ -782,6 +897,14 @@ The answer is documented in the log and in the report.</translation>
     <message>
         <source>Fall anlegen und weiter</source>
         <translation>Create case and continue</translation>
+    </message>
+    <message>
+        <source>Apple-Mail importieren …</source>
+        <translation>Import Apple Mail …</translation>
+    </message>
+    <message>
+        <source>Mails aus einem Apple-Mail-Ordner oder Abzug offline in den Fall einlesen</source>
+        <translation>Read mail from an Apple Mail folder or capture into the case, offline</translation>
     </message>
     <message>
         <source>Zielordner wählen</source>
