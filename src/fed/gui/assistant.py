@@ -161,6 +161,7 @@ def ask_device_owner(parent: QWidget | None, at_start: bool = False) -> str | No
 class CasePage(QWidget):
     next = Signal()
     imported = Signal()  # nach einem Offline-Import (Apple Mail): Historie/Status aktualisieren
+    new_case = Signal()  # „Neuer Fall“: aktuellen (auch abgeschlossenen) Fall verlassen und frisch beginnen
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -229,8 +230,13 @@ class CasePage(QWidget):
         self.import_btn.setToolTip(self.tr("Mails aus einem Apple-Mail-Ordner oder Abzug offline in den Fall einlesen"))
         self.import_btn.clicked.connect(self._import_applemail)
         self.import_btn.setVisible(False)
+        self.new_case_btn = QPushButton(self.tr("Neuer Fall"))
+        self.new_case_btn.setToolTip(self.tr("Diesen Fall verlassen und einen neuen anlegen"))
+        self.new_case_btn.clicked.connect(self.new_case.emit)
+        self.new_case_btn.setVisible(False)
         btns = QHBoxLayout()
         btns.addStretch(1)
+        btns.addWidget(self.new_case_btn)
         btns.addWidget(self.import_btn)
         btns.addWidget(open_btn)
         btns.addWidget(self.go)
@@ -333,9 +339,12 @@ class CasePage(QWidget):
             w.setReadOnly(is_open)
         self.notes.setReadOnly(is_open)
         self.browse_btn.setEnabled(not is_open)
+        closed = bool(case.info().get("closed_utc")) if is_open else False
         self.go.setText(self.tr("Weiter") if is_open else self.tr("Fall anlegen und weiter"))
+        self.go.setVisible(not closed)  # abgeschlossen: „Weiter“ führt nur zur Historie-Meldung – stattdessen „Neuer Fall“
         self.open_btn.setVisible(not is_open)
-        self.import_btn.setVisible(is_open and not (case.info().get("closed_utc") if is_open else False))
+        self.import_btn.setVisible(is_open and not closed)
+        self.new_case_btn.setVisible(is_open)  # geladenen (auch abgeschlossenen) Fall verlassen und neu beginnen
 
     def _import_applemail(self) -> None:
         from fed.gui.applemail_dialog import AppleMailImportDialog
@@ -1976,6 +1985,7 @@ class Assistant(QWidget):
         for p in (self.p_case, self.p_acc, self.p_fold, self.p_acq, self.p_fin):
             self.stack.addWidget(p)
         self.p_case.next.connect(self._after_case)
+        self.p_case.new_case.connect(self._new_case)
         self.p_case.imported.connect(self.refresh_accounts)
         self.p_case.imported.connect(self.case_changed.emit)
         self.p_acc.imported.connect(self.refresh_accounts)
@@ -2074,7 +2084,9 @@ class Assistant(QWidget):
         self.p_acc.prepare()
         if self.st.case.closed:
             QMessageBox.information(self, self.tr("Fall abgeschlossen"),
-                                    self.tr("Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden."))
+                                    self.tr("Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. "
+                                            "Für eine neue Sicherung unten „Neuer Fall“ wählen."))
+            self._show(0, 0)  # Seite synchronisieren: Fall schreibgeschützt anzeigen, „Neuer Fall“ einblenden
             return
         self._show(1, 2)
 

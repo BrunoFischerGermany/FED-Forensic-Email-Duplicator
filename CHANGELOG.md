@@ -2,6 +2,11 @@
 
 ## 1.0.3 (in Entwicklung)
 
+- „Neuer Fall“ direkt aus einem geladenen Fall: Sobald ein Fall geöffnet ist, bietet die Fall-Seite einen
+  Knopf „Neuer Fall“. Wird ein **abgeschlossener** Fall geöffnet, zeigt FED ihn jetzt schreibgeschützt an
+  (statt stillem Hängenbleiben), blendet „Weiter“ aus und „Neuer Fall“ ein – so kommt man ohne Neustart
+  zu einer neuen Sicherung
+
 - „Vorhandenen Fall öffnen …“ toleranter: Wird im Dialog der übergeordnete Ordner gewählt (FED legt Fälle
   als `<Ziel>/<Aktenzeichen>` an), findet FED jetzt den eindeutigen Fall-Ordner eine Ebene tiefer und öffnet
   ihn. Enthält der gewählte Ordner keinen oder mehrere Fälle, erscheint eine klare Meldung statt stillem
