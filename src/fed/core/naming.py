@@ -104,15 +104,16 @@ def file_name(text: str, spaces_to_underscore: bool = True) -> str:
 
 
 # Platzhalter für den ZIP-Dateinamen (siehe zip_basename). Reihenfolge = Anzeige in den Einstellungen.
-ZIP_PLACEHOLDERS = ("aktenzeichen", "asservat", "email", "datum", "zeit", "jahr")
-DEFAULT_ZIP_PATTERN = "{aktenzeichen}_{asservat}_{email}_{datum}_{zeit}"
+ZIP_PLACEHOLDERS = ("aktenzeichen", "asservat", "email", "datum", "zeit", "uhrzeit", "jahr")
+DEFAULT_ZIP_PATTERN = "{aktenzeichen}_{asservat}_{email}_{datum}_{uhrzeit}"
 
 
 def zip_basename(pattern: str, *, case_number: str, evidence: str = "", email: str = "",
                  when: object = None, spaces_to_underscore: bool = True) -> str:
     """Baut den ZIP-Dateinamen (ohne ``.zip``) aus einem Muster mit Platzhaltern.
 
-    Platzhalter: ``{aktenzeichen} {asservat} {email} {datum} {zeit} {jahr}``. Jeder Wert wird wie ein
+    Platzhalter: ``{aktenzeichen} {asservat} {email} {datum} {zeit} {uhrzeit} {jahr}``. ``{zeit}`` ist der
+    volle Zeitstempel (``20260309T144300Z``), ``{uhrzeit}`` nur die Uhrzeit (``144300``). Jeder Wert wird wie ein
     Dateiname bereinigt; leere Platzhalter (z. B. ``{asservat}`` beim Gesamt-ZIP) fallen mitsamt
     angrenzendem Trenner weg. Unbekannte ``{…}`` bleiben unverändert stehen. Leeres Ergebnis -> das
     bereinigte Aktenzeichen (bzw. ``archiv``)."""
@@ -121,7 +122,8 @@ def zip_basename(pattern: str, *, case_number: str, evidence: str = "", email: s
     dt = when if when is not None else datetime.now(UTC)
     raw = {
         "aktenzeichen": case_number, "asservat": evidence, "email": email,
-        "datum": dt.strftime("%Y-%m-%d"), "zeit": dt.strftime("%Y%m%dT%H%M%SZ"), "jahr": dt.strftime("%Y"),
+        "datum": dt.strftime("%Y-%m-%d"), "zeit": dt.strftime("%Y%m%dT%H%M%SZ"),
+        "uhrzeit": dt.strftime("%H%M%S"), "jahr": dt.strftime("%Y"),
     }
     vals = {k: file_name(str(v), spaces_to_underscore) if v else "" for k, v in raw.items()}
 

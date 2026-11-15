@@ -32,7 +32,13 @@ def test_sanitizes_and_unknown_kept():
 
 
 def test_default_pattern_has_time_for_uniqueness():
-    assert "{zeit}" in DEFAULT_ZIP_PATTERN
+    assert "{uhrzeit}" in DEFAULT_ZIP_PATTERN or "{zeit}" in DEFAULT_ZIP_PATTERN
+
+
+def test_uhrzeit_is_time_only():
+    # {uhrzeit} = nur Uhrzeit (HHMMSS), {zeit} = voller Zeitstempel
+    assert zip_basename("{uhrzeit}", case_number="2026-0001", when=WHEN) == "083000"
+    assert zip_basename("{datum}_{uhrzeit}", case_number="2026-0001", when=WHEN) == "2026-11-15_083000"
 
 
 def test_never_empty():

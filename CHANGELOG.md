@@ -8,9 +8,10 @@
   auf PySide6 6.10 / Python 3.14. Mindestsystem macOS fest auf 12.0. Quell-Builds auf macOS brauchen
   daher Python 3.13 (`requires-python` jetzt `>=3.13`)
 - ZIP-Dateiname einstellbar: in den Einstellungen „Muster ZIP-Name“ mit Platzhaltern `{aktenzeichen}`,
-  `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
-  `{asservat}` beim Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` …
-  an. Standard jetzt `{aktenzeichen}_{asservat}_{email}_{datum}_{zeit}`
+  `{asservat}`, `{email}`, `{datum}`, `{zeit}` (voller Zeitstempel `20260309T144300Z`), `{uhrzeit}`
+  (nur Uhrzeit `144300`), `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B. `{asservat}` beim
+  Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` … an.
+  Standard `{aktenzeichen}_{asservat}_{email}_{datum}_{uhrzeit}`
 - Neue Standard-Vorlagen: Aktenzeichen-Vorschlag jetzt `{lfd:05}/{jahr:2}` (z. B. `00001/26`; der `/`
   wird im Ordner-/Dateinamen zu `_`, im Bericht bleibt das Aktenzeichen wie eingegeben). ZIP-Name-Standard
   wie oben. Beide in den Einstellungen änderbar

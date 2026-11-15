@@ -281,7 +281,7 @@ class SettingsTab(QWidget):
         self.m_tenant.setText(c.oauth_microsoft.tenant)
 
     def _update_zipname_hint(self) -> None:
-        places = self.tr("Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}")
+        places = self.tr("Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}")
         example = zip_basename(self.zip_name.text() or DEFAULT_ZIP_PATTERN, case_number="2026-0001",
                                evidence="A-01", email="max@example.de")
         self.zip_name_hint.setText(self.tr("Beispiel je Konto: {0}.zip").format(example) + "\n" + places)

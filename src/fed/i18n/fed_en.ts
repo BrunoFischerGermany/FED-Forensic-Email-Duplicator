@@ -2707,8 +2707,8 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Google guide</translation>
     </message>
     <message>
-        <source>Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}</source>
-        <translation>Placeholders: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {jahr}</translation>
+        <source>Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}</source>
+        <translation>Placeholders: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}</translation>
     </message>
     <message>
         <source>Beispiel je Konto: {0}.zip</source>
