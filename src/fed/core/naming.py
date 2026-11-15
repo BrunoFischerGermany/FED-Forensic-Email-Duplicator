@@ -105,7 +105,7 @@ def file_name(text: str, spaces_to_underscore: bool = True) -> str:
 
 # Platzhalter für den ZIP-Dateinamen (siehe zip_basename). Reihenfolge = Anzeige in den Einstellungen.
 ZIP_PLACEHOLDERS = ("aktenzeichen", "asservat", "email", "datum", "zeit", "jahr")
-DEFAULT_ZIP_PATTERN = "{aktenzeichen}_{asservat}_{zeit}"
+DEFAULT_ZIP_PATTERN = "{aktenzeichen}_{asservat}_{email}_{datum}_{zeit}"
 
 
 def zip_basename(pattern: str, *, case_number: str, evidence: str = "", email: str = "",

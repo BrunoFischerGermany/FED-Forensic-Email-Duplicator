@@ -290,7 +290,7 @@ class SettingsTab(QWidget):
     def _update_pattern_hint(self) -> None:
         places = self.tr("Platzhalter: {jahr} = 2026 · {jahr:2} = 26 · {monat} · {tag} · {lfd:04} = 0001")
         try:
-            example = suggest_case_number(self.pattern.text() or "{jahr}-{lfd:04}")
+            example = suggest_case_number(self.pattern.text() or "{lfd:05}/{jahr:2}")
         except ValueError:
             self.pattern_hint.setText(self.tr("Muster ungültig.") + "\n" + places)
             restyle(self.pattern_hint, "Error")

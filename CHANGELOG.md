@@ -10,7 +10,10 @@
 - ZIP-Dateiname einstellbar: in den Einstellungen „Muster ZIP-Name“ mit Platzhaltern `{aktenzeichen}`,
   `{asservat}`, `{email}`, `{datum}`, `{zeit}`, `{jahr}` und Live-Beispiel. Leere Platzhalter (z. B.
   `{asservat}` beim Gesamt-ZIP) fallen mit Trenner weg; existiert der Name schon, hängt FED `_2`, `_3` …
-  an. Standard weiter `{aktenzeichen}_{asservat}_{zeit}`
+  an. Standard jetzt `{aktenzeichen}_{asservat}_{email}_{datum}_{zeit}`
+- Neue Standard-Vorlagen: Aktenzeichen-Vorschlag jetzt `{lfd:05}/{jahr:2}` (z. B. `00001/26`; der `/`
+  wird im Ordner-/Dateinamen zu `_`, im Bericht bleibt das Aktenzeichen wie eingegeben). ZIP-Name-Standard
+  wie oben. Beide in den Einstellungen änderbar
 - ZIP-Namen live im Ablauf: Bei mehreren Konten steht unter der Auswahl „ein ZIP je Konto“ jetzt direkt
   die Liste der tatsächlich entstehenden Dateinamen je Asservat (bzw. der eine Gesamtname) – aus dem
   eingestellten Muster berechnet, inkl. `_2`, falls ein Name schon existiert

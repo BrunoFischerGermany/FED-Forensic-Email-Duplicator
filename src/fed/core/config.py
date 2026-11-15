@@ -79,7 +79,7 @@ class OAuthMicrosoft:
 class Config:
     agentur: Agentur = field(default_factory=Agentur)
     examiner_name: str = ""
-    case_nummer_muster: str = "{jahr}-{lfd:04}"
+    case_nummer_muster: str = "{lfd:05}/{jahr:2}"
     programm: Programm = field(default_factory=Programm)
     proxy_url: str = ""
     tsa_url: str = ""
@@ -162,7 +162,7 @@ def _from_dict(d: dict) -> Config:
     return Config(
         agentur=Agentur(**d.get("agentur", {})),
         examiner_name=d.get("examiner", {}).get("name", ""),
-        case_nummer_muster=d.get("case", {}).get("nummer_muster", "{jahr}-{lfd:04}"),
+        case_nummer_muster=d.get("case", {}).get("nummer_muster", "{lfd:05}/{jahr:2}"),
         programm=Programm(**d.get("programm", {})),
         proxy_url=d.get("proxy", {}).get("url", ""),
         tsa_url=d.get("zeitstempel", {}).get("tsa_url", ""),

@@ -243,7 +243,7 @@ class CasePage(QWidget):
 
     def _suggest(self) -> str:
         try:
-            return suggest_case_number(self.st.cfg.case_nummer_muster or "{jahr}-{lfd:04}")
+            return suggest_case_number(self.st.cfg.case_nummer_muster or "{lfd:05}/{jahr:2}")
         except ValueError:
             return ""
 
