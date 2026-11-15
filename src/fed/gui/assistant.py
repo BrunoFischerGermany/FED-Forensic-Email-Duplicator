@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFo
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from fed.core import acquisition as acq
-from fed.core import autoconfig, keepawake, oauth, syscheck
+from fed.core import autoconfig, keepawake, keychain, oauth, syscheck
 from fed.core import timefmt as tf
 from fed.core.auth import (APP_PASSWORD_URL, YAHOO_APP_PASSWORD_URL, OAuthSession, is_gmail, is_microsoft, is_yahoo, log_oauth_login, make_connector,
                            normalize_app_password)
@@ -160,6 +160,7 @@ def ask_device_owner(parent: QWidget | None, at_start: bool = False) -> str | No
 
 class CasePage(QWidget):
     next = Signal()
+    imported = Signal()  # nach einem Offline-Import (Apple Mail): Historie/Status aktualisieren
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -224,8 +225,13 @@ class CasePage(QWidget):
         self.go.setObjectName("Primary")
         self.go.clicked.connect(self._go_clicked)
         self.open_btn = open_btn
+        self.import_btn = QPushButton(self.tr("Apple-Mail importieren …"))
+        self.import_btn.setToolTip(self.tr("Mails aus einem Apple-Mail-Ordner oder Abzug offline in den Fall einlesen"))
+        self.import_btn.clicked.connect(self._import_applemail)
+        self.import_btn.setVisible(False)
         btns = QHBoxLayout()
         btns.addStretch(1)
+        btns.addWidget(self.import_btn)
         btns.addWidget(open_btn)
         btns.addWidget(self.go)
         lay.addLayout(btns)
@@ -329,6 +335,17 @@ class CasePage(QWidget):
         self.browse_btn.setEnabled(not is_open)
         self.go.setText(self.tr("Weiter") if is_open else self.tr("Fall anlegen und weiter"))
         self.open_btn.setVisible(not is_open)
+        self.import_btn.setVisible(is_open and not (case.info().get("closed_utc") if is_open else False))
+
+    def _import_applemail(self) -> None:
+        from fed.gui.applemail_dialog import AppleMailImportDialog
+
+        case = self.st.case
+        if case is None:
+            return
+        dlg = AppleMailImportDialog(self, case)
+        if dlg.exec():
+            self.imported.emit()  # Historie/Status aktualisieren
 
     def _device_owner(self) -> str | None:
         """Antwort vom Programmstart; nur falls dort nicht gefragt wurde, jetzt fragen."""
@@ -432,6 +449,7 @@ class AccountPage(QWidget):
     back = Signal()
     finish = Signal()
     new_account = Signal()
+    imported = Signal()  # nach einem Apple-Mail-Import: Konten/Historie aktualisieren
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -440,6 +458,14 @@ class AccountPage(QWidget):
         w, lay = page(self.tr("Konto einrichten"),
                       self.tr("Adresse eingeben – Server, Port und Verschlüsselung werden wie bei Thunderbird "
                               "automatisch ermittelt."))
+        self.import_btn = QPushButton(self.tr("Oder: Apple-Mail offline importieren …"))
+        self.import_btn.setToolTip(self.tr("Mails aus einem Apple-Mail-Ordner oder Abzug/Image offline in den Fall "
+                                           "einlesen (ohne Server, je Adresse ein Asservat)"))
+        self.import_btn.clicked.connect(self._import_applemail)
+        import_row = QHBoxLayout()
+        import_row.addWidget(self.import_btn)
+        import_row.addStretch(1)
+        lay.addLayout(import_row)
         self.accounts_card = Card(self.tr("Bereits in diesem Fall"))
         self.accounts = AccountsTable()
         self.accounts_card.add(self.accounts)
@@ -498,6 +524,12 @@ class AccountPage(QWidget):
         c2.add(self.method)
         self.pw_label = label(self.tr("Passwort"), "H2")
         self.password = PasswordField()
+        self.keychain_btn = QPushButton(self.tr("Aus macOS-Schlüsselbund holen"))
+        self.keychain_btn.setToolTip(self.tr("Das gespeicherte Passwort dieses Kontos aus dem Schlüsselbund des "
+                                             "angemeldeten Mac-Benutzers übernehmen (nur auf dem laufenden Mac; "
+                                             "macOS fragt einmal nach Erlaubnis)"))
+        self.keychain_btn.clicked.connect(self._fill_from_keychain)
+        self.keychain_btn.setVisible(False)
         self.pw_hint = label(self.tr("Nur im Arbeitsspeicher – wird nie gespeichert oder geloggt."), "Hint")
         self.oauth_hint = label("", "Hint", wrap=True)
         for lab in (self.pw_hint, self.oauth_hint):  # Link „Anleitung öffnen“ -> Hilfe-Fenster
@@ -518,8 +550,8 @@ class AccountPage(QWidget):
         self.vault_row.setVisible(False)
         self._recalled: str | None = None
         self.password.textEdited.connect(lambda *_: self._recall_off())
-        for x in (self.pw_label, self.password, self.vault_row, self.pw_hint, self.oauth_hint, self.device,
-                  self.login_as):
+        for x in (self.pw_label, self.password, self.keychain_btn, self.vault_row, self.pw_hint, self.oauth_hint,
+                  self.device, self.login_as):
             c2.add(x)
         left.addWidget(c2)
         cn = Card(self.tr("Notiz zum Konto"))
@@ -641,11 +673,57 @@ class AccountPage(QWidget):
         if row and normalize_email(self.email.text()) == row[0]:
             self.acc_notes.set_value(row[1], row[2])
 
+    def _fill_from_keychain(self) -> None:
+        """Passwort aus dem macOS-Schlüsselbund ins Feld holen (nur auf dem laufenden Mac)."""
+        host = self.server.text().strip()
+        account = normalize_email(self.email.text())
+        user = self.user.text().strip()
+        if not host or "@" not in account:
+            QMessageBox.information(self, "FED", self.tr("Erst Adresse und Server ausfüllen (ggf. „Verbindung "
+                                                        "testen“ für die Autoerkennung)."))
+            return
+        port = self.port.value() or None
+        pw = keychain.internet_password(host, user or account, port) or keychain.internet_password(host, account, port)
+        if pw:
+            self.password.setText(pw)
+            self._recall_off()
+            restyle(self.pw_hint, "Ok")
+            self.pw_hint.setText(self.tr("Passwort aus dem Schlüsselbund übernommen – nicht gespeichert."))
+        else:
+            QMessageBox.information(self, "FED", self.tr(
+                "Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde "
+                "verweigert). Bitte von Hand eingeben.").format(host=host, acc=user or account))
+
+    def _import_applemail(self) -> None:
+        from fed.gui.applemail_dialog import AppleMailImportDialog
+
+        case = self.st.case
+        if case is None:
+            return
+        dlg = AppleMailImportDialog(self, case)
+        if dlg.exec():
+            rows = self.accounts.refresh(case)
+            self.accounts_card.setVisible(bool(rows))
+            self.imported.emit()
+
     def _pick(self, o: dict) -> None:
         """Konto aus der Übersicht übernehmen (Server, Port, Benutzer aus der Case-Datei)."""
         row = self.st.case.conn.execute("SELECT server, port, security, username, auth_method FROM account "
                                         "WHERE id = ?", (o["id"],)).fetchone()
         self.email.setText(o["email"])
+        if row[4] == "import":
+            # Offline importiertes Konto online fortsetzen: Server/Port/Sicherheit per Autoerkennung aus
+            # der Adresse bestimmen (der Import hatte keinen echten Server/Port).
+            self.user.clear()
+            self.method.set_value("password")
+            self._sync_google_oauth()
+            self._method_changed("password")
+            self.found = None
+            self.acc_notes.set_value(o.get("notes", ""), o.get("notes_html"))
+            self._discover()
+            self._check_known()
+            self.password.setFocus()
+            return
         self.server.setText(row[0])
         self.port.setValue(row[1])
         self.security.setCurrentText(row[2])
@@ -731,6 +809,7 @@ class AccountPage(QWidget):
             self._recall_off()
         for x in (self.pw_label, self.password, self.pw_hint):
             x.setVisible(pw)
+        self.keychain_btn.setVisible(pw and keychain.available())
         self.pw_label.setText(self.tr("App-Passwort") if m == "google_app" else self.tr("Passwort"))
         self.pw_hint.setWordWrap(True)
         self._update_pw_hint()
@@ -1864,6 +1943,10 @@ class Assistant(QWidget):
         for p in (self.p_case, self.p_acc, self.p_fold, self.p_acq, self.p_fin):
             self.stack.addWidget(p)
         self.p_case.next.connect(self._after_case)
+        self.p_case.imported.connect(self.refresh_accounts)
+        self.p_case.imported.connect(self.case_changed.emit)
+        self.p_acc.imported.connect(self.refresh_accounts)
+        self.p_acc.imported.connect(self.case_changed.emit)
         self.p_acc.back.connect(lambda: self._show(0, 0))
         self.p_acc.next.connect(self._after_account)
         self.p_fold.back.connect(lambda: self._show(1, 2))
