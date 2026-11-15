@@ -29,11 +29,11 @@ echo "::group::Python (Build von actions/python-versions für Ubuntu 22.04)"
 export AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache RUNNER_TOOL_CACHE=/opt/hostedtoolcache
 mkdir -p /tmp/py && curl -fsSL "$PYTHON_URL" | tar -xz -C /tmp/py
 (cd /tmp/py && bash ./setup.sh)
-pybin=$(dirname "$(ls -d /opt/hostedtoolcache/Python/3.*/x64/bin/python3 | head -1)")
+pybin=$(dirname "$(ls -d /opt/hostedtoolcache/Python/3.*/x64/bin/python3 | sed -n '1p')")
 python3_real="$pybin/python3"
 "$python3_real" -m venv /opt/fed-python
 export PATH=/opt/fed-python/bin:$PATH
-ldd --version | head -1
+ldd --version | sed -n '1p'
 python --version
 echo "::endgroup::"
 
@@ -45,7 +45,7 @@ python -m pip install --upgrade pip
 python -m pip install ".[build]"
 python packaging/build.py
 
-archive=$(ls dist/FED-*-linux-*.tar.gz | head -1)
+archive=$(ls dist/FED-*-linux-*.tar.gz | sed -n '1p')
 python packaging/selftest.py "$archive"
 # Dateien wieder dem Runner-Benutzer geben (Cache, Upload, Aufräumen)
 if [ -n "${HOST_UID:-}" ]; then
