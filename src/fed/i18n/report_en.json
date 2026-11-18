@@ -189,5 +189,6 @@
   "mail_hop_by": "by",
   "mail_hop_with": "protocol",
   "mail_hop_time": "time",
-  "mail_all_headers": "Full headers"
+  "mail_all_headers": "Full headers",
+  "dkim_issues_omitted": "{n} messages with findings – not listed individually here due to the volume. The result for every message is in log.csv (columns DKIM, DKIM_Domain, DKIM_Detail)."
 }

@@ -452,9 +452,9 @@ def _folder_lines(d: dict, L: dict, email: str) -> list[str]:
 
 @_time_language
 def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-               account_id: int | None = None, encrypted_planned: bool = False) -> str:
+               account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None) -> str:
     L = labels(language)
-    d = collect(case, account_id)
+    d = data if data is not None else collect(case, account_id)
     out = []
     ag = d["agency"]
     if ag.get("name"):
@@ -491,7 +491,13 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                        f"{'  -> ' + x['moved_to'] if x['moved_to'] else ''}")
         out += ["", f"{L['folders']}:", *_folder_lines(d, L, a["email"]), ""]
     out += [L["dkim_section"], "-" * len(L["dkim_section"]), L["dkim_intro"], ""]
-    out += [f"  {r[0]}  {r[1]}  {r[2]}  [{r[3]}]  {r[4]}" for r in _dkim_issue_rows(d, L)] or [f"  {L['dkim_none_issues']}"]
+    dkim_rows = _dkim_issue_rows(d, L)
+    if dkim_rows and not include_mail_list(len(dkim_rows), mail_list, mail_list_max):
+        out.append("  " + L["dkim_issues_omitted"].format(n=len(dkim_rows)))
+    elif dkim_rows:
+        out += [f"  {r[0]}  {r[1]}  {r[2]}  [{r[3]}]  {r[4]}" for r in dkim_rows]
+    else:
+        out.append(f"  {L['dkim_none_issues']}")
     if d["dns"]:
         out += ["", f"{L['dns_section']}:", f"  {L['dns_intro']}"]
         out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
@@ -533,8 +539,8 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
 
 
 def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-              account_id: int | None = None, encrypted_planned: bool = False) -> None:
-    path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id, encrypted_planned),
+              account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None) -> None:
+    path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id, encrypted_planned, data),
                     encoding="utf-8")
 
 
@@ -547,12 +553,12 @@ def _encrypted_name(d: dict) -> str:
 # ---------------------------------------------------------------- PDF
 @_time_language
 def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-              account_id: int | None = None, encrypted_planned: bool = False) -> None:
+              account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None) -> None:
     from fpdf import FPDF
     from fpdf.fonts import FontFace
 
     L = labels(language)
-    d = collect(case, account_id)
+    d = data if data is not None else collect(case, account_id)
     fonts = resources.files("fed.resources") / "fonts"
     logo = case.logo()
     ag = d["agency"]
@@ -695,7 +701,9 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.multi_cell(0, 4.2, L["dkim_intro"], new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
     issues = _dkim_issue_rows(d, L)
-    if issues:
+    if issues and not include_mail_list(len(issues), mail_list, mail_list_max):
+        pdf.multi_cell(0, 4.2, L["dkim_issues_omitted"].format(n=len(issues)), new_x="LMARGIN", new_y="NEXT")
+    elif issues:
         with pdf.table(col_widths=(18, 40, 46, 28, 48), headings_style=head, line_height=4.2, text_align="LEFT") as t:
             t.row([L["evidence"], L["mail"], L["subject"], L["result"], L["detail"]])
             for r in issues:
@@ -944,8 +952,9 @@ def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
     """Gesamtbericht ``report.txt``/``report.pdf`` und – bei mehreren Konten – je Konto
     ``report_<Evidence>.txt``/``.pdf``. Rückgabe: der Gesamtbericht."""
     txt, pdfp = case.root / "report.txt", case.root / "report.pdf"
-    write_txt(case, txt, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned)
-    write_pdf(case, pdfp, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned)
+    d = collect(case, None)  # nur einmal sammeln und für TXT und PDF wiederverwenden (spart bei großen Fällen viel Zeit)
+    write_txt(case, txt, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d)
+    write_pdf(case, pdfp, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d)
     accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
     if len(accounts) > 1:
         for acc_id, evidence, email in accounts:
