@@ -623,3 +623,18 @@ def test_account_page_shortcuts(app):
     scs["Ctrl+P"].activated.emit()
     assert clicked == ["test"]
     p.deleteLater()
+
+
+def test_window_title_shows_version_and_os(app, tmp_path):
+    """Der Fenstertitel nennt Version und Betriebssystem (Windows/macOS/Linux)."""
+    from fed.core.config import Config
+    from fed.gui.main_window import MainWindow, _os_name
+
+    cfg = Config()
+    cfg.programm.ntp = False
+    cfg.programm.zielpfad = str(tmp_path)
+    w = MainWindow(cfg, tmp_path)
+    title = w.windowTitle()
+    assert "Forensic Email Duplicator" in title
+    assert _os_name() in title
+    assert _os_name() in ("Windows", "macOS", "Linux")
