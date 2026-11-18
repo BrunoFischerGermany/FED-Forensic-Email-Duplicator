@@ -8,6 +8,7 @@ So tragen Programm, Berichte und Validierungsprotokoll eines Releases die Versio
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -20,6 +21,12 @@ def main(argv: list[str]) -> int:
     if not v:
         print("Version unverändert")
         return 0
+    # Nicht-Release-Builds einer reinen Version (z. B. „1.0.3“) um die Commit-Kurz-ID ergänzen,
+    # damit sich Test-Builds im Fenstertitel unterscheiden lassen. Releases (FED_BUILD_SHA leer)
+    # und Nightlies (Version trägt bereits einen Suffix) bleiben unberührt.
+    sha = os.environ.get("FED_BUILD_SHA", "").strip()
+    if sha and re.fullmatch(r"\d+\.\d+\.\d+", v):
+        v = f"{v}-{sha[:7]}"
     if not re.fullmatch(r"[0-9][0-9A-Za-z.\-]*", v):
         print(f"ungültige Version: {v!r}")
         return 1
