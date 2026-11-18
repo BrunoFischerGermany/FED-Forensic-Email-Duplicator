@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import platform
 from pathlib import Path
 
 from PySide6.QtCore import QSettings, QSize, Qt
@@ -18,11 +19,16 @@ from fed.gui.status import ConnectionStatus
 from fed.gui.widgets import LOGO, MOON, SUN, ElidedLabel, label, svg_icon
 
 
+def _os_name() -> str:
+    """Betriebssystem für den Fenstertitel (Windows · macOS · Linux)."""
+    return {"Darwin": "macOS", "Windows": "Windows", "Linux": "Linux"}.get(platform.system(), platform.system())
+
+
 class MainWindow(QMainWindow):
     def __init__(self, cfg: Config, program_dir: Path | None = None) -> None:
         super().__init__()
         self.cfg = cfg
-        self.setWindowTitle(f"FED – Forensic Email Duplicator {__version__}")
+        self.setWindowTitle(f"FED – Forensic Email Duplicator {__version__} · {_os_name()}")
         self._place_window()
         self.dark = theme.is_dark(cfg.programm.design)
 

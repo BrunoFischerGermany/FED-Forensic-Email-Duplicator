@@ -51,6 +51,9 @@ permissions:
 
 env:
   FED_VERSION: ${{ github.event.release.tag_name || inputs.version }}
+  # Für Nicht-Release-Builds hängt set_version.py die Commit-Kurz-ID an eine reine Version an
+  # (z. B. 1.0.3 -> 1.0.3-2bc802f), damit sich Test-Builds im Fenstertitel unterscheiden lassen.
+  FED_BUILD_SHA: ${{ github.event_name != 'release' && github.sha || '' }}
 
 jobs:
   # Prüft vor dem (langen) Bauen, ob ein Release angelegt werden kann.
