@@ -73,7 +73,7 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(w)
         rl.addWidget(self.stack, 1)
         self.setCentralWidget(root)
-        self.nav.idClicked.connect(self.stack.setCurrentIndex)
+        self.nav.idClicked.connect(self._nav)
         self.nav.button(0).setChecked(True)
 
         self.case_info = ElidedLabel(self.tr("Kein Fall geöffnet"))
@@ -85,6 +85,24 @@ class MainWindow(QMainWindow):
         self.settings.saved.connect(self._settings_saved)
         self.settings.theme_preview.connect(lambda m: self.apply_theme(theme.is_dark(m)))
         self.apply_theme(self.dark)
+
+    _SETTINGS_IDX = 2
+
+    def _nav(self, idx: int) -> None:
+        """Navigation; beim Verlassen der Einstellungen mit ungespeicherten Änderungen nachfragen."""
+        if self.stack.currentIndex() == self._SETTINGS_IDX and idx != self._SETTINGS_IDX and self.settings.is_dirty():
+            r = QMessageBox.question(
+                self, self.tr("Einstellungen"),
+                self.tr("Die Einstellungen wurden geändert. Änderungen speichern?"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes)
+            if r == QMessageBox.StandardButton.Yes:
+                if not self.settings.save():  # Speichern fehlgeschlagen (z. B. ungültige Eingabe): bleiben
+                    self.nav.button(self._SETTINGS_IDX).setChecked(True)
+                    return
+            else:
+                self.settings.load()  # verwerfen: Eingaben auf gespeicherten Stand zurücksetzen
+        self.stack.setCurrentIndex(idx)
 
     def apply_theme(self, dark: bool) -> None:
         self.dark = dark
@@ -131,6 +149,14 @@ class MainWindow(QMainWindow):
             self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
 
     def closeEvent(self, e) -> None:
+        if self.settings.is_dirty():
+            r = QMessageBox.question(
+                self, self.tr("Einstellungen"),
+                self.tr("Die Einstellungen wurden geändert. Änderungen speichern?"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.Yes)
+            if r == QMessageBox.StandardButton.Yes:
+                self.settings.save()
         running = self.assistant.jobs.running()
         if running:
             r = QMessageBox.question(self, "FED", self.tr("Es laufen noch {0} Sicherungen:\n\n{1}\n\nAbbrechen und "
