@@ -385,3 +385,19 @@ def test_report_caps_many_dkim_issues(acquired):
     assert len(capped) < len(full)
     assert labels("de")["dkim_issues_omitted"].format(n=n) in capped
     assert "log.csv" in capped
+
+
+def test_describe_event_readable_and_fallback():
+    """Log-Ereignisse werden lesbar; unbekannte sauber aufbereitet (kein roher JSON)."""
+    from fed.core.report import describe_event, labels
+
+    de = labels("de")
+    assert "INBOX" in describe_event("no_date_header", '{"folder": "INBOX", "uid": 7}', de)
+    assert "UID 7" in describe_event("no_date_header", '{"folder": "INBOX", "uid": 7}', de)
+    # String-Details (kein dict)
+    assert "nicht möglich" in describe_event("resume_not_possible", "UIDVALIDITY", de)
+    # unbekanntes Ereignis -> entgrätet, kein "{"
+    out = describe_event("keep_awake_on", '{"for": "acquisition"}', de)
+    assert "{" not in out and "keep awake on" in out
+    # Englisch
+    assert "Date header" in describe_event("no_date_header", '{"folder": "X", "uid": 1}', labels("en"))
