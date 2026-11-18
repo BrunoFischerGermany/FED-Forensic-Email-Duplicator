@@ -1684,9 +1684,15 @@ class AcquirePage(QWidget):
             "SELECT id, ts_utc, level, event, details FROM log WHERE id > ? AND (attempt_id IS NULL OR attempt_id IN "
             "(SELECT id FROM attempt WHERE account_id = ?)) ORDER BY id",
             (getattr(self, "_last_log", 0), job.account_id)).fetchall()
+        from fed.core.report import describe_event, labels
+
+        lbl = getattr(self, "_log_labels", None)
+        if lbl is None:
+            lbl = self._log_labels = labels(self.st.cfg.programm.sprache or "de")
         for id_, ts, level, event, details in rows:
             self._last_log = id_
-            self.log.appendPlainText(f"{ts[11:19]} {level[:4]:<4} {event} {details[:90]}")
+            when = f"{ts[11:19]} UTC · {tf.local_str(ts, with_date=False)}"
+            self.log.appendPlainText(f"{when}  {level[:4]:<4} {describe_event(event, details, lbl)}")
         self._tick = getattr(self, "_tick", 0) + 1
         if self._tick % 3 == 0:
             self._show_accounts()

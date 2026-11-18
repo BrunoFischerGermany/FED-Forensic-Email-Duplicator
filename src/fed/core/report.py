@@ -199,6 +199,45 @@ def include_mail_list(count: int, mode: str = "auto", limit: int = 500) -> bool:
     return count <= limit
 
 
+class _SafeDict(dict):
+    """Fehlende Platzhalter in Vorlagen stören nicht – sie werden zu ``?``."""
+
+    def __missing__(self, key):
+        return "?"
+
+
+def describe_event(event: str, details, L: dict | None = None) -> str:
+    """Log-Ereignis in verständlichen Satz übersetzen (für Bericht und Live-Log).
+
+    Unbekannte Ereignisse werden lesbar aufbereitet (Name entgrätet, wichtigste Felder angehängt),
+    sodass nie roher JSON-Text stehen bleibt."""
+    import json as _json
+
+    L = L or labels("de")
+    d: dict = {}
+    if isinstance(details, dict):
+        d = details
+    elif isinstance(details, str) and details.strip():
+        try:
+            v = _json.loads(details)
+            d = v if isinstance(v, dict) else {"text": v}
+        except (ValueError, TypeError):
+            d = {"text": details}
+    tmpl = L.get("log_" + event)
+    if tmpl:
+        try:
+            return tmpl.format_map(_SafeDict(d))
+        except (KeyError, IndexError, ValueError):
+            pass
+    nice = event.replace("_", " ")
+    extra = ", ".join(
+        f"{k}={v}" for k, v in d.items()
+        if k not in ("examples", "sha256", "note", "text") and not isinstance(v, (list, dict)))
+    if "text" in d and not extra:
+        return f"{nice}: {d['text']}"
+    return f"{nice} ({extra})" if extra else nice
+
+
 def _fmt_bytes(n: int | None) -> str:
     if n is None:
         return "–"
@@ -505,7 +544,8 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
     for title, items in _tail_sections(d, L):
         out += [title, "-" * len(title), *_kv_txt(items), ""]
     out += [L["issues"], "-" * len(L["issues"])]
-    out += [f"{tf.both(x['ts_utc'])} {x['level']:<7} {x['event']}: {x['details']}" for x in d["issues"]] or [L["none"]]
+    out += [f"{tf.both(x['ts_utc'])} {x['level']:<7} {describe_event(x['event'], x['details'], L)}"
+            for x in d["issues"]] or [L["none"]]
     out += ["", L["outputs"], "-" * len(L["outputs"])]
     for o in d["outputs"]:
         out += [f"{o['file_name']}  ({_fmt_bytes(o['size'])})", f"  SHA-256  {o['sha256']}"]
@@ -729,7 +769,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         with pdf.table(col_widths=(42, 18, 120), headings_style=head, line_height=4.2, text_align="LEFT") as t:
             t.row([L["time_col"], L["status"], ""])
             for x in d["issues"]:
-                t.row([tf.both_short(x["ts_utc"]), x["level"], f"{x['event']}: {x['details']}"[:400]])
+                t.row([tf.both_short(x["ts_utc"]), x["level"], describe_event(x["event"], x["details"], L)[:400]])
     else:
         pdf.cell(0, 6, L["none"], new_x="LMARGIN", new_y="NEXT")
 
