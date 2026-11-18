@@ -104,6 +104,8 @@ def collect(case: Case, account_id: int | None = None) -> dict:
                            "JOIN account a ON a.id = f.account_id WHERE m.status = 'valid' "
                            "AND m.dkim_result IN ('fail', 'permerror', 'temperror') ORDER BY a.id, m.zip_path")
     dns_rows = _q(case, "SELECT * FROM dns_record ORDER BY name, id")
+    domain_dns = _q(case, "SELECT account_id, domain, rtype, name, value, sha256, status FROM domain_dns "
+                          "ORDER BY account_id, rtype, name, id")
     gmail = {}
     for acc, total, dup_ids, dups in case.conn.execute(
             "SELECT account_id, SUM(n), SUM(n > 1), SUM(CASE WHEN n > 1 THEN n - 1 ELSE 0 END) FROM ("
@@ -127,6 +129,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
             "SELECT DISTINCT LOWER(m.dkim_selector || '._domainkey.' || m.dkim_domain) FROM message m "
             "JOIN folder f ON f.id = m.folder_id WHERE f.account_id = ? AND m.dkim_domain IS NOT NULL", (account_id,))}
         dns_rows = [r for r in dns_rows if r["name"] in used]
+        domain_dns = [r for r in domain_dns if r["account_id"] == account_id]
     return {
         "info": info,
         "replace_spaces": case.replace_spaces,
@@ -147,6 +150,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "gmail": gmail,
         "dkim_issues": dkim_issues,
         "dns": dns_rows,
+        "domain_dns": domain_dns,
         "zip_mode": case.zip_mode(),
         "log": {"ok": ok, "bad": bad, "count": log_count, "head": head},
         "messages": messages,
@@ -486,6 +490,15 @@ def _dns_rows(d: dict, L: dict) -> list[list[str]]:
              tf.both_short(r["fetched_utc"]), r["sha256"] or "–"] for r in d["dns"]]
 
 
+def _domain_dns_rows(d: dict, L: dict) -> list[list[str]]:
+    absent = {"nxdomain": L["dns_missing"], "none": L["dns_none"], "error": L["dns_error"]}
+    rows = []
+    for r in d["domain_dns"]:
+        value = r["value"] if r["status"] == "ok" else absent.get(r["status"], r["status"])
+        rows.append([r["rtype"], r["name"], value or "–", r["sha256"] or "–"])
+    return rows
+
+
 def _title(d: dict, L: dict) -> str:
     if d["account_id"] is None:
         return L["title_multi"].format(n=d["all_accounts"]) if d["all_accounts"] > 1 else L["title"]
@@ -558,6 +571,10 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out += [f"  {r[0]}  {r[1]}  {r[2]}  [{r[3]}]  {r[4]}" for r in dkim_rows]
     else:
         out.append(f"  {L['dkim_none_issues']}")
+    if d["domain_dns"]:
+        out += ["", f"{L['domain_dns_section']}:", f"  {L['domain_dns_intro']}"]
+        out += [f"  {r[0]:<5} {r[1]}  {r[2].replace(chr(10), ' / ')}"
+                + (f"\n        SHA-256 {r[3]}" if r[3] != "–" else "") for r in _domain_dns_rows(d, L)]
     if d["dns"]:
         out += ["", f"{L['dns_section']}:", f"  {L['dns_intro']}"]
         out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
@@ -771,6 +788,15 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                 t.row([r[0], r[1], r[2], r[3], r[4][:300]])
     else:
         pdf.cell(0, 5, L["dkim_none_issues"], new_x="LMARGIN", new_y="NEXT")
+    if d["domain_dns"]:
+        h2(L["domain_dns_section"])
+        pdf.set_font("DejaVu", "", 8)
+        pdf.multi_cell(0, 4.2, L["domain_dns_intro"], new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+        with pdf.table(col_widths=(16, 45, 58, 61), headings_style=head, line_height=4.2, text_align="LEFT") as t:
+            t.row([L["dns_type"], L["dns_name"], L["dns_value"], "SHA-256"])
+            for r in _domain_dns_rows(d, L):
+                t.row(r)
     if d["dns"]:
         h2(L["dns_section"])
         pdf.set_font("DejaVu", "", 8)

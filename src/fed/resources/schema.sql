@@ -158,6 +158,21 @@ CREATE TABLE IF NOT EXISTS dns_record (
     attempt_id  INTEGER REFERENCES attempt(id)
 );
 
+-- DNS-Schnappschuss der Konto-Domain zum Sicherungszeitpunkt (MX, SPF/TXT, DMARC, NS, SOA, A/AAAA)
+CREATE TABLE IF NOT EXISTS domain_dns (
+    id          INTEGER PRIMARY KEY,
+    account_id  INTEGER REFERENCES account(id),
+    domain      TEXT NOT NULL,
+    rtype       TEXT NOT NULL,                -- A | AAAA | MX | NS | SOA | TXT
+    name        TEXT NOT NULL,                -- abgefragter Name (Domain bzw. _dmarc.<Domain>)
+    value       TEXT,                         -- Eintrag (NULL bei nxdomain/none/error)
+    sha256      TEXT,
+    status      TEXT NOT NULL,                -- ok | nxdomain | none | error
+    error       TEXT,
+    fetched_utc TEXT NOT NULL,
+    attempt_id  INTEGER REFERENCES attempt(id)
+);
+
 -- Nur anhängend; entry_hash = SHA-256 über Inhalt + prev_hash
 CREATE TABLE IF NOT EXISTS log (
     id         INTEGER PRIMARY KEY,

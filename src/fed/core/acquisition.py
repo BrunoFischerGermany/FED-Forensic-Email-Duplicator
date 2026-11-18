@@ -332,6 +332,7 @@ def run_attempt(
         imap = None
         _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, progress, prog, result)
         if cfg.programm.dkim_pruefen:
+            store_domain_dns(case, account_id, email, attempt_id, cfg.programm.socket_timeout_s)
             set_phase("auth_check")
             auth_check(case, account_id, attempt_id, cancel, cfg.programm.socket_timeout_s, progress, prog)
         imap = connect()
@@ -665,6 +666,37 @@ def summary(case: Case, account_id: int) -> dict:
         (account_id,)).fetchall()
     return {"folders": [{"name": r[0], "selected": bool(r[1]), "server": r[2], "saved": r[3]} for r in rows],
             "saved_total": sum(r[3] or 0 for r in rows if r[1])}
+
+
+def store_domain_dns(case: Case, account_id: int, email: str, attempt_id: int | None = None,
+                     timeout: float = 5.0) -> int:
+    """DNS-Schnappschuss der Konto-Domain einmalig je Konto erfassen (MX, SPF/TXT, DMARC, NS, SOA, A/AAAA).
+
+    Perishable Infrastruktur-Nachweis zum Sicherungszeitpunkt; nur lesend, best-effort (Fehler werden je
+    Eintrag vermerkt, der Abschluss wird nie blockiert). Bereits erfasste Konten werden übersprungen."""
+    import hashlib
+
+    from fed.core import authcheck
+
+    if case.conn.execute("SELECT 1 FROM domain_dns WHERE account_id = ? LIMIT 1", (account_id,)).fetchone():
+        return 0
+    try:
+        domain, records = authcheck.snapshot_domain_dns(email, timeout)
+    except Exception as e:  # DNS best-effort: darf den Lauf nie abbrechen
+        case.log("WARNING", "domain_dns_failed", {"account_id": account_id, "error": str(e)}, attempt_id)
+        return 0
+    now = utc_now()
+    with case.conn:
+        for r in records:
+            sha = hashlib.sha256(r.value.encode("utf-8")).hexdigest() if r.value else None
+            case.conn.execute(
+                "INSERT INTO domain_dns (account_id, domain, rtype, name, value, sha256, status, error, "
+                "fetched_utc, attempt_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (account_id, domain, r.rtype, r.name, r.value, sha, r.status, r.error, now, attempt_id))
+    ok = sum(1 for r in records if r.status == "ok")
+    case.log("INFO", "domain_dns_snapshot", {"account_id": account_id, "domain": domain,
+                                             "records": ok, "queries": len(records)}, attempt_id)
+    return ok
 
 
 def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cancel: CancelToken | None = None,

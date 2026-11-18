@@ -215,5 +215,10 @@
   "log_scan_done": "Mailbox scanned",
   "log_case_closed": "Case closed – read-only from now on",
   "log_work_dir_deleted": "Working folder deleted after successful ZIP verification",
-  "delivery_verdict": "at delivery: {v}"
+  "delivery_verdict": "at delivery: {v}",
+  "domain_dns_section": "Domain DNS snapshot",
+  "domain_dns_intro": "DNS records of the account domain at acquisition time (MX, SPF/TXT, DMARC, NS, SOA, A/AAAA) – perishable infrastructure evidence, each with SHA-256. Missing records are recorded too.",
+  "dns_none": "no record",
+  "dns_type": "Type",
+  "dns_value": "Value"
 }

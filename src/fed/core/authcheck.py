@@ -175,3 +175,42 @@ def check(raw: bytes, dns: DnsCache) -> AuthResult:
             res.dkim_domain, res.dkim_selector = tags.get("d", res.dkim_domain), tags.get("s", res.dkim_selector)
             break
     return res
+
+
+# DNS-Schnappschuss der Konto-Domain: perishable Infrastruktur-Nachweis zum Sicherungszeitpunkt.
+SNAPSHOT_TYPES = ("A", "AAAA", "MX", "NS", "SOA", "TXT")
+
+
+@dataclass
+class DomainDnsRecord:
+    name: str       # abgefragter Name (Domain bzw. _dmarc.<Domain>)
+    rtype: str      # A | AAAA | MX | NS | SOA | TXT
+    value: str | None
+    status: str     # ok | nxdomain | none | error
+    error: str | None = None
+
+
+def snapshot_domain_dns(email: str, timeout: float = 5.0) -> tuple[str, list[DomainDnsRecord]]:
+    """DNS-Schnappschuss der Domain einer E-Mail-Adresse.
+
+    Fragt MX, TXT (enthält SPF), NS, SOA, A/AAAA der Domain sowie TXT von ``_dmarc.<domain>`` (DMARC) ab.
+    Auch das Fehlen eines Eintrags (nxdomain/none) wird festgehalten – Abwesenheit ist ebenfalls Nachweis.
+    Reiner Lesezugriff aufs DNS; wirft nicht, sondern vermerkt Fehler je Abfrage."""
+    import dns.exception
+    import dns.resolver
+
+    domain = email.rsplit("@", 1)[-1].strip().lower().rstrip(".")
+    out: list[DomainDnsRecord] = []
+    queries = [(domain, t) for t in SNAPSHOT_TYPES] + [(f"_dmarc.{domain}", "TXT")]
+    for name, rtype in queries:
+        try:
+            ans = dns.resolver.resolve(name, rtype, lifetime=min(timeout, 10))
+            for val in sorted(str(x) for x in ans):
+                out.append(DomainDnsRecord(name, rtype, val, "ok"))
+        except dns.resolver.NXDOMAIN:
+            out.append(DomainDnsRecord(name, rtype, None, "nxdomain"))
+        except dns.resolver.NoAnswer:
+            out.append(DomainDnsRecord(name, rtype, None, "none"))
+        except (dns.exception.Timeout, dns.resolver.NoNameservers, OSError) as e:
+            out.append(DomainDnsRecord(name, rtype, None, "error", str(e)))
+    return domain, out
