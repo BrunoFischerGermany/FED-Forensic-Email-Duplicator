@@ -600,3 +600,26 @@ def test_settings_dirty_detection(app, tmp_path):
     assert not st.is_dirty()  # nach Speichern wieder sauber
     assert cfg.programm.verbindungen == st.conns.value()  # Wert ist im cfg angekommen
     st.deleteLater()
+
+
+def test_account_page_shortcuts(app):
+    """Strg+T löst „Verbindung testen“ aus, Strg+P „Postfach scannen“ – nur wenn der Knopf aktiv ist."""
+    from PySide6.QtGui import QShortcut
+
+    from fed.core.config import Config
+    from fed.gui.assistant import AccountPage, State
+
+    p = AccountPage(State(Config()))
+    scs = {s.key().toString(): s for s in p.findChildren(QShortcut)}
+    assert "Ctrl+T" in scs and "Ctrl+P" in scs
+    clicked = []
+    p.test_btn.setEnabled(True)
+    p.test_btn.animateClick = lambda *a: clicked.append("test")
+    scs["Ctrl+T"].activated.emit()
+    assert clicked == ["test"]
+    # deaktivierter Knopf -> kein Auslösen
+    p.go.setEnabled(False)
+    p.go.animateClick = lambda *a: clicked.append("scan")
+    scs["Ctrl+P"].activated.emit()
+    assert clicked == ["test"]
+    p.deleteLater()

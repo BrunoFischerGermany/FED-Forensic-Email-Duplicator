@@ -605,6 +605,16 @@ class AccountPage(QWidget):
         self._ok = False  # Verbindungstest mit den aktuellen Eingaben erfolgreich
         self._go_after_test = False
         self.go.clicked.connect(self._go_clicked)
+        # Tastenkürzel: Strg+T testen, Strg+P scannen (auf macOS bildet Qt „Ctrl“ automatisch auf Cmd ab).
+        # Nur aktiv, solange der Fokus auf der Konto-Seite liegt (z. B. im Passwortfeld).
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        for seq, btn in (("Ctrl+T", self.test_btn), ("Ctrl+P", self.go)):
+            sc = QShortcut(QKeySequence(seq), self)
+            sc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            sc.activated.connect(lambda b=btn: b.isEnabled() and b.animateClick())
+            btn.setToolTip((btn.toolTip() + "  ·  " if btn.toolTip() else "")
+                           + QKeySequence(seq).toString(QKeySequence.SequenceFormat.NativeText))
         c3 = Card(self.tr("Verbindungstest"))
         actions = QHBoxLayout()
         actions.addWidget(self.test_btn)
