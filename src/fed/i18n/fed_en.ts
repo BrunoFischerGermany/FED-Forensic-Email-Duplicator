@@ -2378,6 +2378,10 @@ Save anyway? Do not open the file on this computer.</translation>
         <translation>No case open</translation>
     </message>
     <message>
+        <source>Die Einstellungen wurden geändert. Änderungen speichern?</source>
+        <translation>The settings have been changed. Save changes?</translation>
+    </message>
+    <message>
         <source>Fall {0}</source>
         <translation>Case {0}</translation>
     </message>

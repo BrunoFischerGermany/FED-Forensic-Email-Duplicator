@@ -279,6 +279,29 @@ class SettingsTab(QWidget):
         self.g_secret.setText(c.oauth_google.client_secret)
         self.m_id.setText(c.oauth_microsoft.client_id)
         self.m_tenant.setText(c.oauth_microsoft.tenant)
+        self._loaded = self._snapshot()  # Stand zum Erkennen ungespeicherter Änderungen
+
+    def _snapshot(self) -> tuple:
+        """Alle Eingabewerte als Tupel – Vergleichsbasis für ungespeicherte Änderungen."""
+        return (
+            self.ag_name.text(), self.ag_addr.text(), self._logo,
+            self.examiner.text(), self.pattern.text(), self.target.text(),
+            self.design.value(), self.lang.currentData(), self.rlang.currentData(),
+            self.mlist.currentData(), self.mlist_max.value(),
+            self.h_md5.isChecked(), self.h_sha1.isChecked(), self.h_sha512.isChecked(),
+            self.zt_int.isChecked(), self.timeout.value(), self.chunk.value(),
+            self.awake.isChecked(), self.dkim.isChecked(), self.spaces.isChecked(),
+            self.workdel.currentData(), self.zipmode.currentData(),
+            self.zip_name.text().strip(), self.encmode.currentData(), self.conns.value(),
+            self.ntp.isChecked(), self.ntp_server.text(),
+            self.proxy.text(), self.tsa.text(),
+            self.g_id.text().strip(), self.g_secret.text().strip(),
+            self.m_id.text().strip(), self.m_tenant.text().strip(),
+        )
+
+    def is_dirty(self) -> bool:
+        """True, wenn seit dem letzten Laden/Speichern etwas geändert wurde."""
+        return getattr(self, "_loaded", None) is not None and self._snapshot() != self._loaded
 
     def _update_zipname_hint(self) -> None:
         places = self.tr("Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}")
@@ -351,7 +374,7 @@ class SettingsTab(QWidget):
             pass
         self._set_logo(f)
 
-    def save(self) -> None:
+    def save(self) -> bool:
         c = self.cfg
         p = c.programm
         old_language = p.sprache
@@ -382,9 +405,11 @@ class SettingsTab(QWidget):
             new = cfgmod.load(self.path)
         except (cfgmod.ConfigError, OSError) as e:
             QMessageBox.critical(self, "FED", str(e))
-            return
+            return False
         self.cfg.raw_text, self.cfg.source_path = new.raw_text, new.source_path
+        self._loaded = self._snapshot()  # gespeicherter Stand ist jetzt der neue Vergleichsstand
         self.saved.emit(self.cfg)
         if p.sprache != old_language:
             QMessageBox.information(self, "FED", "Die neue Sprache gilt ab dem nächsten Start von FED.\n"
                                                  "The new language takes effect the next time FED is started.")
+        return True

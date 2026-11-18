@@ -577,3 +577,21 @@ def test_encrypt_dialog_defaults_to_no_copy(app):
     dlg._accept()
     assert dlg.password is None  # OK ohne Haken -> keine verschlüsselte Kopie
     dlg.deleteLater()
+
+
+def test_settings_dirty_detection(app, tmp_path):
+    """Einstellungen erkennen ungespeicherte Änderungen; Speichern setzt den Stand zurück."""
+    from fed.core import config as cfgmod
+    from fed.gui.settings import SettingsTab
+
+    cfg = cfgmod.Config()
+    cfg.source_path = tmp_path / "config.toml"
+    st = SettingsTab(cfg, tmp_path / "config.toml")
+    assert not st.is_dirty()  # frisch geladen -> sauber
+    old = st.conns.value()
+    st.conns.setValue(old - 1 if old > 1 else old + 1)
+    assert st.is_dirty()  # geänderter Wert -> ungespeichert
+    assert st.save() is True
+    assert not st.is_dirty()  # nach Speichern wieder sauber
+    assert cfg.programm.verbindungen == st.conns.value()  # Wert ist im cfg angekommen
+    st.deleteLater()

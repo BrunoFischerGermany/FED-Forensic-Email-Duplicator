@@ -64,6 +64,7 @@
   "Fall {0}": "Case {0}",
   "Fall-Ordner wird angelegt: ": "Case folder will be created: ",
   "Fall-Ordner wählen": "Choose case folder",
+  "Die Einstellungen wurden geändert. Änderungen speichern?": "The settings have been changed. Save changes?",
   "Aus Accounts4.sqlite – nicht editierbar": "From Accounts4.sqlite – not editable",
   "Nicht autoritativ ermittelt – bitte prüfen bzw. ergänzen": "Not authoritatively determined – please verify or complete",
   "Eckdaten aus früherem Fall …": "Details from earlier case …",
