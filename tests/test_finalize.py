@@ -369,3 +369,19 @@ def test_zip_dedups_duplicate_folder_entries(acquired):
     with zipfile.ZipFile(res.zip.path) as zf:
         dirs = [n for n in zf.namelist() if n.endswith("/")]
     assert len(dirs) == len(set(dirs))  # keine doppelten Verzeichniseinträge
+
+
+def test_report_caps_many_dkim_issues(acquired):
+    """Viele DKIM-Auffälligkeiten werden im Bericht nicht einzeln gelistet (Volldaten in log.csv)."""
+    from fed.core.report import labels, render_txt
+
+    case = acquired
+    with case.conn:
+        case.conn.execute("UPDATE message SET dkim_result = 'fail', dkim_domain = 'x.de' WHERE status = 'valid'")
+    n = case.conn.execute("SELECT COUNT(*) FROM message WHERE status = 'valid'").fetchone()[0]
+    assert n >= 1
+    full = render_txt(case, mail_list="immer")          # immer -> alle Auffälligkeiten gelistet
+    capped = render_txt(case, mail_list="auto", mail_list_max=0)  # auto + Grenze 0 -> weggelassen
+    assert len(capped) < len(full)
+    assert labels("de")["dkim_issues_omitted"].format(n=n) in capped
+    assert "log.csv" in capped

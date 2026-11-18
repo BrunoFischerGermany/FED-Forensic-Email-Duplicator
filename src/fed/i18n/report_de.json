@@ -189,5 +189,6 @@
   "mail_hop_by": "durch",
   "mail_hop_with": "Protokoll",
   "mail_hop_time": "Zeit",
-  "mail_all_headers": "Vollständige Kopfzeilen"
+  "mail_all_headers": "Vollständige Kopfzeilen",
+  "dkim_issues_omitted": "{n} Mails mit Auffälligkeiten – wegen der Menge hier nicht einzeln aufgeführt. Das Ergebnis jeder Mail steht in log.csv (Spalten DKIM, DKIM_Domain, DKIM_Detail)."
 }
