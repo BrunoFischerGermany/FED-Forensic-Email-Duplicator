@@ -368,3 +368,36 @@ def test_auth_check_reports_progress(acquired):
     auth_check(case, acc, None, None, 5.0, lambda p: seen.append((p.folder_done, p.folder_total)), prog)
     assert prog.folder_total == n and prog.folder_done == n   # am Ende sind alle geprüft
     assert seen and seen[-1] == (n, n)                        # Fortschritt wurde gemeldet
+
+
+def test_domain_dns_snapshot_stored_hashed_and_in_report(acquired, monkeypatch):
+    """DNS-Schnappschuss der Domain wird erfasst (gehasht, inkl. Fehlen), idempotent, und steht im Bericht."""
+    from fed.core import acquisition, authcheck
+    from fed.core.report import render_txt
+
+    case = acquired
+    acc_id, email = case.conn.execute("SELECT id, email FROM account LIMIT 1").fetchone()
+    recs = [
+        authcheck.DomainDnsRecord("ex.example", "MX", "10 mail.ex.example.", "ok"),
+        authcheck.DomainDnsRecord("ex.example", "TXT", "v=spf1 include:_spf.ex.example ~all", "ok"),
+        authcheck.DomainDnsRecord("_dmarc.ex.example", "TXT", None, "nxdomain"),
+    ]
+    monkeypatch.setattr(authcheck, "snapshot_domain_dns", lambda e, timeout=5.0: ("ex.example", recs))
+    with case.conn:  # die Fixture hat beim Sichern evtl. schon einen Schnappschuss erfasst
+        case.conn.execute("DELETE FROM domain_dns WHERE account_id = ?", (acc_id,))
+
+    assert acquisition.store_domain_dns(case, acc_id, email) == 2      # zwei ok-Einträge
+    assert acquisition.store_domain_dns(case, acc_id, email) == 0      # idempotent (Konto schon erfasst)
+
+    rows = case.conn.execute(
+        "SELECT rtype, value, sha256, status FROM domain_dns WHERE account_id = ? ORDER BY id", (acc_id,)).fetchall()
+    assert len(rows) == 3
+    mx = next(r for r in rows if r[0] == "MX")
+    assert mx[2] and len(mx[2]) == 64                                 # MX-Wert ist SHA-256-gehasht
+    dmarc = next(r for r in rows if r[3] == "nxdomain")
+    assert dmarc[1] is None and dmarc[2] is None                      # Fehlen festgehalten, kein Hash
+
+    txt = render_txt(case)
+    assert "DNS-Schnappschuss der Domain" in txt
+    assert "v=spf1" in txt
+    assert "nicht vorhanden" in txt                                   # fehlender DMARC-Eintrag (nxdomain) dokumentiert

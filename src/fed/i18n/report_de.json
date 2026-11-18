@@ -215,5 +215,10 @@
   "log_scan_done": "Postfach durchsucht",
   "log_case_closed": "Fall abgeschlossen – ab jetzt nur noch lesend",
   "log_work_dir_deleted": "Arbeitsordner nach erfolgreicher ZIP-Verifikation gelöscht",
-  "delivery_verdict": "bei Zustellung: {v}"
+  "delivery_verdict": "bei Zustellung: {v}",
+  "domain_dns_section": "DNS-Schnappschuss der Domain",
+  "domain_dns_intro": "DNS-Einträge der Konto-Domain zum Sicherungszeitpunkt (MX, SPF/TXT, DMARC, NS, SOA, A/AAAA) – perishable Infrastruktur-Nachweis, je Eintrag mit SHA-256. Fehlende Einträge sind ebenfalls festgehalten.",
+  "dns_none": "kein Eintrag",
+  "dns_type": "Typ",
+  "dns_value": "Wert"
 }

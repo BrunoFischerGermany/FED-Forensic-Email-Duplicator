@@ -341,6 +341,11 @@ def _migrate(case: Case) -> None:
     case.conn.execute(
         "CREATE TABLE IF NOT EXISTS dns_record (id INTEGER PRIMARY KEY, name TEXT NOT NULL, record TEXT, sha256 TEXT, "
         "status TEXT NOT NULL, error TEXT, fetched_utc TEXT NOT NULL, attempt_id INTEGER REFERENCES attempt(id))")
+    # DNS-Schnappschuss der Konto-Domain zum Sicherungszeitpunkt (MX, SPF/TXT, DMARC, NS, SOA, A/AAAA).
+    case.conn.execute(
+        "CREATE TABLE IF NOT EXISTS domain_dns (id INTEGER PRIMARY KEY, account_id INTEGER REFERENCES account(id), "
+        "domain TEXT NOT NULL, rtype TEXT NOT NULL, name TEXT NOT NULL, value TEXT, sha256 TEXT, status TEXT NOT NULL, "
+        "error TEXT, fetched_utc TEXT NOT NULL, attempt_id INTEGER REFERENCES attempt(id))")
     for table, col, ddl in (("account", "notes", "TEXT"), ("output", "account_id", "INTEGER"),
                             ("message", "dkim_result", "TEXT"), ("message", "dkim_domain", "TEXT"),
                             ("message", "dkim_selector", "TEXT"), ("message", "dkim_detail", "TEXT"),
