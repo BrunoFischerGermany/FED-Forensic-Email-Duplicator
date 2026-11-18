@@ -333,7 +333,7 @@ def run_attempt(
         _download(case, attempt_id, plan, email, account_dir, connect, cfg, cancel, progress, prog, result)
         if cfg.programm.dkim_pruefen:
             set_phase("auth_check")
-            auth_check(case, account_id, attempt_id, cancel, cfg.programm.socket_timeout_s)
+            auth_check(case, account_id, attempt_id, cancel, cfg.programm.socket_timeout_s, progress, prog)
         imap = connect()
 
         set_phase("status_after")
@@ -668,13 +668,15 @@ def summary(case: Case, account_id: int) -> dict:
 
 
 def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cancel: CancelToken | None = None,
-               timeout: float = 5.0) -> dict[str, int]:
+               timeout: float = 5.0, progress: ProgressCallback | None = None, prog: Progress | None = None
+               ) -> dict[str, int]:
     """DKIM/Authentication-Results für alle noch nicht (oder nur vorläufig) geprüften Mails eines Kontos.
 
     Liest die gesicherten Dateien (unverändert), prüft parallel, schreibt das Ergebnis je Mail und
     speichert die abgefragten DNS-Schlüssel. Abbruch jederzeit möglich (Rest wird beim Fortsetzen geprüft).
+    ``progress``/``prog``: optionaler Fortschritt (geprüfte Mails) für die Anzeige.
     """
-    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     from fed.core import authcheck
 
@@ -685,6 +687,11 @@ def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cance
         (account_id,)).fetchall()
     if not rows:
         return {}
+    total = len(rows)
+    if prog is not None:
+        prog.folder_total, prog.folder_done = total, 0
+        if progress:
+            progress(prog)
     dns = authcheck.DnsCache(timeout=min(timeout, 10))
 
     def one(row):
@@ -694,8 +701,16 @@ def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cance
         return row[0], authcheck.check(p.read_bytes(), dns) if p.exists() else None
 
     counts: dict[str, int] = {}
+    step = max(1, total // 200)  # höchstens ~200 GUI-Aktualisierungen, egal wie viele Mails
+    results = []
     with ThreadPoolExecutor(max_workers=8) as pool:
-        results = list(pool.map(one, rows))
+        futures = [pool.submit(one, r) for r in rows]
+        for i, fut in enumerate(as_completed(futures), 1):
+            results.append(fut.result())
+            if prog is not None:
+                prog.folder_done = i
+                if progress and (i % step == 0 or i == total):
+                    progress(prog)
     conn = case.conn
     with conn:
         for mid, r in results:
