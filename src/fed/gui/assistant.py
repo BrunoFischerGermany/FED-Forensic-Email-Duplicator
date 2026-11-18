@@ -1817,16 +1817,17 @@ class FinishPage(QWidget):
         self.back_btn = QPushButton(self.tr("Zurück zu den Konten"))
         self.back_btn.clicked.connect(self.back.emit)
         self.back_btn.setVisible(False)
-        nb = QPushButton(self.tr("Neuen Fall anlegen"))
-        nb.clicked.connect(self.new_case.emit)
+        self.new_btn = QPushButton(self.tr("Neuen Fall anlegen"))
+        self.new_btn.clicked.connect(self.new_case.emit)
         self.quit_btn = QPushButton(self.tr("FED beenden"))
         self.quit_btn.setObjectName("Primary")
         self.quit_btn.clicked.connect(lambda: self.window().close())
+        self.busy = False  # True, solange der Abschluss läuft (ZIP/Hash/Zeitstempel/Bericht)
         nr = QHBoxLayout()
         nr.addWidget(self.back_btn)
         nr.addStretch(1)
         nr.addWidget(self.retry_btn)
-        nr.addWidget(nb)
+        nr.addWidget(self.new_btn)
         nr.addWidget(self.quit_btn)
         lay.addLayout(nr)
         outer = QVBoxLayout(self)
@@ -1896,19 +1897,41 @@ class FinishPage(QWidget):
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
+        self._set_busy(True)
 
         def work(cancel, report):
             return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete,
                                encrypt_password=password, closing_note=closing[0], closing_note_html=closing[1])
 
+        labels = {
+            "zip": self.tr("ZIP-Archiv wird gepackt"),
+            "verify": self.tr("ZIP wird geprüft – jede .eml erneut gehasht"),
+            "timestamp": self.tr("Qualifizierter Zeitstempel (RFC 3161) wird geholt"),
+            "reports": self.tr("Berichte werden erzeugt (TXT/PDF) und gehasht"),
+            "encrypt": self.tr("Verschlüsselte Weitergabe-Kopie wird erstellt und geprüft"),
+        }
+
         def progress(p):
-            self.check_kv.set(self.tr("Fortschritt"), f"{p.phase}: {p.mails_done} / {p.mails_total}")
+            step = labels.get(p.phase, p.phase)
+            if p.mails_total:
+                step += f" · {p.mails_done:,} / {p.mails_total:,}".replace(",", ".")
+            self.check_kv.clear()
+            self.check_kv.set(self.tr("Aktueller Schritt"), step)
 
         stay_awake(st, "finish")
         run_async(work, self._done, self._failed, progress, parent=self)
 
+    def _set_busy(self, on: bool) -> None:
+        """Während des Abschlusses „FED beenden“ und „Neuen Fall anlegen“ sperren."""
+        self.busy = on
+        self.quit_btn.setEnabled(not on)
+        self.new_btn.setEnabled(not on)
+        self.quit_btn.setToolTip(self.tr("Während des Abschlusses nicht möglich – bitte warten, bis der Fall "
+                                         "verifiziert und geschrieben ist.") if on else "")
+
     def _done(self, res) -> None:
         allow_sleep(self.st)
+        self._set_busy(False)
         self.st.finish = res
         z = res.zip
         total = sum(r for (r,) in self.st.case.conn.execute("SELECT COUNT(*) FROM message WHERE status='valid'"))
@@ -1959,6 +1982,7 @@ class FinishPage(QWidget):
 
     def _failed(self, err, tb) -> None:
         allow_sleep(self.st)
+        self._set_busy(False)
         self.title.setText(self.tr("Abschluss fehlgeschlagen"))
         self.sub.setText(err + "\n" + self.tr("Der Fall ist noch offen – die gesicherten Mails sind unverändert. "
                                                "Ursache beheben und erneut versuchen."))

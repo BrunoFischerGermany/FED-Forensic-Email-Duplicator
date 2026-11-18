@@ -1217,8 +1217,32 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Creating and verifying ZIP, hashes and reports</translation>
     </message>
     <message>
-        <source>Fortschritt</source>
-        <translation>Progress</translation>
+        <source>ZIP-Archiv wird gepackt</source>
+        <translation>Packing ZIP archive</translation>
+    </message>
+    <message>
+        <source>ZIP wird geprüft – jede .eml erneut gehasht</source>
+        <translation>Verifying ZIP – re-hashing every .eml</translation>
+    </message>
+    <message>
+        <source>Qualifizierter Zeitstempel (RFC 3161) wird geholt</source>
+        <translation>Fetching qualified timestamp (RFC 3161)</translation>
+    </message>
+    <message>
+        <source>Berichte werden erzeugt (TXT/PDF) und gehasht</source>
+        <translation>Generating reports (TXT/PDF) and hashing them</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Weitergabe-Kopie wird erstellt und geprüft</source>
+        <translation>Creating and verifying encrypted hand-over copy</translation>
+    </message>
+    <message>
+        <source>Aktueller Schritt</source>
+        <translation>Current step</translation>
+    </message>
+    <message>
+        <source>Während des Abschlusses nicht möglich – bitte warten, bis der Fall verifiziert und geschrieben ist.</source>
+        <translation>Not possible during finalization – please wait until the case is verified and written.</translation>
     </message>
     <message>
         <source>Fall abgeschlossen</source>
@@ -2392,6 +2416,10 @@ Save anyway? Do not open the file on this computer.</translation>
     <message>
         <source>Einstellungen gespeichert</source>
         <translation>Settings saved</translation>
+    </message>
+    <message>
+        <source>Der Abschluss läuft gerade (ZIP packen, prüfen, Hashes, Zeitstempel, Berichte). Bitte warten, bis er fertig ist, bevor FED beendet wird – sonst bleibt der Fall unvollständig.</source>
+        <translation>Finalization is in progress (packing ZIP, verifying, hashes, timestamp, reports). Please wait until it finishes before quitting FED – otherwise the case stays incomplete.</translation>
     </message>
     <message>
         <source>Es laufen noch {0} Sicherungen:
