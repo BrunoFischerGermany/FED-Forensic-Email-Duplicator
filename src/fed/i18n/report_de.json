@@ -214,5 +214,6 @@
   "log_existing_verified": "{checked} bereits vorhandene Mails erneut geprüft, {invalid} ungültig",
   "log_scan_done": "Postfach durchsucht",
   "log_case_closed": "Fall abgeschlossen – ab jetzt nur noch lesend",
-  "log_work_dir_deleted": "Arbeitsordner nach erfolgreicher ZIP-Verifikation gelöscht"
+  "log_work_dir_deleted": "Arbeitsordner nach erfolgreicher ZIP-Verifikation gelöscht",
+  "delivery_verdict": "bei Zustellung: {v}"
 }

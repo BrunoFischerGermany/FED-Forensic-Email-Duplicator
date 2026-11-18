@@ -401,3 +401,21 @@ def test_describe_event_readable_and_fallback():
     assert "{" not in out and "keep awake on" in out
     # Englisch
     assert "Date header" in describe_event("no_date_header", '{"folder": "X", "uid": 1}', labels("en"))
+
+
+def test_report_shows_delivery_verdict_for_permerror(acquired):
+    """Bei permerror (Schlüssel heute weg) zeigt der Bericht das Zustell-Urteil des Empfangsservers."""
+    import json as _json
+
+    from fed.core.report import render_txt
+
+    case = acquired
+    mid = case.conn.execute("SELECT id FROM message WHERE status = 'valid' LIMIT 1").fetchone()[0]
+    with case.conn:
+        case.conn.execute(
+            "UPDATE message SET dkim_result = 'permerror', dkim_domain = 'alt.example', "
+            "dkim_detail = 'key_not_in_dns', auth_results = ? WHERE id = ?",
+            (_json.dumps({"authserv": "mx.provider.de", "dkim": "pass", "spf": "pass"}), mid))
+    txt = render_txt(case, mail_list="immer")
+    assert "nicht prüfbar" in txt                  # permerror-Label (nicht „ungültig")
+    assert "bei Zustellung: dkim=pass" in txt       # zeitgenössisches Urteil daneben
