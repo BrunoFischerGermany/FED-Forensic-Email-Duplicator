@@ -399,6 +399,12 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     bad = [z for z in zips if not z.verified]
     if bad:
         raise RuntimeError(_t("ZIP-Verifikation fehlgeschlagen: {problems}", problems="; ".join(describe(p) for z in bad for p in z.problems)))
+
+    def _phase(name: str) -> None:  # Schrittmarke für die GUI (diese Schritte haben keinen Zähler)
+        if progress:
+            progress(Progress(phase=name))
+
+    _phase("timestamp")
     timestamps = [add_timestamp(case, cfg, z, acc) for z, acc in zip(zips, ids, strict=True)]
     close_case(case)
     if delete_work is None:
@@ -410,6 +416,7 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     from fed.core.languages import report_language_for
 
     report_language = report_language_for(language or cfg.programm.bericht_sprache or cfg.programm.sprache)
+    _phase("reports")
     txt, pdf = write_reports(case, report_language, cfg.programm.bericht_mailliste,
                              cfg.programm.bericht_mailliste_max, encrypted_planned=encrypt_password is not None)
     record_output(case, txt, cfg)
@@ -418,6 +425,7 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
 
     encrypted = None
     if encrypt_password is not None:
+        _phase("encrypt")
         encrypted = encrypted_copy(case, [z.path for z in zips], encrypt_password, cfg)
     return FinishResult(zips, txt, pdf, timestamps, account_reports(case), mode, encrypted)
 

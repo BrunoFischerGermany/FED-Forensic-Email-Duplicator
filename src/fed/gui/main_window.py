@@ -149,6 +149,12 @@ class MainWindow(QMainWindow):
             self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
 
     def closeEvent(self, e) -> None:
+        if getattr(self.assistant, "p_fin", None) is not None and self.assistant.p_fin.busy:
+            QMessageBox.warning(self, "FED", self.tr(
+                "Der Abschluss läuft gerade (ZIP packen, prüfen, Hashes, Zeitstempel, Berichte). "
+                "Bitte warten, bis er fertig ist, bevor FED beendet wird – sonst bleibt der Fall unvollständig."))
+            e.ignore()
+            return
         if self.settings.is_dirty():
             r = QMessageBox.question(
                 self, self.tr("Einstellungen"),
