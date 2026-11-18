@@ -64,6 +64,8 @@
   "Fall {0}": "Case {0}",
   "Fall-Ordner wird angelegt: ": "Case folder will be created: ",
   "Fall-Ordner wählen": "Choose case folder",
+  "Echtheitsprüfung (DKIM): Signaturen je Mail per DNS prüfen …": "Authenticity check (DKIM): verifying each message's signature via DNS …",
+  "{0} / {1} Mails geprüft": "{0} / {1} messages checked",
   "ZIP-Archiv wird gepackt": "Packing ZIP archive",
   "ZIP wird geprüft – jede .eml erneut gehasht": "Verifying ZIP – re-hashing every .eml",
   "Qualifizierter Zeitstempel (RFC 3161) wird geholt": "Fetching qualified timestamp (RFC 3161)",

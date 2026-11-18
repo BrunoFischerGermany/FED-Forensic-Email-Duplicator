@@ -1678,11 +1678,13 @@ class AcquirePage(QWidget):
         self.stat["time"][0].setText(fmt_secs(time.monotonic() - p.started))
         self.stat["time"][1].setText(self.tr("Restzeit ca. ") + fmt_secs(eta))
         if p.phase == "auth_check":
-            self.folder_lbl.setText(self.tr("Echtheitsprüfung (DKIM) der gesicherten Mails …"))
+            self.folder_lbl.setText(self.tr("Echtheitsprüfung (DKIM): Signaturen je Mail per DNS prüfen …"))
+            self.uid_lbl.setText(self.tr("{0} / {1} Mails geprüft").format(
+                f"{p.folder_done:,}".replace(",", "."), f"{p.folder_total:,}".replace(",", ".")))
         else:
             self.folder_lbl.setText(self.tr("Aktueller Ordner: ") + f"{p.folder}  ·  {p.folder_done} / {p.folder_total}")
+            self.uid_lbl.setText(f"UID {p.current_uid}")
         self.folder_bar.setValue(int(100 * p.folder_done / p.folder_total) if p.folder_total else 100)
-        self.uid_lbl.setText(f"UID {p.current_uid}")
         self.issues.setText(self.tr("{0} Warnungen · {1} Fehler").format(p.warnings, p.errors))
 
     def _tail_log(self) -> None:

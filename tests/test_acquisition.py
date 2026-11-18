@@ -350,3 +350,21 @@ def test_same_account_never_twice_and_interrupted_attempts_recovered(tmp_path, i
     assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'attempt_interrupted'").fetchone()[0] == 1
     assert run_attempt(case, acc, connect).status == "done"  # danach normal fortsetzbar
     case.close()
+
+
+def test_auth_check_reports_progress(acquired):
+    """Die DKIM-Echtheitsprüfung meldet Fortschritt (geprüfte Mails), damit die Anzeige nicht einfriert."""
+    from fed.core.acquisition import auth_check
+    from fed.core.cancel import Progress
+
+    case = acquired
+    acc = case.conn.execute("SELECT id FROM account LIMIT 1").fetchone()[0]
+    with case.conn:
+        case.conn.execute("UPDATE message SET dkim_result = NULL WHERE status = 'valid'")
+    n = case.conn.execute("SELECT COUNT(*) FROM message WHERE status = 'valid'").fetchone()[0]
+    assert n >= 1
+    prog = Progress(phase="auth_check")
+    seen = []
+    auth_check(case, acc, None, None, 5.0, lambda p: seen.append((p.folder_done, p.folder_total)), prog)
+    assert prog.folder_total == n and prog.folder_done == n   # am Ende sind alle geprüft
+    assert seen and seen[-1] == (n, n)                        # Fortschritt wurde gemeldet

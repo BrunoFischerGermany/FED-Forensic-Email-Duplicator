@@ -541,8 +541,12 @@
         <translation>approx. {0} messages/min · 30 s average</translation>
     </message>
     <message>
-        <source>Echtheitsprüfung (DKIM) der gesicherten Mails …</source>
-        <translation>Authenticity check (DKIM) of the saved messages …</translation>
+        <source>Echtheitsprüfung (DKIM): Signaturen je Mail per DNS prüfen …</source>
+        <translation>Authenticity check (DKIM): verifying each message's signature via DNS …</translation>
+    </message>
+    <message>
+        <source>{0} / {1} Mails geprüft</source>
+        <translation>{0} / {1} messages checked</translation>
     </message>
     <message>
         <source>Aktueller Ordner: </source>
