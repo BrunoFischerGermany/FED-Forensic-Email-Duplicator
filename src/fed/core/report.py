@@ -100,7 +100,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         if part:
             d["partial"] += n
     dkim_issues = _q(case, "SELECT f.account_id, a.evidence_number, f.display_name, m.uid, m.subject, m.dkim_result, "
-                           "m.dkim_domain, m.dkim_detail FROM message m JOIN folder f ON f.id = m.folder_id "
+                           "m.dkim_domain, m.dkim_detail, m.auth_results FROM message m JOIN folder f ON f.id = m.folder_id "
                            "JOIN account a ON a.id = f.account_id WHERE m.status = 'valid' "
                            "AND m.dkim_result IN ('fail', 'permerror', 'temperror') ORDER BY a.id, m.zip_path")
     dns_rows = _q(case, "SELECT * FROM dns_record ORDER BY name, id")
@@ -453,10 +453,31 @@ def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
     return secs
 
 
+def _delivery_verdict(auth_results: str | None, L: dict) -> str:
+    """Zeitgenössisches Urteil des Empfangsservers aus ``Authentication-Results`` (dkim/spf/dmarc).
+
+    Wichtig bei alter Mail: ist der DKIM-Schlüssel heute nicht mehr im DNS (permerror), belegt dieses
+    Urteil, dass die Signatur beim Eingang gültig war – kein Hinweis auf Fälschung."""
+    if not auth_results:
+        return ""
+    try:
+        prov = json.loads(auth_results) or {}
+    except (ValueError, TypeError):
+        return ""
+    parts = [f"{m}={prov[m]}" for m in ("dkim", "spf", "dmarc") if prov.get(m)]
+    return L["delivery_verdict"].format(v=", ".join(parts)) if parts else ""
+
+
 def _dkim_issue_rows(d: dict, L: dict) -> list[list[str]]:
-    return [[x["evidence_number"], f"{x['display_name']} · UID {x['uid']}", x["subject"] or "–",
-             L["dkim_" + x["dkim_result"]], f"{x['dkim_domain'] or ''} {describe(x['dkim_detail'])}".strip()]
-            for x in d["dkim_issues"]]
+    rows = []
+    for x in d["dkim_issues"]:
+        detail = f"{x['dkim_domain'] or ''} {describe(x['dkim_detail'])}".strip()
+        verdict = _delivery_verdict(x.get("auth_results"), L)
+        if verdict:
+            detail = f"{detail}  ·  {verdict}" if detail else verdict
+        rows.append([x["evidence_number"], f"{x['display_name']} · UID {x['uid']}", x["subject"] or "–",
+                     L["dkim_" + x["dkim_result"]], detail])
+    return rows
 
 
 def _dns_rows(d: dict, L: dict) -> list[list[str]]:

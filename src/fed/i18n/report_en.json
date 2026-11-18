@@ -214,5 +214,6 @@
   "log_existing_verified": "{checked} already present messages re-verified, {invalid} invalid",
   "log_scan_done": "Mailbox scanned",
   "log_case_closed": "Case closed – read-only from now on",
-  "log_work_dir_deleted": "Working folder deleted after successful ZIP verification"
+  "log_work_dir_deleted": "Working folder deleted after successful ZIP verification",
+  "delivery_verdict": "at delivery: {v}"
 }
