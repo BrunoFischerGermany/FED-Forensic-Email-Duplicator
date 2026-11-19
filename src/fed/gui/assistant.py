@@ -1812,6 +1812,12 @@ class FinishPage(QWidget):
         self.hashes = Card()
         self.hash_kv = KeyValues()
         self.hashes.add(self.hash_kv)
+        # Laufende Aktivitätsanzeige: Spinner läuft weiter, auch wenn ein Schritt länger ohne neue Meldung arbeitet
+        self._step_text = ""
+        self._spin = 0
+        self._spin_timer = QTimer(self)
+        self._spin_timer.setInterval(350)
+        self._spin_timer.timeout.connect(self._tick_spin)
         left = vbox(self.checks, self.hashes, spacing=24)
         cols.addLayout(left, 3)
         rep = Card(self.tr("Bericht"))
@@ -1915,8 +1921,8 @@ class FinishPage(QWidget):
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
-        self.check_kv.set(self.tr("Aktueller Schritt"), self.tr("Vorbereitung …"))  # sofort, nie leer
         self._set_busy(True)
+        self._show_step(self.tr("Vorbereitung …"))  # sofort, nie leer
 
         def work(cancel, report):
             return finish_case(st.case, st.cfg, cancel=cancel, progress=report, delete_work=delete,
@@ -1929,6 +1935,8 @@ class FinishPage(QWidget):
             "zip": self.tr("ZIP-Archiv wird gepackt"),
             "verify": self.tr("ZIP wird geprüft – jede .eml erneut gehasht"),
             "timestamp": self.tr("Qualifizierter Zeitstempel (RFC 3161) wird geholt"),
+            "reports_txt": self.tr("Textbericht (TXT) wird geschrieben"),
+            "reports_pdf": self.tr("PDF-Bericht wird erzeugt"),
             "reports": self.tr("Berichte werden erzeugt (TXT/PDF) und gehasht"),
             "encrypt": self.tr("Verschlüsselte Weitergabe-Kopie wird erstellt und geprüft"),
         }
@@ -1937,19 +1945,39 @@ class FinishPage(QWidget):
             step = labels.get(p.phase, p.phase)
             if p.mails_total:
                 step += f" · {p.mails_done:,} / {p.mails_total:,}".replace(",", ".")
-            self.check_kv.clear()
-            self.check_kv.set(self.tr("Aktueller Schritt"), step)
+            eta = p.eta_seconds() if p.bytes_total else None
+            if eta is not None:
+                step += self.tr(" · noch ca. {0}").format(fmt_secs(eta))
+            self._show_step(step)
 
         stay_awake(st, "finish")
         run_async(work, self._done, self._failed, progress, parent=self)
 
+    def _show_step(self, text: str) -> None:
+        self._step_text = text
+        self._spin = 0
+        self._render_step()
+
+    def _render_step(self) -> None:
+        base = self._step_text.rstrip(" .…")
+        dots = "." * (self._spin % 4) if self.busy else ""
+        self.check_kv.set(self.tr("Aktueller Schritt"), f"{base} {dots}".rstrip())
+
+    def _tick_spin(self) -> None:
+        self._spin += 1
+        self._render_step()
+
     def _set_busy(self, on: bool) -> None:
-        """Während des Abschlusses „FED beenden“ und „Neuen Fall anlegen“ sperren."""
+        """Während des Abschlusses „FED beenden“ und „Neuen Fall anlegen“ sperren; Aktivitätsanzeige steuern."""
         self.busy = on
         self.quit_btn.setEnabled(not on)
         self.new_btn.setEnabled(not on)
         self.quit_btn.setToolTip(self.tr("Während des Abschlusses nicht möglich – bitte warten, bis der Fall "
                                          "verifiziert und geschrieben ist.") if on else "")
+        if on:
+            self._spin_timer.start()
+        else:
+            self._spin_timer.stop()
 
     def _done(self, res) -> None:
         allow_sleep(self.st)
