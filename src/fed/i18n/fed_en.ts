@@ -1221,10 +1221,6 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Creating and verifying ZIP, hashes and reports</translation>
     </message>
     <message>
-        <source>Aktueller Schritt</source>
-        <translation>Current step</translation>
-    </message>
-    <message>
         <source>Vorbereitung …</source>
         <translation>Preparing …</translation>
     </message>
@@ -1253,12 +1249,28 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Fetching qualified timestamp (RFC 3161)</translation>
     </message>
     <message>
+        <source>Textbericht (TXT) wird geschrieben</source>
+        <translation>Writing text report (TXT)</translation>
+    </message>
+    <message>
+        <source>PDF-Bericht wird erzeugt</source>
+        <translation>Generating PDF report</translation>
+    </message>
+    <message>
         <source>Berichte werden erzeugt (TXT/PDF) und gehasht</source>
         <translation>Generating reports (TXT/PDF) and hashing them</translation>
     </message>
     <message>
         <source>Verschlüsselte Weitergabe-Kopie wird erstellt und geprüft</source>
         <translation>Creating and verifying encrypted hand-over copy</translation>
+    </message>
+    <message>
+        <source> · noch ca. {0}</source>
+        <translation> · approx. {0} left</translation>
+    </message>
+    <message>
+        <source>Aktueller Schritt</source>
+        <translation>Current step</translation>
     </message>
     <message>
         <source>Während des Abschlusses nicht möglich – bitte warten, bis der Fall verifiziert und geschrieben ist.</source>

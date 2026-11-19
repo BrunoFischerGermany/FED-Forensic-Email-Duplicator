@@ -431,3 +431,13 @@ def test_build_zip_reports_prepare_phases(acquired):
         assert ph in phases, f"Phase {ph} fehlt: {phases[:6]}"
     # Vorbereitung kommt vor dem ersten „zip“-Fortschritt
     assert phases.index("collect") < phases.index("zip")
+
+
+def test_write_reports_emits_txt_and_pdf_phases(acquired):
+    """write_reports meldet reports_txt vor reports_pdf (PDF ist der langsame Teil)."""
+    from fed.core.report import write_reports
+
+    phases = []
+    write_reports(acquired, progress=lambda p: phases.append(p.phase))
+    assert "reports_txt" in phases and "reports_pdf" in phases
+    assert phases.index("reports_txt") < phases.index("reports_pdf")

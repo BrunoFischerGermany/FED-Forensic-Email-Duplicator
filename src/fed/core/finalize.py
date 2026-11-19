@@ -422,9 +422,9 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     from fed.core.languages import report_language_for
 
     report_language = report_language_for(language or cfg.programm.bericht_sprache or cfg.programm.sprache)
-    _phase("reports")
     txt, pdf = write_reports(case, report_language, cfg.programm.bericht_mailliste,
-                             cfg.programm.bericht_mailliste_max, encrypted_planned=encrypt_password is not None)
+                             cfg.programm.bericht_mailliste_max, encrypted_planned=encrypt_password is not None,
+                             progress=progress)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
     from fed.core.report import account_reports

@@ -638,3 +638,23 @@ def test_window_title_shows_version_and_os(app, tmp_path):
     assert "Forensic Email Duplicator" in title
     assert _os_name() in title
     assert _os_name() in ("Windows", "macOS", "Linux")
+
+
+def test_finalize_activity_spinner_animates(app):
+    """Die Abschluss-Seite zeigt eine laufende Aktivität (animierte Punkte), auch ohne neue Meldung."""
+    from fed.core.config import Config
+    from fed.gui.assistant import FinishPage, State
+
+    p = FinishPage(State(Config()))
+    p.busy = True
+    p._show_step("Berichte werden erzeugt")
+    v = p.check_kv.values["Aktueller Schritt"]
+    first = v.text()
+    p._tick_spin()
+    p._tick_spin()
+    assert v.text() != first                 # Punkte animieren
+    assert "Berichte werden erzeugt" in v.text()
+    p.busy = False                           # gestoppt -> keine Punkte
+    p._render_step()
+    assert v.text().strip() == "Berichte werden erzeugt"
+    p.deleteLater()

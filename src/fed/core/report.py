@@ -1035,12 +1035,22 @@ def account_report_name(evidence: str, email: str, suffix: str, replace_spaces: 
 
 @_time_language
 def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
-                  mail_list_max: int = 500, encrypted_planned: bool = False) -> tuple[Path, Path]:
+                  mail_list_max: int = 500, encrypted_planned: bool = False,
+                  progress: object = None) -> tuple[Path, Path]:
     """Gesamtbericht ``report.txt``/``report.pdf`` und – bei mehreren Konten – je Konto
-    ``report_<Evidence>.txt``/``.pdf``. Rückgabe: der Gesamtbericht."""
+    ``report_<Evidence>.txt``/``.pdf``. Rückgabe: der Gesamtbericht.
+
+    ``progress`` (optional): Callback, das Schrittmarken ``reports_txt``/``reports_pdf`` für die GUI meldet
+    (das PDF ist bei großen Fällen der langsame Teil)."""
+    from fed.core.cancel import Progress
+
     txt, pdfp = case.root / "report.txt", case.root / "report.pdf"
     d = collect(case, None)  # nur einmal sammeln und für TXT und PDF wiederverwenden (spart bei großen Fällen viel Zeit)
+    if progress:
+        progress(Progress(phase="reports_txt"))
     write_txt(case, txt, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d)
+    if progress:
+        progress(Progress(phase="reports_pdf"))
     write_pdf(case, pdfp, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d)
     accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
     if len(accounts) > 1:
