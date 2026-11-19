@@ -419,3 +419,15 @@ def test_report_shows_delivery_verdict_for_permerror(acquired):
     txt = render_txt(case, mail_list="immer")
     assert "nicht prüfbar" in txt                  # permerror-Label (nicht „ungültig")
     assert "bei Zustellung: dkim=pass" in txt       # zeitgenössisches Urteil daneben
+
+
+def test_build_zip_reports_prepare_phases(acquired):
+    """build_zip meldet die Vorbereitungsschritte (collect/csv/scan) vor dem Packen, damit nichts leer wirkt."""
+    from fed.core.finalize import build_zip
+
+    phases = []
+    build_zip(acquired, Config(), progress=lambda p: phases.append(p.phase))
+    for ph in ("collect", "csv", "scan", "zip"):
+        assert ph in phases, f"Phase {ph} fehlt: {phases[:6]}"
+    # Vorbereitung kommt vor dem ersten „zip“-Fortschritt
+    assert phases.index("collect") < phases.index("zip")

@@ -1915,6 +1915,7 @@ class FinishPage(QWidget):
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
+        self.check_kv.set(self.tr("Aktueller Schritt"), self.tr("Vorbereitung …"))  # sofort, nie leer
         self._set_busy(True)
 
         def work(cancel, report):
@@ -1922,6 +1923,9 @@ class FinishPage(QWidget):
                                encrypt_password=password, closing_note=closing[0], closing_note_html=closing[1])
 
         labels = {
+            "collect": self.tr("Mails werden erfasst"),
+            "csv": self.tr("Mail-Liste (log.csv) wird geschrieben"),
+            "scan": self.tr("Arbeitsordner wird geprüft"),
             "zip": self.tr("ZIP-Archiv wird gepackt"),
             "verify": self.tr("ZIP wird geprüft – jede .eml erneut gehasht"),
             "timestamp": self.tr("Qualifizierter Zeitstempel (RFC 3161) wird geholt"),
