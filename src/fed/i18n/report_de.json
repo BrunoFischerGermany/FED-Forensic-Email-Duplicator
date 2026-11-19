@@ -121,7 +121,7 @@
   "dkim_intro": "Geprüft bei der Sicherung. Nur Mails mit Auffälligkeiten sind aufgeführt; das Ergebnis jeder Mail steht in log.csv (Spalten DKIM, Anbieter_SPF/DKIM/DMARC).",
   "dkim_none_issues": "Keine Auffälligkeiten.",
   "dns_section": "Aufbewahrte DKIM-Schlüssel (DNS)",
-  "dns_intro": "Öffentliche Schlüssel, wie sie bei der Sicherung im DNS standen – zur späteren Nachprüfung der Signaturen (vollständiger Text in der Fall-Datei, Tabelle dns_record).",
+  "dns_intro": "Öffentliche Schlüssel, wie sie bei der Sicherung im DNS standen – zur späteren Nachprüfung der Signaturen. Die vollständige Liste steht in dns_keys.csv (im Fallordner, mit SHA-256).",
   "dns_ok": "vorhanden",
   "dns_missing": "nicht vorhanden",
   "dns_error": "DNS-Fehler",
@@ -220,5 +220,6 @@
   "domain_dns_intro": "DNS-Einträge der Konto-Domain zum Sicherungszeitpunkt (MX, SPF/TXT, DMARC, NS, SOA, A/AAAA) – perishable Infrastruktur-Nachweis, je Eintrag mit SHA-256. Fehlende Einträge sind ebenfalls festgehalten.",
   "dns_none": "kein Eintrag",
   "dns_type": "Typ",
-  "dns_value": "Wert"
+  "dns_value": "Wert",
+  "dns_omitted": "{n} aufbewahrte Schlüssel – wegen der Menge hier nicht einzeln aufgeführt. Vollständige Liste in dns_keys.csv (im Fallordner)."
 }

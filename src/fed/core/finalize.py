@@ -287,6 +287,20 @@ def record_output(case: Case, path: Path, cfg: Config | None = None, account_id:
     return h
 
 
+def write_dns_keys_csv(case: Case, path: Path) -> int:
+    """Alle aufbewahrten DKIM-DNS-Schlüssel vollständig als CSV (der Bericht zeigt bei großen Fällen nur eine Auswahl)."""
+    import csv
+
+    rows = case.conn.execute(
+        "SELECT name, status, fetched_utc, sha256, record FROM dns_record ORDER BY name, id").fetchall()
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["Name", "Status", "Abgerufen_UTC", "SHA-256", "Record"])
+        for name, status, fetched, sha, record in rows:
+            w.writerow([name, status, fetched, sha or "", (record or "").replace("\n", " ")])
+    return len(rows)
+
+
 def close_case(case: Case) -> None:
     with case.conn:
         case.conn.execute("UPDATE case_info SET closed_utc = ? WHERE id = 1", (utc_now(),))
@@ -421,6 +435,9 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         case.log("INFO", "work_dir_kept", {"path": str(case.work_dir)})
     from fed.core.languages import report_language_for
 
+    if case.conn.execute("SELECT 1 FROM dns_record LIMIT 1").fetchone():
+        write_dns_keys_csv(case, case.root / "dns_keys.csv")  # vollständige DKIM-Schlüsselliste als eigene Datei
+        record_output(case, case.root / "dns_keys.csv", cfg)
     report_language = report_language_for(language or cfg.programm.bericht_sprache or cfg.programm.sprache)
     txt, pdf = write_reports(case, report_language, cfg.programm.bericht_mailliste,
                              cfg.programm.bericht_mailliste_max, encrypted_planned=encrypt_password is not None,

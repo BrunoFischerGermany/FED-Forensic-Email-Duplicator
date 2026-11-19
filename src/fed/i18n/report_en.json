@@ -121,7 +121,7 @@
   "dkim_intro": "Checked during acquisition. Only messages with findings are listed; the result for every message is in log.csv (columns DKIM, Anbieter_SPF/DKIM/DMARC).",
   "dkim_none_issues": "No findings.",
   "dns_section": "Preserved DKIM keys (DNS)",
-  "dns_intro": "Public keys as published in DNS at the time of acquisition – for later re-verification of the signatures (full text in the case file, table dns_record).",
+  "dns_intro": "Public keys as published in DNS at the time of acquisition – for later re-verification of the signatures. The full list is in dns_keys.csv (in the case folder, with SHA-256).",
   "dns_ok": "present",
   "dns_missing": "not present",
   "dns_error": "DNS error",
@@ -220,5 +220,6 @@
   "domain_dns_intro": "DNS records of the account domain at acquisition time (MX, SPF/TXT, DMARC, NS, SOA, A/AAAA) – perishable infrastructure evidence, each with SHA-256. Missing records are recorded too.",
   "dns_none": "no record",
   "dns_type": "Type",
-  "dns_value": "Value"
+  "dns_value": "Value",
+  "dns_omitted": "{n} retained keys – not listed individually here due to the volume. Full list in dns_keys.csv (in the case folder)."
 }
