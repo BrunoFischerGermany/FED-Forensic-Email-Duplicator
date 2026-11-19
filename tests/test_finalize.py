@@ -441,3 +441,26 @@ def test_write_reports_emits_txt_and_pdf_phases(acquired):
     write_reports(acquired, progress=lambda p: phases.append(p.phase))
     assert "reports_txt" in phases and "reports_pdf" in phases
     assert phases.index("reports_txt") < phases.index("reports_pdf")
+
+
+def test_dns_keys_list_capped_and_exported(acquired, tmp_path):
+    """Große DKIM-Schlüsselliste wird im Bericht gedrosselt; vollständige Liste geht in dns_keys.csv."""
+    from fed.core.finalize import write_dns_keys_csv
+    from fed.core.report import labels, render_txt
+
+    case = acquired
+    with case.conn:
+        for i in range(5):
+            case.conn.execute(
+                "INSERT INTO dns_record (name, record, sha256, status, fetched_utc) VALUES (?,?,?,?,?)",
+                (f"sel{i}._domainkey.d{i}.example", "v=DKIM1; p=AAA", "a" * 64, "ok", "2026-11-19T10:00:00Z"))
+    n = case.conn.execute("SELECT COUNT(*) FROM dns_record").fetchone()[0]
+    assert n >= 5
+
+    capped = render_txt(case, mail_list="auto", mail_list_max=0)   # Grenze 0 -> Liste weggelassen
+    assert labels("de")["dns_omitted"].format(n=n) in capped
+    assert "dns_keys.csv" in capped
+
+    out = tmp_path / "dns_keys.csv"
+    assert write_dns_keys_csv(case, out) == n                      # Export enthält alle Schlüssel
+    assert out.read_text(encoding="utf-8").count("_domainkey") >= 5

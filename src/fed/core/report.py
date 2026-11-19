@@ -577,7 +577,10 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                 + (f"\n        SHA-256 {r[3]}" if r[3] != "–" else "") for r in _domain_dns_rows(d, L)]
     if d["dns"]:
         out += ["", f"{L['dns_section']}:", f"  {L['dns_intro']}"]
-        out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
+        if include_mail_list(len(d["dns"]), mail_list, mail_list_max):
+            out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
+        else:
+            out.append(f"  {L['dns_omitted'].format(n=len(d['dns']))}")
     out.append("")
     for title, items in _tail_sections(d, L):
         out += [title, "-" * len(title), *_kv_txt(items), ""]
@@ -802,10 +805,13 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         pdf.set_font("DejaVu", "", 8)
         pdf.multi_cell(0, 4.2, L["dns_intro"], new_x="LMARGIN", new_y="NEXT")
         pdf.ln(1)
-        with pdf.table(col_widths=(55, 25, 40, 60), headings_style=head, line_height=4.2, text_align="LEFT") as t:
-            t.row([L["dns_name"], L["status"], L["fetched"], "SHA-256"])
-            for r in _dns_rows(d, L):
-                t.row(r)
+        if include_mail_list(len(d["dns"]), mail_list, mail_list_max):
+            with pdf.table(col_widths=(55, 25, 40, 60), headings_style=head, line_height=4.2, text_align="LEFT") as t:
+                t.row([L["dns_name"], L["status"], L["fetched"], "SHA-256"])
+                for r in _dns_rows(d, L):
+                    t.row(r)
+        else:
+            pdf.multi_cell(0, 4.2, L["dns_omitted"].format(n=len(d["dns"])), new_x="LMARGIN", new_y="NEXT")
 
     for title, items in _tail_sections(d, L):
         h2(title)
