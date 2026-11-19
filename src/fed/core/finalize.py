@@ -129,6 +129,8 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     (``<Case>_<Evidence>_<Zeit>.zip``, darin ``log.csv`` nur mit dessen Mails)."""
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
+    if progress:
+        progress(Progress(phase="collect"))  # 14k Mails laden kann einen Moment dauern – sofort anzeigen
     info = case.info()
     rows = message_rows(case)
     account_sql, account_args = "", ()
@@ -155,8 +157,12 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     prog = Progress(phase="zip", mails_total=len(rows), bytes_total=sum(r["Size"] for r in rows))
     case.log("INFO", "zip_started", {"file": zip_path.name, "messages": len(rows), "account_id": account_id})
 
+    if progress:
+        progress(Progress(phase="csv", mails_total=len(rows)))  # log.csv mit allen Mails schreiben
     _write_csv(rows, csv_path)
     known = {r["File"] for r in rows}
+    if progress:
+        progress(Progress(phase="scan"))  # Arbeitsordner auf zusätzliche Dateien prüfen (viele Dateien = langsam)
     stray = [str(p.relative_to(case.work_dir)).replace("\\", "/") for p in scope.rglob("*.eml")
              if str(p.relative_to(case.work_dir)).replace("\\", "/") not in known] if scope.exists() else []
     for s in stray:

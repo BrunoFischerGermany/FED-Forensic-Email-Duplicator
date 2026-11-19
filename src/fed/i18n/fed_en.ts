@@ -1221,6 +1221,26 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Creating and verifying ZIP, hashes and reports</translation>
     </message>
     <message>
+        <source>Aktueller Schritt</source>
+        <translation>Current step</translation>
+    </message>
+    <message>
+        <source>Vorbereitung …</source>
+        <translation>Preparing …</translation>
+    </message>
+    <message>
+        <source>Mails werden erfasst</source>
+        <translation>Collecting messages</translation>
+    </message>
+    <message>
+        <source>Mail-Liste (log.csv) wird geschrieben</source>
+        <translation>Writing message list (log.csv)</translation>
+    </message>
+    <message>
+        <source>Arbeitsordner wird geprüft</source>
+        <translation>Checking working folder</translation>
+    </message>
+    <message>
         <source>ZIP-Archiv wird gepackt</source>
         <translation>Packing ZIP archive</translation>
     </message>
@@ -1239,10 +1259,6 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Verschlüsselte Weitergabe-Kopie wird erstellt und geprüft</source>
         <translation>Creating and verifying encrypted hand-over copy</translation>
-    </message>
-    <message>
-        <source>Aktueller Schritt</source>
-        <translation>Current step</translation>
     </message>
     <message>
         <source>Während des Abschlusses nicht möglich – bitte warten, bis der Fall verifiziert und geschrieben ist.</source>
