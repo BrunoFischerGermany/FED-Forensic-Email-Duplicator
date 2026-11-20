@@ -71,6 +71,7 @@
   "Textbericht (TXT) wird geschrieben": "Writing text report (TXT)",
   "PDF-Bericht wird erzeugt": "Generating PDF report",
   " · noch ca. {0}": " · approx. {0} left",
+  " · Abschluss gesamt noch ca. {0}": " · total finalization approx. {0} left",
   "Echtheitsprüfung (DKIM): Signaturen je Mail per DNS prüfen …": "Authenticity check (DKIM): verifying each message's signature via DNS …",
   "{0} / {1} Mails geprüft": "{0} / {1} messages checked",
   "ZIP-Archiv wird gepackt": "Packing ZIP archive",

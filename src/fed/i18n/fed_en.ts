@@ -1265,8 +1265,8 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Creating and verifying encrypted hand-over copy</translation>
     </message>
     <message>
-        <source> · noch ca. {0}</source>
-        <translation> · approx. {0} left</translation>
+        <source> · Abschluss gesamt noch ca. {0}</source>
+        <translation> · total finalization approx. {0} left</translation>
     </message>
     <message>
         <source>Aktueller Schritt</source>

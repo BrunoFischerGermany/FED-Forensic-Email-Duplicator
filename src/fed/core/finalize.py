@@ -246,7 +246,7 @@ def verify_zip(case: Case, zip_path: Path, rows: list[dict] | None = None, cance
     cancel = cancel or CancelToken()
     expected = {r["File"]: r["SHA256"] for r in rows}
     problems: list[str] = []
-    prog = Progress(phase="verify", mails_total=len(rows))
+    prog = Progress(phase="verify", mails_total=len(rows), bytes_total=sum(r["Size"] for r in rows))
     with zipfile.ZipFile(zip_path) as zf:
         if zf.testzip() is not None:
             problems.append(code("crc_error"))
@@ -261,9 +261,11 @@ def verify_zip(case: Case, zip_path: Path, rows: list[dict] | None = None, cance
             with zf.open(name) as f:
                 while chunk := f.read(_CHUNK):
                     h.update(chunk)
+                    prog.bytes_done += len(chunk)
             if h.hexdigests()["sha256"] != expected[name]:
                 problems.append(code("hash_mismatch", name))
             prog.mails_done += 1
+            prog.sample()
             if progress:
                 progress(prog)
     ok = not [p for p in problems if not p.startswith("not_in_case")]
