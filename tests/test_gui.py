@@ -658,3 +658,29 @@ def test_finalize_activity_spinner_animates(app):
     p._render_step()
     assert v.text().strip() == "Berichte werden erzeugt"
     p.deleteLater()
+
+
+def test_finalize_total_eta_across_phases(app):
+    """Gesamt-Restzeit rechnet ZIP packen + prüfen (+ Verschlüsseln) aus der laufenden Rate hoch."""
+    from fed.core.config import Config
+    from fed.gui.assistant import FinishPage, State
+
+    class FakeProg:
+        def __init__(self, phase, bytes_done, bytes_total=1000):
+            self.phase, self.bytes_done, self.bytes_total = phase, bytes_done, bytes_total
+
+        def speed(self):
+            return (100.0, 0.0)  # 100 Byte/s
+
+    p = FinishPage(State(Config()))
+    p._fin_encrypt = False
+    # zip: 2 Phasen (zip+verify), Gesamtarbeit 2000 B, erledigt 100 -> (2000-100)/100 = 19 s
+    assert abs(p._finalize_eta(FakeProg("zip", 100)) - 19.0) < 0.5
+    # verify: erledigt 1000 (zip) + 100 -> (2000-1100)/100 = 9 s
+    assert abs(p._finalize_eta(FakeProg("verify", 100)) - 9.0) < 0.5
+    # mit Verschlüsselung: 3 Phasen, Gesamtarbeit 3000 -> 30 s
+    p._fin_encrypt = True
+    assert abs(p._finalize_eta(FakeProg("zip", 0)) - 30.0) < 0.5
+    # Phase ohne Bytes (z. B. Berichte) -> keine Gesamtschätzung
+    assert p._finalize_eta(FakeProg("reports_pdf", 0, bytes_total=0)) is None
+    p.deleteLater()

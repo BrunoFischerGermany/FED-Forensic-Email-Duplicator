@@ -1815,6 +1815,8 @@ class FinishPage(QWidget):
         # Laufende Aktivitätsanzeige: Spinner läuft weiter, auch wenn ein Schritt länger ohne neue Meldung arbeitet
         self._step_text = ""
         self._spin = 0
+        self._fin_total_bytes = 0
+        self._fin_encrypt = False
         self._spin_timer = QTimer(self)
         self._spin_timer.setInterval(350)
         self._spin_timer.timeout.connect(self._tick_spin)
@@ -1921,6 +1923,8 @@ class FinishPage(QWidget):
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
+        self._fin_total_bytes = 0                       # wird beim ersten „zip“-Ereignis gesetzt
+        self._fin_encrypt = password is not None        # Verschlüsseln ist eine weitere Byte-Phase
         self._set_busy(True)
         self._show_step(self.tr("Vorbereitung …"))  # sofort, nie leer
 
@@ -1945,9 +1949,9 @@ class FinishPage(QWidget):
             step = labels.get(p.phase, p.phase)
             if p.mails_total:
                 step += f" · {p.mails_done:,} / {p.mails_total:,}".replace(",", ".")
-            eta = p.eta_seconds() if p.bytes_total else None
+            eta = self._finalize_eta(p)
             if eta is not None:
-                step += self.tr(" · noch ca. {0}").format(fmt_secs(eta))
+                step += self.tr(" · Abschluss gesamt noch ca. {0}").format(fmt_secs(eta))
             self._show_step(step)
 
         stay_awake(st, "finish")
@@ -1966,6 +1970,23 @@ class FinishPage(QWidget):
     def _tick_spin(self) -> None:
         self._spin += 1
         self._render_step()
+
+    def _finalize_eta(self, p) -> float | None:
+        """Geschätzte Gesamt-Restzeit des Abschlusses aus der gemessenen Byte-Rate der aktuellen Phase.
+
+        Die großen Phasen (ZIP packen, ZIP prüfen, optional Verschlüsseln) verarbeiten je ~die gesamte
+        Datenmenge; daraus lässt sich der ganze Abschluss hochrechnen und refiniert sich laufend."""
+        byte_phases = ["zip", "verify"] + (["encrypt"] if self._fin_encrypt else [])
+        if p.phase == "zip" and p.bytes_total:
+            self._fin_total_bytes = p.bytes_total
+        if p.phase not in byte_phases or not self._fin_total_bytes:
+            return None
+        bps = p.speed()[0]
+        if bps <= 0:
+            return None
+        total_work = self._fin_total_bytes * len(byte_phases)
+        done_work = self._fin_total_bytes * byte_phases.index(p.phase) + p.bytes_done
+        return max(total_work - done_work, 0) / bps
 
     def _set_busy(self, on: bool) -> None:
         """Während des Abschlusses „FED beenden“ und „Neuen Fall anlegen“ sperren; Aktivitätsanzeige steuern."""
