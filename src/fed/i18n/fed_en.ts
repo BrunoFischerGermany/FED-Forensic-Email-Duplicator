@@ -895,7 +895,7 @@ The answer is documented in the log and in the report.</translation>
         <translation>Create case</translation>
     </message>
     <message>
-        <source>Ohne Fall startet keine Sicherung. Examiner und Agentur kommen aus der config.toml.</source>
+        <source>Ohne Fall startet keine Sicherung. Prüfer und Agentur kommen aus der config.toml.</source>
         <translation>No acquisition starts without a case. Examiner and agency come from config.toml.</translation>
     </message>
     <message>
@@ -911,7 +911,7 @@ The answer is documented in the log and in the report.</translation>
         <translation>Case number *</translation>
     </message>
     <message>
-        <source>Examiner *</source>
+        <source>Prüfer *</source>
         <translation>Examiner *</translation>
     </message>
     <message>
@@ -1023,7 +1023,7 @@ The answer is documented in the log and in the report.</translation>
         <translation>Free space</translation>
     </message>
     <message>
-        <source>Aktenzeichen und Examiner sind Pflicht.</source>
+        <source>Aktenzeichen und Prüfer sind Pflicht.</source>
         <translation>Case number and examiner are required.</translation>
     </message>
     <message>
@@ -2591,7 +2591,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Remove</translation>
     </message>
     <message>
-        <source>Examiner und Fall</source>
+        <source>Prüfer und Fall</source>
         <translation>Examiner and case</translation>
     </message>
     <message>
@@ -2599,7 +2599,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>empty = drive of the program</translation>
     </message>
     <message>
-        <source>Examiner (Vorbelegung)</source>
+        <source>Prüfer (Vorbelegung)</source>
         <translation>Examiner (default)</translation>
     </message>
     <message>
@@ -2914,7 +2914,7 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Logo (PNG/JPG/SVG, max. 2 MB)</translation>
     </message>
     <message>
-        <source>Examiner *</source>
+        <source>Prüfer *</source>
         <translation>Examiner *</translation>
     </message>
     <message>
