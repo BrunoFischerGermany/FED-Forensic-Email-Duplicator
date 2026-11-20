@@ -77,11 +77,11 @@ class SettingsTab(QWidget):
         a.add(self.logo_hint)
         grid.addWidget(a, 0, 0)
 
-        c = Card(self.tr("Examiner und Fall"))
+        c = Card(self.tr("Prüfer und Fall"))
         f = QFormLayout()
         self.examiner, self.pattern, self.target = QLineEdit(), QLineEdit(), QLineEdit()
         self.target.setPlaceholderText(self.tr("leer = Laufwerk des Programms"))
-        f.addRow(self.tr("Examiner (Vorbelegung)"), self.examiner)
+        f.addRow(self.tr("Prüfer (Vorbelegung)"), self.examiner)
         f.addRow(self.tr("Muster Aktenzeichen"), self.pattern)
         self.pattern_hint = label("", "Hint", wrap=True)
         f.addRow("", self.pattern_hint)

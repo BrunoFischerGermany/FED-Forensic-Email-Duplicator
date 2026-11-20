@@ -167,7 +167,7 @@ class CasePage(QWidget):
         super().__init__()
         self.st = st
         w, lay = page(self.tr("Fall anlegen"),
-                      self.tr("Ohne Fall startet keine Sicherung. Examiner und Agentur kommen aus der config.toml."))
+                      self.tr("Ohne Fall startet keine Sicherung. Prüfer und Agentur kommen aus der config.toml."))
         cols = QHBoxLayout()
         cols.setSpacing(24)
         form_card = Card()
@@ -184,7 +184,7 @@ class CasePage(QWidget):
         browse.clicked.connect(self._browse)
         self.browse_btn = browse
         f.addWidget(label(self.tr("Aktenzeichen *"), "H2"), 0, 0)
-        f.addWidget(label(self.tr("Examiner *"), "H2"), 0, 1)
+        f.addWidget(label(self.tr("Prüfer *"), "H2"), 0, 1)
         f.addWidget(self.case_no, 1, 0)
         f.addWidget(self.examiner, 1, 1)
         f.addWidget(label(self.tr("Anmerkungen"), "H2"), 2, 0, 1, 2)
@@ -309,7 +309,7 @@ class CasePage(QWidget):
     def _validate(self) -> bool:
         self.error.setText("")
         if not self.case_no.text().strip() or not self.examiner.text().strip():
-            self.error.setText(self.tr("Aktenzeichen und Examiner sind Pflicht."))
+            self.error.setText(self.tr("Aktenzeichen und Prüfer sind Pflicht."))
             return False
         info = self.st.system
         if info and not info.online:

@@ -1,5 +1,5 @@
 """Ersteinrichtung: fragt die Grunddaten ab, wenn keine ``config.toml`` vorhanden ist
-oder Agentur bzw. Examiner fehlen, und speichert sie neben dem Programm."""
+oder Agentur bzw. Prüfer fehlen, und speichert sie neben dem Programm."""
 
 from __future__ import annotations
 
@@ -18,12 +18,12 @@ MAX_LOGO = 2 * 1024 * 1024
 
 
 def needs_setup(cfg: cfgmod.Config) -> bool:
-    """True, wenn Grunddaten fehlen (keine Config-Datei oder Agentur/Examiner leer)."""
+    """True, wenn Grunddaten fehlen (keine Config-Datei oder Agentur/Prüfer leer)."""
     return cfg.source_path is None or not cfg.agentur.name.strip() or not cfg.examiner_name.strip()
 
 
 class SetupDialog(QDialog):
-    """Abfrage von Agentur, Anschrift, Logo, Examiner, Sprache und Standard-Zielordner."""
+    """Abfrage von Agentur, Anschrift, Logo, Prüfer, Sprache und Standard-Zielordner."""
 
     def __init__(self, cfg: cfgmod.Config, config_path: Path, parent=None) -> None:
         super().__init__(parent)
@@ -72,7 +72,7 @@ class SetupDialog(QDialog):
         form.addRow(self.tr("Agentur / Dienststelle *"), self.name)
         form.addRow(self.tr("Anschrift"), self.addr)
         form.addRow(self.tr("Logo (PNG/JPG/SVG, max. 2 MB)"), lrow)
-        form.addRow(self.tr("Examiner *"), self.examiner)
+        form.addRow(self.tr("Prüfer *"), self.examiner)
         form.addRow(self.tr("Sprache"), self.lang)
         form.addRow(self.tr("Zielordner"), trow)
 
