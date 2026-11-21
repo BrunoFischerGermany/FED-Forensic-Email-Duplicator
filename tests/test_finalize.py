@@ -294,6 +294,29 @@ def test_reports_dns_csv_by_default_both_reports(tmp_path, imap_server, test_mai
     case.close()
 
 
+def test_stray_file_warning_attributed_to_account(tmp_path, imap_server, test_mails):
+    """Eine verwaiste Datei im Arbeitsordner eines Kontos wird als Warnung MIT Konto geloggt,
+    sodass sie auch im Einzelbericht des Kontos erscheint – nicht nur im Gesamtbericht."""
+    from fed.core.finalize import build_zip
+    from fed.core.naming import sanitize_component
+    from fed.core.report import account_subset, collect
+
+    case = _two_accounts(tmp_path, imap_server)
+    acc_id, email = case.conn.execute("SELECT id, email FROM account ORDER BY id LIMIT 1").fetchone()
+    folder = case.work_dir / sanitize_component(email) / "Sent"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "orphan_UID00000099.eml").write_bytes(b"From: x\r\n\r\nhi")  # nicht in den gültigen Mails
+
+    build_zip(case, account_id=acc_id)
+
+    details = [r[0] for r in case.conn.execute("SELECT details FROM log WHERE event = 'zip_file_not_in_case'")]
+    assert details and any('"account_id"' in dt and str(acc_id) in dt for dt in details)
+
+    sub = account_subset(collect(case, None), acc_id, case)   # Konto-Bericht sieht die Warnung
+    assert any(x["event"] == "zip_file_not_in_case" for x in sub["issues"])
+    case.close()
+
+
 def test_one_zip_per_account(tmp_path, imap_server, test_mails):
     from validation import testmailbox
     from validation.fake_tsa import FakeTsa, available
