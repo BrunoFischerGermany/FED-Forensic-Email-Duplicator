@@ -684,3 +684,26 @@ def test_finalize_total_eta_across_phases(app):
     # Phase ohne Bytes (z. B. Berichte) -> keine Gesamtschätzung
     assert p._finalize_eta(FakeProg("reports_pdf", 0, bytes_total=0)) is None
     p.deleteLater()
+
+
+def test_check_icon_is_packaged_resource_not_temp(app, tmp_path, monkeypatch):
+    """Forensik: Beim Erzeugen des Stylesheets darf nichts ins System-Temp geschrieben
+    werden – das Häkchen-SVG kommt als mitgelieferte Ressource aus dem Programm."""
+    import tempfile
+    from pathlib import Path
+
+    from fed.gui import theme
+
+    # Temp auf einen leeren, kontrollierten Ordner lenken und danach prüfen, dass er leer bleibt.
+    fake_tmp = tmp_path / "systemp"
+    fake_tmp.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(fake_tmp))
+
+    icon = theme._check_icon()
+    assert icon.endswith("fed/resources/fed-check.svg") or icon.endswith("fed-check.svg")
+    assert Path(icon).exists()                      # echter Pfad in der Paketressource
+    assert "fed-check.svg" not in [p.name for p in fake_tmp.iterdir()]  # nichts ins Temp geschrieben
+
+    css = theme.stylesheet(theme.DARK)
+    assert 'image: url("' in css and "fed-check.svg" in css
+    assert list(fake_tmp.iterdir()) == []           # Stylesheet-Bau schreibt nichts ins Temp

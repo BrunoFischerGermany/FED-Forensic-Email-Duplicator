@@ -38,15 +38,16 @@ def is_dark(mode: str) -> bool:
 
 
 def _check_icon() -> str:
-    import tempfile
-    from pathlib import Path
+    """Pfad zum Häkchen-SVG für die Checkbox-Darstellung.
 
-    p = Path(tempfile.gettempdir()) / "fed-check.svg"
-    if not p.exists():
-        p.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" '
-                     'fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-                     encoding="utf-8")
-    return p.as_posix()
+    Die Datei wird als mitgelieferte Ressource referenziert – es wird NICHTS ins
+    System-Temp (``%TEMP%``) geschrieben. So hinterlässt FED auf dem Gerät des
+    Betroffenen keine Spuren, falls dieses Gerät später selbst gesichert wird.
+    """
+    from importlib import resources
+
+    p = resources.files("fed.resources").joinpath("fed-check.svg")
+    return str(p).replace("\\", "/")  # Qt-Stylesheet erwartet Vorwärts-Schrägstriche
 
 
 def _fonts() -> tuple[str, str]:
@@ -123,7 +124,7 @@ QCheckBox, QRadioButton {{ spacing: 8px; background: transparent; }}
 QCheckBox::indicator, QTreeView::indicator {{ width: 16px; height: 16px; border: 1px solid {t['line_strong']};
     border-radius: 4px; background: {t['surface']}; }}
 QCheckBox::indicator:checked, QTreeView::indicator:checked {{ background: {t['accent']}; border-color: {t['accent']};
-    image: url({check}); }}
+    image: url("{check}"); }}
 QRadioButton::indicator {{ width: 16px; height: 16px; border: 1px solid {t['line_strong']}; border-radius: 8px;
     background: {t['surface']}; }}
 QRadioButton::indicator:checked {{ background: {t['surface']}; border: 5px solid {t['accent']}; width: 8px; height: 8px; }}
