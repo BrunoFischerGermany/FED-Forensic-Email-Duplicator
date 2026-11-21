@@ -671,5 +671,6 @@
   "Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}": "Placeholders: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}",
   "Beispiel je Konto: {0}.zip": "Example per account: {0}.zip",
   "Postfach": "Mailbox",
-  "alle Konten": "all accounts"
+  "alle Konten": "all accounts",
+  " · Abschluss fast fertig …": " · finishing up …"
 }

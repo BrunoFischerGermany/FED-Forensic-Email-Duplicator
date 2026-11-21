@@ -1281,6 +1281,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation> · total finalization approx. {0} left</translation>
     </message>
     <message>
+        <source> · Abschluss fast fertig …</source>
+        <translation> · finishing up …</translation>
+    </message>
+    <message>
         <source>Aktueller Schritt</source>
         <translation>Current step</translation>
     </message>

@@ -1816,8 +1816,7 @@ class FinishPage(QWidget):
         # Laufende Aktivitätsanzeige: Spinner läuft weiter, auch wenn ein Schritt länger ohne neue Meldung arbeitet
         self._step_text = ""
         self._spin = 0
-        self._fin_total_bytes = 0
-        self._fin_encrypt = False
+        self._reset_finalize_eta()
         self._spin_timer = QTimer(self)
         self._spin_timer.setInterval(350)
         self._spin_timer.timeout.connect(self._tick_spin)
@@ -1925,8 +1924,7 @@ class FinishPage(QWidget):
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
         self.check_kv.set(self.tr("Postfach"), self.tr("wird vorbereitet …"))  # zuerst: steht über dem Schritt
-        self._fin_total_bytes = 0                       # wird beim ersten „zip“-Ereignis gesetzt
-        self._fin_encrypt = password is not None        # Verschlüsseln ist eine weitere Byte-Phase
+        self._reset_finalize_eta()
         self._set_busy(True)
         self._show_step(self.tr("Vorbereitung …"))  # sofort, nie leer
 
@@ -1955,8 +1953,10 @@ class FinishPage(QWidget):
             if p.mails_total:
                 step += f" · {p.mails_done:,} / {p.mails_total:,}".replace(",", ".")
             eta = self._finalize_eta(p)
-            if eta is not None:
+            if isinstance(eta, (int, float)):
                 step += self.tr(" · Abschluss gesamt noch ca. {0}").format(fmt_secs(eta))
+            elif eta == "final":
+                step += self.tr(" · Abschluss fast fertig …")
             self._show_step(step)
 
         stay_awake(st, "finish")
@@ -1976,22 +1976,47 @@ class FinishPage(QWidget):
         self._spin += 1
         self._render_step()
 
-    def _finalize_eta(self, p) -> float | None:
-        """Geschätzte Gesamt-Restzeit des Abschlusses aus der gemessenen Byte-Rate der aktuellen Phase.
+    def _reset_finalize_eta(self) -> None:
+        self._fin_done = 0          # über ALLE Konten gepackte + geprüfte Bytes bisher
+        self._fin_last = 0          # zuletzt gesehener bytes_done der aktuellen Byte-Phase
+        self._fin_key = None        # (phase, account) – erkennt Phasen-/Kontowechsel
+        self._fin_t0 = None         # Start der ersten Byte-Phase (für den Gesamtdurchsatz)
 
-        Die großen Phasen (ZIP packen, ZIP prüfen, optional Verschlüsseln) verarbeiten je ~die gesamte
-        Datenmenge; daraus lässt sich der ganze Abschluss hochrechnen und refiniert sich laufend."""
-        byte_phases = ["zip", "verify"] + (["encrypt"] if self._fin_encrypt else [])
-        if p.phase == "zip" and p.bytes_total:
-            self._fin_total_bytes = p.bytes_total
-        if p.phase not in byte_phases or not self._fin_total_bytes:
-            return None
-        bps = p.speed()[0]
-        if bps <= 0:
-            return None
-        total_work = self._fin_total_bytes * len(byte_phases)
-        done_work = self._fin_total_bytes * byte_phases.index(p.phase) + p.bytes_done
-        return max(total_work - done_work, 0) / bps
+    def _finalize_eta(self, p):
+        """Fallweite Gesamt-Restzeit des Abschlusses.
+
+        Verfolgt die über ALLE Konten gepackten (zip) und geprüften (verify) Bytes und rechnet über
+        den gemittelten Gesamtdurchsatz hoch – anders als früher nicht pro Konto, sodass die Anzeige
+        nicht nach jedem Konto auf 0 fällt. Rückgabe: Sekunden (float) während Packen/Prüfen,
+        ``"final"`` für die kurze Schlussphase (Zeitstempel, Berichte, Verschlüsseln) oder ``None``,
+        solange noch keine belastbare Schätzung vorliegt."""
+        import time
+        B = p.case_bytes_total
+        if p.phase in ("zip", "verify") and B:
+            key = (p.phase, p.account)
+            if key != self._fin_key:                 # neue Byte-Phase (nächstes Konto / Packen→Prüfen)
+                self._fin_key, self._fin_last = key, 0
+            delta = p.bytes_done - self._fin_last
+            self._fin_done += delta if delta >= 0 else p.bytes_done
+            self._fin_last = p.bytes_done
+            if self._fin_t0 is None and self._fin_done > 0:
+                self._fin_t0 = time.monotonic()
+            if self._fin_t0 is None:
+                return None
+            elapsed = time.monotonic() - self._fin_t0
+            if elapsed < 1.0:                         # erste Sekunde: noch keine stabile Rate
+                return None
+            planned = B * 2                           # ZIP packen + ZIP prüfen, je der ganze Fall
+            remaining = planned - self._fin_done
+            bps = self._fin_done / elapsed
+            if bps <= 0:
+                return None
+            if remaining <= planned * 0.01:           # praktisch fertig – kein „00:00:00“
+                return "final"
+            return remaining / bps
+        if p.phase in ("timestamp", "reports_txt", "reports_pdf", "reports", "encrypt"):
+            return "final"                            # kurze Schlussphase ohne Byte-Zähler
+        return None
 
     def _set_busy(self, on: bool) -> None:
         """Während des Abschlusses „FED beenden“ und „Neuen Fall anlegen“ sperren; Aktivitätsanzeige steuern."""

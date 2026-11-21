@@ -660,27 +660,46 @@ def test_finalize_activity_spinner_animates(app):
     p.deleteLater()
 
 
-def test_finalize_total_eta_across_phases(app):
-    """Gesamt-Restzeit rechnet ZIP packen + prüfen (+ Verschlüsseln) aus der laufenden Rate hoch."""
+def test_finalize_total_eta_casewide(app, monkeypatch):
+    """Gesamt-Restzeit zählt über ALLE Konten gepackte + geprüfte Bytes und rechnet über den
+    gemittelten Gesamtdurchsatz hoch – sie fällt nicht nach jedem Konto auf 0."""
+    import time
+
     from fed.core.config import Config
     from fed.gui.assistant import FinishPage, State
 
-    class FakeProg:
-        def __init__(self, phase, bytes_done, bytes_total=1000):
-            self.phase, self.bytes_done, self.bytes_total = phase, bytes_done, bytes_total
+    clock = [0.0]
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
 
-        def speed(self):
-            return (100.0, 0.0)  # 100 Byte/s
+    class FakeProg:
+        def __init__(self, phase, bytes_done, account="DF001", case_bytes_total=1000):
+            self.phase, self.bytes_done = phase, bytes_done
+            self.account, self.case_bytes_total = account, case_bytes_total
 
     p = FinishPage(State(Config()))
-    p._fin_encrypt = False
-    # zip: 2 Phasen (zip+verify), Gesamtarbeit 2000 B, erledigt 100 -> (2000-100)/100 = 19 s
-    assert abs(p._finalize_eta(FakeProg("zip", 100)) - 19.0) < 0.5
-    # verify: erledigt 1000 (zip) + 100 -> (2000-1100)/100 = 9 s
-    assert abs(p._finalize_eta(FakeProg("verify", 100)) - 9.0) < 0.5
-    # mit Verschlüsselung: 3 Phasen, Gesamtarbeit 3000 -> 30 s
-    p._fin_encrypt = True
-    assert abs(p._finalize_eta(FakeProg("zip", 0)) - 30.0) < 0.5
-    # Phase ohne Bytes (z. B. Berichte) -> keine Gesamtschätzung
-    assert p._finalize_eta(FakeProg("reports_pdf", 0, bytes_total=0)) is None
+    p._reset_finalize_eta()
+
+    # Vor der ersten belastbaren Rate: keine Schätzung
+    assert p._finalize_eta(FakeProg("zip", 0)) is None
+    clock[0] = 1.0
+    assert p._finalize_eta(FakeProg("zip", 100)) is None          # t0 gesetzt, elapsed 0
+
+    # 1 s später 200 B gepackt -> 200 B/s, geplant 2000 (zip+verify), Rest 1800 -> 9 s
+    clock[0] = 2.0
+    assert abs(p._finalize_eta(FakeProg("zip", 200)) - 9.0) < 0.6
+
+    # ZIP fertig (1000), Wechsel in verify (neue Byte-Phase, kein Rücksprung auf 0)
+    clock[0] = 5.0
+    p._finalize_eta(FakeProg("zip", 1000))                        # done = 1000
+    eta = p._finalize_eta(FakeProg("verify", 300))                # done = 1300, noch > 0
+    assert isinstance(eta, float) and eta > 0
+
+    # Kurz vor Schluss (>= 99 % erledigt) -> "final" statt 00:00:00
+    assert p._finalize_eta(FakeProg("verify", 995)) == "final"    # done = 1995 von 2000
+
+    # Schlussphasen ohne Byte-Zähler -> "final"
+    assert p._finalize_eta(FakeProg("reports_pdf", 0)) == "final"
+    assert p._finalize_eta(FakeProg("encrypt", 0)) == "final"
+    # Ohne Fall-Gesamtbytes keine Schätzung
+    assert p._finalize_eta(FakeProg("zip", 10, case_bytes_total=0)) is None
     p.deleteLater()

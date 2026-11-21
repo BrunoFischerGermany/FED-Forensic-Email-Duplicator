@@ -124,9 +124,11 @@ def _unique_zip(folder: Path, base: str) -> Path:
 
 
 def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None = None,
-              progress: ProgressCallback | None = None, account_id: int | None = None) -> ZipResult:
+              progress: ProgressCallback | None = None, account_id: int | None = None,
+              case_bytes: int = 0) -> ZipResult:
     """Packt alle Konten in ein ZIP – oder mit ``account_id`` nur dieses Konto
-    (``<Case>_<Evidence>_<Zeit>.zip``, darin ``log.csv`` nur mit dessen Mails)."""
+    (``<Case>_<Evidence>_<Zeit>.zip``, darin ``log.csv`` nur mit dessen Mails).
+    ``case_bytes``: Gesamt-Bytes aller Mails im Fall (für die fallweite Abschluss-Restzeit)."""
     cfg = cfg or Config()
     cancel = cancel or CancelToken()
     acc_label = ""
@@ -134,8 +136,12 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
         email, evidence = case.conn.execute("SELECT email, evidence_number FROM account WHERE id = ?",
                                             (account_id,)).fetchone()
         acc_label = f"{evidence} · {email}" if evidence else email  # z. B. "DF001 · info@…"
+
+    def _p(**kw):  # Progress-Hilfe: Konto-Label und Fall-Gesamtbytes immer mitgeben
+        return Progress(account=acc_label, case_bytes_total=case_bytes, **kw)
+
     if progress:
-        progress(Progress(phase="collect", account=acc_label))  # 14k Mails laden kann dauern – sofort anzeigen
+        progress(_p(phase="collect"))  # 14k Mails laden kann dauern – sofort anzeigen
     info = case.info()
     rows = message_rows(case)
     account_sql, account_args = "", ()
@@ -157,15 +163,15 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
         scope = case.work_dir / sanitize_component(email)
         account_sql, account_args = " AND a.id = ?", (account_id,)
     tmp = zip_path.with_suffix(".zip.part")
-    prog = Progress(phase="zip", mails_total=len(rows), bytes_total=sum(r["Size"] for r in rows), account=acc_label)
+    prog = _p(phase="zip", mails_total=len(rows), bytes_total=sum(r["Size"] for r in rows))
     case.log("INFO", "zip_started", {"file": zip_path.name, "messages": len(rows), "account_id": account_id})
 
     if progress:
-        progress(Progress(phase="csv", mails_total=len(rows), account=acc_label))  # log.csv schreiben
+        progress(_p(phase="csv", mails_total=len(rows)))  # log.csv schreiben
     _write_csv(rows, csv_path)
     known = {r["File"] for r in rows}
     if progress:
-        progress(Progress(phase="scan", account=acc_label))  # Arbeitsordner auf zusätzliche Dateien prüfen
+        progress(_p(phase="scan"))  # Arbeitsordner auf zusätzliche Dateien prüfen
     stray = [str(p.relative_to(case.work_dir)).replace("\\", "/") for p in scope.rglob("*.eml")
              if str(p.relative_to(case.work_dir)).replace("\\", "/") not in known] if scope.exists() else []
     for s in stray:
@@ -209,7 +215,7 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
         raise
     tmp.replace(zip_path)
 
-    result = verify_zip(case, zip_path, rows, cancel, progress, account=acc_label)
+    result = verify_zip(case, zip_path, rows, cancel, progress, account=acc_label, case_bytes=case_bytes)
     result.problems = [code("not_in_case", s) for s in stray] + result.problems
     result.hashes = hash_file(zip_path, cfg.programm.hash_extra)
     (zip_path.parent / (zip_path.name + ".sha256")).write_text(f"{result.hashes['sha256']}  {zip_path.name}\n",
@@ -243,13 +249,14 @@ def verify_case_zips(case: Case, cancel: CancelToken | None = None) -> list[ZipR
 
 
 def verify_zip(case: Case, zip_path: Path, rows: list[dict] | None = None, cancel: CancelToken | None = None,
-               progress: ProgressCallback | None = None, account: str = "") -> ZipResult:
+               progress: ProgressCallback | None = None, account: str = "", case_bytes: int = 0) -> ZipResult:
     """Öffnet das ZIP neu und hasht jede .eml gegen die Case-Datei."""
     rows = rows if rows is not None else message_rows(case)
     cancel = cancel or CancelToken()
     expected = {r["File"]: r["SHA256"] for r in rows}
     problems: list[str] = []
-    prog = Progress(phase="verify", mails_total=len(rows), bytes_total=sum(r["Size"] for r in rows), account=account)
+    prog = Progress(phase="verify", mails_total=len(rows), bytes_total=sum(r["Size"] for r in rows),
+                    account=account, case_bytes_total=case_bytes)
     with zipfile.ZipFile(zip_path) as zf:
         if zf.testzip() is not None:
             problems.append(code("crc_error"))
@@ -413,14 +420,16 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         case.set_closing_note(closing_note or "", closing_note_html)
     mode = zip_mode_for(case, cfg)
     case.log("INFO", "zip_mode_used", {"mode": mode})
+    # Gesamt-Bytes aller Mails im Fall – für die fallweite Abschluss-Restzeit (ZIP + Verify je einmal).
+    case_bytes = case.conn.execute("SELECT COALESCE(SUM(size), 0) FROM message WHERE status = 'valid'").fetchone()[0]
     if mode == "je_konto":
         ids = [r[0] for r in case.conn.execute("SELECT id FROM account ORDER BY id")]
-        zips = [build_zip(case, cfg, cancel, progress, acc) for acc in ids]
+        zips = [build_zip(case, cfg, cancel, progress, acc, case_bytes=case_bytes) for acc in ids]
         write_log_csv(case, case.root / "log.csv")  # Gesamtliste aller Konten neben den ZIPs
         record_output(case, case.root / "log.csv", cfg)
     else:
         ids = [None]
-        zips = [build_zip(case, cfg, cancel, progress)]
+        zips = [build_zip(case, cfg, cancel, progress, case_bytes=case_bytes)]
     bad = [z for z in zips if not z.verified]
     if bad:
         raise RuntimeError(_t("ZIP-Verifikation fehlgeschlagen: {problems}", problems="; ".join(describe(p) for z in bad for p in z.problems)))
