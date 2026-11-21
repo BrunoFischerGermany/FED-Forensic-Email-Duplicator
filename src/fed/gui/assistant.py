@@ -1158,7 +1158,7 @@ class AccountPage(QWidget):
             return oauth.explain_error("microsoft", err)
         low = err.lower()
         if not any(k in low for k in ("authenticationfailed", "authentication failed", "invalid credentials",
-                                      "login failed", "logon failure", "auth", "credentials")):
+                                      "invalid login", "login failed", "logon failure", "auth", "credentials")):
             return ""
         if m not in ("password", "google_app"):
             return ""
@@ -1555,6 +1555,16 @@ class AcquirePage(QWidget):
             b.addWidget(x)
             x.setVisible(False)
         lay.addLayout(b)
+        # Strg+K / Cmd+K: weiteres Konto hinzufügen, sobald das möglich ist (Button sichtbar). macOS bildet
+        # Qt „Ctrl“ automatisch auf Cmd ab.
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        sc = QShortcut(QKeySequence("Ctrl+K"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)  # greift, solange die Sicherungsseite sichtbar ist
+        sc.activated.connect(
+            lambda: self.another_btn.isVisible() and self.another_btn.isEnabled() and self.another_btn.animateClick())
+        self.another_btn.setToolTip(self.tr("Weiteres Konto im Fall sichern")
+                                    + "  ·  " + QKeySequence("Ctrl+K").toString(QKeySequence.SequenceFormat.NativeText))
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(scroll(w))

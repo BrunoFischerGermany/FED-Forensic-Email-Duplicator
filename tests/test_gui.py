@@ -627,6 +627,45 @@ def test_settings_report_content_roundtrip(app, tmp_path):
     st.deleteLater()
 
 
+def test_acquire_page_add_account_shortcut(app):
+    """Strg+K/Cmd+K öffnet „Weiteres Konto", wenn der Knopf sichtbar und aktiv ist."""
+    from PySide6.QtGui import QShortcut
+
+    from fed.core.config import Config
+    from fed.gui.assistant import AcquirePage, State
+
+    p = AcquirePage(State(Config()))
+    scs = {s.key().toString(): s for s in p.findChildren(QShortcut)}
+    assert "Ctrl+K" in scs
+    p.show()  # offscreen: nötig, damit isVisible() der Knöpfe greift
+    clicked = []
+    p.another_btn.animateClick = lambda *a: clicked.append(1)  # animateClick ist asynchron
+    p.another_btn.setVisible(True)
+    p.another_btn.setEnabled(True)
+    scs["Ctrl+K"].activated.emit()
+    assert clicked == [1]
+    clicked.clear()
+    p.another_btn.setVisible(False)             # nicht angeboten -> kein Auslösen
+    scs["Ctrl+K"].activated.emit()
+    assert clicked == []
+    p.hide()
+    p.deleteLater()
+
+
+def test_worker_expected_error_no_traceback():
+    """Erwartete Fehler (Login/Netz) markiert der Worker nicht als Programmierfehler."""
+    import imaplib
+
+    from fed.core.imap_reader import ImapError
+    from fed.gui.widgets import _is_expected_error
+
+    assert _is_expected_error(imaplib.IMAP4.error("Invalid login"))
+    assert _is_expected_error(ImapError("x"))
+    assert _is_expected_error(ConnectionError("refused"))
+    assert not _is_expected_error(TypeError("bug"))
+    assert not _is_expected_error(KeyError("k"))
+
+
 def test_account_page_shortcuts(app):
     """Strg+T löst „Verbindung testen“ aus, Strg+P „Postfach scannen“ – nur wenn der Knopf aktiv ist."""
     from PySide6.QtGui import QShortcut
