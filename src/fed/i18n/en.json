@@ -693,5 +693,6 @@
   "Zeitstempel (RFC 3161) wird geholt": "Fetching timestamp (RFC 3161)",
   "Dauerhaft beheben (danach startet FED direkt am Ablageort):\n• FED.app im Finder in einen anderen Ordner ziehen, z. B. „Programme“, oder\n• im Terminal:": "Permanent fix (FED then starts directly from its location):\n• drag FED.app to another folder in Finder, e.g. “Applications”, or\n• in Terminal:",
   "Befehl kopieren": "Copy command",
-  "Kopiert ✓": "Copied ✓"
+  "Kopiert ✓": "Copied ✓",
+  "Kein Bericht – Abschluss nicht durchgeführt": "No report – finalisation not performed"
 }

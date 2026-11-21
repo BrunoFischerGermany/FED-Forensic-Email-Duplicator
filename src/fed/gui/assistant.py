@@ -1840,6 +1840,7 @@ class FinishPage(QWidget):
         self.open_dir = QPushButton(self.tr("Fall-Ordner öffnen"))
         self.open_pdf.clicked.connect(lambda: self._open(self.st.finish.report_pdf))
         self.open_dir.clicked.connect(lambda: self._open(self.st.case.root))
+        self.open_pdf.setEnabled(False)  # erst aktiv, wenn ein Bericht erzeugt wurde
         rep.add(self.open_pdf)
         rep.add(self.open_dir)
         rep.lay.addStretch(1)
@@ -1874,8 +1875,14 @@ class FinishPage(QWidget):
     def _open(path) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
+    def _no_report(self) -> None:
+        """Kein (neuer) Bericht vorhanden – „Bericht öffnen“ sperren, Anzeige leeren."""
+        self.open_pdf.setEnabled(False)
+        self.report_lbl.setText(self.tr("Kein Bericht – Abschluss nicht durchgeführt"))
+
     def _aborted(self) -> None:
         """Rückfrage abgebrochen: nichts abgeschlossen, Case bleibt offen."""
+        self._no_report()
         self.title.setText(self.tr("Abschluss abgebrochen"))
         self.sub.setText(self.tr("Der Fall ist noch offen – nichts wurde verändert."))
         restyle(self.sub, "Muted")
@@ -1932,6 +1939,7 @@ class FinishPage(QWidget):
         restyle(self.sub, "Muted")
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
+        self.report_lbl.setText("")
         self.check_kv.clear()
         self.check_kv.set(self.tr("Postfach"), self.tr("wird vorbereitet …"))  # zuerst: steht über dem Schritt
         self.check_kv.set(self.tr("Bericht-Einstellungen"), self._report_settings_text(st.cfg))
@@ -2109,6 +2117,7 @@ class FinishPage(QWidget):
     def _failed(self, err, tb) -> None:
         allow_sleep(self.st)
         self._set_busy(False)
+        self._no_report()
         self.title.setText(self.tr("Abschluss fehlgeschlagen"))
         self.sub.setText(err + "\n" + self.tr("Der Fall ist noch offen – die gesicherten Mails sind unverändert. "
                                                "Ursache beheben und erneut versuchen."))

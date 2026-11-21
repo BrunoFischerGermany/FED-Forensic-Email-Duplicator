@@ -726,6 +726,25 @@ def test_translocation_dialog_copies_command(app, tmp_path, monkeypatch):
     assert seen["dlg"].result() == 0                   # Kopieren schließt den Dialog nicht
 
 
+def test_finish_page_no_report_after_abort_or_failure(app):
+    """Ohne erzeugten Bericht (Abbruch der Rückfrage oder Fehler) ist „Bericht öffnen" gesperrt."""
+    from fed.core.config import Config
+    from fed.gui.assistant import FinishPage, State
+
+    p = FinishPage(State(Config()))
+    assert not p.open_pdf.isEnabled()                 # frische Seite: noch kein Bericht
+
+    p.open_pdf.setEnabled(True)                       # z. B. Rest eines früheren Laufs
+    p._aborted()
+    assert not p.open_pdf.isEnabled()
+    assert p.title.text() == "Abschluss abgebrochen"
+
+    p.open_pdf.setEnabled(True)
+    p._failed("kaputt", "")
+    assert not p.open_pdf.isEnabled()
+    p.deleteLater()
+
+
 def test_account_page_shortcuts(app):
     """Strg+T löst „Verbindung testen“ aus, Strg+P „Postfach scannen“ – nur wenn der Knopf aktiv ist."""
     from PySide6.QtGui import QShortcut

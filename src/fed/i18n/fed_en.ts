@@ -1181,6 +1181,10 @@ Open and continue this case?</translation>
         <translation>Quit FED</translation>
     </message>
     <message>
+        <source>Kein Bericht – Abschluss nicht durchgeführt</source>
+        <translation>No report – finalisation not performed</translation>
+    </message>
+    <message>
         <source>Abschluss abgebrochen</source>
         <translation>Closing cancelled</translation>
     </message>
