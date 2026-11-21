@@ -222,5 +222,7 @@
   "dns_type": "Type",
   "dns_value": "Value",
   "dns_omitted": "{n} retained keys – not listed individually here due to the volume. Full list in dns_keys.csv (in the case folder).",
-  "thousands_sep": ","
+  "thousands_sep": ",",
+  "domain_dns_csv": "Domain DNS snapshot – stored as CSV. Full table in dns_snapshot.csv (in the case folder, with SHA-256).",
+  "dns_keys_csv": "{n} retained DKIM keys – stored as CSV. Full list in dns_keys.csv (in the case folder, with SHA-256)."
 }

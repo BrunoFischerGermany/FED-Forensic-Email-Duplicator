@@ -602,6 +602,31 @@ def test_settings_dirty_detection(app, tmp_path):
     st.deleteLater()
 
 
+def test_settings_report_content_roundtrip(app, tmp_path):
+    """Einstellungen laden/speichern die neuen Bericht-Felder (DKIM-Liste, DNS-Modus)."""
+    from fed.core import config as cfgmod
+    from fed.gui.settings import SettingsTab
+
+    cfg = cfgmod.Config()
+    cfg.programm.bericht_dkimliste = "ordner"
+    cfg.programm.bericht_dkimliste_max = 250
+    cfg.programm.bericht_dns = "tabelle"
+    cfg.source_path = tmp_path / "config.toml"
+    st = SettingsTab(cfg, tmp_path / "config.toml")
+    assert st.dkimlist.currentData() == "ordner"       # geladen
+    assert st.dns.currentData() == "tabelle"
+    assert not st.dkimlist_max.isEnabled()             # Grenze nur bei "auto"
+
+    st.dkimlist.setCurrentIndex(st.dkimlist.findData("auto"))
+    st.dkimlist_max.setValue(123)
+    st.dns.setCurrentIndex(st.dns.findData("csv"))
+    assert st.save() is True
+    assert cfg.programm.bericht_dkimliste == "auto"     # gespeichert
+    assert cfg.programm.bericht_dkimliste_max == 123
+    assert cfg.programm.bericht_dns == "csv"
+    st.deleteLater()
+
+
 def test_account_page_shortcuts(app):
     """Strg+T löst „Verbindung testen“ aus, Strg+P „Postfach scannen“ – nur wenn der Knopf aktiv ist."""
     from PySide6.QtGui import QShortcut

@@ -108,6 +108,19 @@ class SettingsTab(QWidget):
         self.mlist_max.setSingleStep(100)
         self.mlist_max.setSuffix(self.tr(" Mails"))
         self.mlist.currentIndexChanged.connect(lambda _: self.mlist_max.setEnabled(self.mlist.currentData() == "auto"))
+        self.dkimlist = QComboBox()
+        self.dkimlist.addItem(self.tr("automatisch – Liste nur bis zur Grenze"), "auto")
+        self.dkimlist.addItem(self.tr("vollständige Liste"), "liste")
+        self.dkimlist.addItem(self.tr("nur Verweis auf log.csv"), "ordner")
+        self.dkimlist_max = QSpinBox()
+        self.dkimlist_max.setRange(10, 1_000_000)
+        self.dkimlist_max.setSingleStep(100)
+        self.dkimlist_max.setSuffix(self.tr(" Prüfungen"))
+        self.dkimlist.currentIndexChanged.connect(
+            lambda _: self.dkimlist_max.setEnabled(self.dkimlist.currentData() == "auto"))
+        self.dns = QComboBox()
+        self.dns.addItem(self.tr("als CSV-Verweis (mit SHA-256)"), "csv")
+        self.dns.addItem(self.tr("als Tabelle im Bericht"), "tabelle")
         f.addRow(self.tr("Sprache Oberfläche"), self.lang)
         # Die Oberfläche wird beim Start übersetzt – ein Wechsel wirkt erst nach einem Neustart
         self._started_lang = cfg.programm.sprache
@@ -118,6 +131,9 @@ class SettingsTab(QWidget):
         f.addRow(self.tr("Sprache Bericht"), self.rlang)
         f.addRow(self.tr("Inhalt Bericht"), self.mlist)
         f.addRow(self.tr("Grenze"), self.mlist_max)
+        f.addRow(self.tr("DKIM-Prüfung im Bericht"), self.dkimlist)
+        f.addRow(self.tr("Grenze DKIM-Prüfung"), self.dkimlist_max)
+        f.addRow(self.tr("DNS-Abfragen im Bericht"), self.dns)
         d.add(f)
         grid.addWidget(d, 1, 0)
 
@@ -256,6 +272,10 @@ class SettingsTab(QWidget):
         self.mlist.setCurrentIndex(max(self.mlist.findData(p.bericht_mailliste), 0))
         self.mlist_max.setValue(p.bericht_mailliste_max)
         self.mlist_max.setEnabled(p.bericht_mailliste == "auto")
+        self.dkimlist.setCurrentIndex(max(self.dkimlist.findData(p.bericht_dkimliste), 0))
+        self.dkimlist_max.setValue(p.bericht_dkimliste_max)
+        self.dkimlist_max.setEnabled(p.bericht_dkimliste == "auto")
+        self.dns.setCurrentIndex(max(self.dns.findData(p.bericht_dns), 0))
         self.h_md5.setChecked("md5" in p.hash_extra)
         self.h_sha1.setChecked("sha1" in p.hash_extra)
         self.h_sha512.setChecked("sha512" in p.hash_extra)
@@ -383,6 +403,8 @@ class SettingsTab(QWidget):
         p.design = self.design.value()
         p.sprache, p.bericht_sprache = self.lang.currentData(), self.rlang.currentData()
         p.bericht_mailliste, p.bericht_mailliste_max = self.mlist.currentData(), self.mlist_max.value()
+        p.bericht_dkimliste, p.bericht_dkimliste_max = self.dkimlist.currentData(), self.dkimlist_max.value()
+        p.bericht_dns = self.dns.currentData()
         p.hash_extra = [n for n, cb in (("md5", self.h_md5), ("sha1", self.h_sha1), ("sha512", self.h_sha512))
                         if cb.isChecked()]
         p.zip_zeit_quelle = "internaldate" if self.zt_int.isChecked() else "date_header"

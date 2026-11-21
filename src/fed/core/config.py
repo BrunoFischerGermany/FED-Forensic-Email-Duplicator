@@ -31,6 +31,9 @@ class Programm:
     bericht_sprache: str = ""  # leer = wie Oberfläche
     bericht_mailliste: str = "auto"  # auto | liste | ordner
     bericht_mailliste_max: int = 500  # bei "auto": Liste nur bis zu so vielen Mails
+    bericht_dkimliste: str = "auto"  # auto | liste | ordner – Liste der DKIM-Prüfungen
+    bericht_dkimliste_max: int = 500  # bei "auto": DKIM-Liste nur bis zu so vielen Einträgen
+    bericht_dns: str = "csv"  # csv | tabelle – DNS-Abfragen (Schnappschuss + aufbewahrte Schlüssel)
     design: str = "system"  # system | hell | dunkel
     zielpfad: str = ""
     ntp: bool = True
@@ -142,10 +145,13 @@ def validate(cfg: Config) -> None:
         raise ConfigError(t("{key} muss eins von {values} sein", key="arbeitsordner_loeschen", values=["fragen", "ja", "nein"]))
     if not 1 <= cfg.programm.verbindungen <= 10:
         raise ConfigError(t("{key} muss zwischen {lo} und {hi} liegen", key="verbindungen", lo=1, hi=10))
-    cfg.programm.bericht_mailliste = {"immer": "liste", "nie": "ordner"}.get(cfg.programm.bericht_mailliste,
-                                                                            cfg.programm.bericht_mailliste)
-    if cfg.programm.bericht_mailliste not in {"auto", "liste", "ordner"}:
-        raise ConfigError(t("{key} muss eins von {values} sein", key="bericht_mailliste", values=["auto", "liste", "ordner"]))
+    for key in ("bericht_mailliste", "bericht_dkimliste"):
+        val = {"immer": "liste", "nie": "ordner"}.get(getattr(cfg.programm, key), getattr(cfg.programm, key))
+        setattr(cfg.programm, key, val)
+        if val not in {"auto", "liste", "ordner"}:
+            raise ConfigError(t("{key} muss eins von {values} sein", key=key, values=["auto", "liste", "ordner"]))
+    if cfg.programm.bericht_dns not in {"csv", "tabelle"}:
+        raise ConfigError(t("{key} muss eins von {values} sein", key="bericht_dns", values=["csv", "tabelle"]))
     if cfg.programm.design not in {"system", "hell", "dunkel"}:
         raise ConfigError(t("{key} muss eins von {values} sein", key="design", values=["system", "hell", "dunkel"]))
 

@@ -558,7 +558,8 @@ def _folder_lines(d: dict, L: dict, email: str) -> list[str]:
 
 @_time_language
 def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-               account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None) -> str:
+               account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None,
+               dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv") -> str:
     L = labels(language)
     d = data if data is not None else collect(case, account_id)
     out = []
@@ -598,22 +599,26 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out += ["", f"{L['folders']}:", *_folder_lines(d, L, a["email"]), ""]
     out += [L["dkim_section"], "-" * len(L["dkim_section"]), L["dkim_intro"], ""]
     dkim_rows = _dkim_issue_rows(d, L)
-    if dkim_rows and not include_mail_list(len(dkim_rows), mail_list, mail_list_max):
+    if dkim_rows and not include_mail_list(len(dkim_rows), dkim_list, dkim_list_max):
         out.append("  " + L["dkim_issues_omitted"].format(n=_n(len(dkim_rows), L)))
     elif dkim_rows:
         out += [f"  {r[0]}  {r[1]}  {r[2]}  [{r[3]}]  {r[4]}" for r in dkim_rows]
     else:
         out.append(f"  {L['dkim_none_issues']}")
     if d["domain_dns"]:
-        out += ["", f"{L['domain_dns_section']}:", f"  {L['domain_dns_intro']}"]
-        out += [f"  {r[0]:<5} {r[1]}  {r[2].replace(chr(10), ' / ')}"
-                + (f"\n        SHA-256 {r[3]}" if r[3] != "–" else "") for r in _domain_dns_rows(d, L)]
+        out += ["", f"{L['domain_dns_section']}:"]
+        if dns_mode == "csv":
+            out.append(f"  {L['domain_dns_csv']}")
+        else:
+            out.append(f"  {L['domain_dns_intro']}")
+            out += [f"  {r[0]:<5} {r[1]}  {r[2].replace(chr(10), ' / ')}"
+                    + (f"\n        SHA-256 {r[3]}" if r[3] != "–" else "") for r in _domain_dns_rows(d, L)]
     if d["dns"]:
         out += ["", f"{L['dns_section']}:", f"  {L['dns_intro']}"]
-        if include_mail_list(len(d["dns"]), mail_list, mail_list_max):
-            out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
+        if dns_mode == "csv":
+            out.append(f"  {L['dns_keys_csv'].format(n=_n(len(d['dns']), L))}")
         else:
-            out.append(f"  {L['dns_omitted'].format(n=_n(len(d['dns']), L))}")
+            out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
     out.append("")
     for title, items in _tail_sections(d, L):
         out += [title, "-" * len(title), *_kv_txt(items), ""]
@@ -653,9 +658,10 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
 
 
 def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-              account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None) -> None:
-    path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id, encrypted_planned, data),
-                    encoding="utf-8")
+              account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None,
+              dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv") -> None:
+    path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id, encrypted_planned, data,
+                               dkim_list, dkim_list_max, dns_mode), encoding="utf-8")
 
 
 def _encrypted_name(d: dict) -> str:
@@ -667,7 +673,8 @@ def _encrypted_name(d: dict) -> str:
 # ---------------------------------------------------------------- PDF
 @_time_language
 def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
-              account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None) -> None:
+              account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None,
+              dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv") -> None:
     from fpdf import FPDF
     from fpdf.fonts import FontFace
 
@@ -815,7 +822,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.multi_cell(0, 4.2, L["dkim_intro"], new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
     issues = _dkim_issue_rows(d, L)
-    if issues and not include_mail_list(len(issues), mail_list, mail_list_max):
+    if issues and not include_mail_list(len(issues), dkim_list, dkim_list_max):
         pdf.multi_cell(0, 4.2, L["dkim_issues_omitted"].format(n=_n(len(issues), L)), new_x="LMARGIN", new_y="NEXT")
     elif issues:
         with pdf.table(col_widths=(18, 40, 46, 28, 48), headings_style=head, line_height=4.2, text_align="LEFT") as t:
@@ -827,24 +834,27 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     if d["domain_dns"]:
         h2(L["domain_dns_section"])
         pdf.set_font("DejaVu", "", 8)
-        pdf.multi_cell(0, 4.2, L["domain_dns_intro"], new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(1)
-        with pdf.table(col_widths=(16, 45, 58, 61), headings_style=head, line_height=4.2, text_align="LEFT") as t:
-            t.row([L["dns_type"], L["dns_name"], L["dns_value"], "SHA-256"])
-            for r in _domain_dns_rows(d, L):
-                t.row(r)
+        if dns_mode == "csv":
+            pdf.multi_cell(0, 4.2, L["domain_dns_csv"], new_x="LMARGIN", new_y="NEXT")
+        else:
+            pdf.multi_cell(0, 4.2, L["domain_dns_intro"], new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(1)
+            with pdf.table(col_widths=(16, 45, 58, 61), headings_style=head, line_height=4.2, text_align="LEFT") as t:
+                t.row([L["dns_type"], L["dns_name"], L["dns_value"], "SHA-256"])
+                for r in _domain_dns_rows(d, L):
+                    t.row(r)
     if d["dns"]:
         h2(L["dns_section"])
         pdf.set_font("DejaVu", "", 8)
         pdf.multi_cell(0, 4.2, L["dns_intro"], new_x="LMARGIN", new_y="NEXT")
         pdf.ln(1)
-        if include_mail_list(len(d["dns"]), mail_list, mail_list_max):
+        if dns_mode == "csv":
+            pdf.multi_cell(0, 4.2, L["dns_keys_csv"].format(n=_n(len(d["dns"]), L)), new_x="LMARGIN", new_y="NEXT")
+        else:
             with pdf.table(col_widths=(55, 25, 40, 60), headings_style=head, line_height=4.2, text_align="LEFT") as t:
                 t.row([L["dns_name"], L["status"], L["fetched"], "SHA-256"])
                 for r in _dns_rows(d, L):
                     t.row(r)
-        else:
-            pdf.multi_cell(0, 4.2, L["dns_omitted"].format(n=_n(len(d["dns"]), L)), new_x="LMARGIN", new_y="NEXT")
 
     for title, items in _tail_sections(d, L):
         h2(title)
@@ -1075,22 +1085,25 @@ def account_report_name(evidence: str, email: str, suffix: str, replace_spaces: 
 @_time_language
 def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
                   mail_list_max: int = 500, encrypted_planned: bool = False,
-                  progress: object = None) -> tuple[Path, Path]:
+                  progress: object = None, dkim_list: str = "auto", dkim_list_max: int = 500,
+                  dns_mode: str = "csv") -> tuple[Path, Path]:
     """Gesamtbericht ``report.txt``/``report.pdf`` und – bei mehreren Konten – je Konto
     ``report_<Evidence>.txt``/``.pdf``. Rückgabe: der Gesamtbericht.
 
+    Einzel- und Gesamtbericht verwenden dieselben Inhaltseinstellungen (Mailliste, DKIM-Liste, DNS-Modus).
     ``progress`` (optional): Callback, das Schrittmarken ``reports_txt``/``reports_pdf`` für die GUI meldet
     (das PDF ist bei großen Fällen der langsame Teil)."""
     from fed.core.cancel import Progress
 
+    opts = dict(dkim_list=dkim_list, dkim_list_max=dkim_list_max, dns_mode=dns_mode)
     txt, pdfp = case.root / "report.txt", case.root / "report.pdf"
     d = collect(case, None)  # nur einmal sammeln und für TXT und PDF wiederverwenden (spart bei großen Fällen viel Zeit)
     if progress:
         progress(Progress(phase="reports_txt"))
-    write_txt(case, txt, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d)
+    write_txt(case, txt, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d, **opts)
     if progress:
         progress(Progress(phase="reports_pdf"))
-    write_pdf(case, pdfp, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d)
+    write_pdf(case, pdfp, language, mail_list, mail_list_max, encrypted_planned=encrypted_planned, data=d, **opts)
     accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
     if len(accounts) > 1:
         for acc_id, evidence, email in accounts:
@@ -1099,9 +1112,9 @@ def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
             if progress:
                 progress(Progress(phase="reports_pdf"))  # Schritt am Leben halten (je Konto ein Einzelbericht)
             write_txt(case, case.root / account_report_name(evidence, email, ".txt", case.replace_spaces), language,
-                      mail_list, mail_list_max, acc_id, encrypted_planned, data=da)
+                      mail_list, mail_list_max, acc_id, encrypted_planned, data=da, **opts)
             write_pdf(case, case.root / account_report_name(evidence, email, ".pdf", case.replace_spaces), language,
-                      mail_list, mail_list_max, acc_id, encrypted_planned, data=da)
+                      mail_list, mail_list_max, acc_id, encrypted_planned, data=da, **opts)
     return txt, pdfp
 
 

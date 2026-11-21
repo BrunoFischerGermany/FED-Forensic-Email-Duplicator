@@ -1924,6 +1924,7 @@ class FinishPage(QWidget):
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
         self.check_kv.set(self.tr("Postfach"), self.tr("wird vorbereitet …"))  # zuerst: steht über dem Schritt
+        self.check_kv.set(self.tr("Bericht-Einstellungen"), self._report_settings_text(st.cfg))
         self._reset_finalize_eta()
         self._set_busy(True)
         self._show_step(self.tr("Vorbereitung …"))  # sofort, nie leer
@@ -1975,6 +1976,19 @@ class FinishPage(QWidget):
     def _tick_spin(self) -> None:
         self._spin += 1
         self._render_step()
+
+    def _report_settings_text(self, cfg) -> str:
+        """Aktive Bericht-Inhaltseinstellungen kompakt, damit sie beim Abschluss sichtbar sind."""
+        p = cfg.programm
+
+        def mode(m: str, mx: int) -> str:
+            return {"auto": self.tr("auto bis {0}").format(mx), "liste": self.tr("vollständig"),
+                    "ordner": self.tr("nur Verweis")}.get(m, m)
+
+        dns = self.tr("CSV-Verweis") if p.bericht_dns == "csv" else self.tr("Tabelle")
+        return self.tr("Mailliste: {0} · DKIM-Prüfung: {1} · DNS-Abfragen: {2}").format(
+            mode(p.bericht_mailliste, p.bericht_mailliste_max),
+            mode(p.bericht_dkimliste, p.bericht_dkimliste_max), dns)
 
     def _reset_finalize_eta(self) -> None:
         self._fin_done = 0          # über ALLE Konten gepackte + geprüfte Bytes bisher
