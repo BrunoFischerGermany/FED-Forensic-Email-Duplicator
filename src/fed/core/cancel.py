@@ -50,12 +50,12 @@ class Progress:
     warnings: int = 0
     errors: int = 0
     started: float = field(default_factory=time.monotonic)
-    _window: list[tuple[float, int, int]] = field(default_factory=list, repr=False)
+    _window: list[tuple[float, int, int, int]] = field(default_factory=list, repr=False)
 
     def sample(self, window_s: float = 30.0) -> None:
         """Merkt den aktuellen Stand für den gleitenden Mittelwert."""
         now = time.monotonic()
-        self._window.append((now, self.bytes_done, self.mails_done))
+        self._window.append((now, self.bytes_done, self.mails_done, self.folder_done))
         while self._window and now - self._window[0][0] > window_s:
             self._window.pop(0)
 
@@ -63,7 +63,7 @@ class Progress:
         """(Bytes/s, Mails/min) über das Zeitfenster."""
         if len(self._window) < 2:
             return 0.0, 0.0
-        (t0, b0, m0), (t1, b1, m1) = self._window[0], self._window[-1]
+        (t0, b0, m0, _f0), (t1, b1, m1, _f1) = self._window[0], self._window[-1]
         dt = max(t1 - t0, 1e-6)
         return (b1 - b0) / dt, (m1 - m0) / dt * 60
 
@@ -72,6 +72,21 @@ class Progress:
         if bps <= 0:
             return None
         return max(self.bytes_total - self.bytes_done, 0) / bps
+
+    def folder_eta_seconds(self) -> float | None:
+        """Restzeit der aktuellen Phase anhand der abgearbeiteten Einheiten (``folder_done``).
+
+        Für Phasen ohne Byte-Durchsatz – etwa die DKIM-Prüfung, die je Mail eine
+        DNS-Abfrage macht – wird die Rate der geprüften Mails im Zeitfenster genutzt.
+        """
+        if len(self._window) < 2 or not self.folder_total:
+            return None
+        w0, w1 = self._window[0], self._window[-1]
+        dt = max(w1[0] - w0[0], 1e-6)
+        rate = (w1[3] - w0[3]) / dt   # Einheiten/s
+        if rate <= 0:
+            return None
+        return max(self.folder_total - self.folder_done, 0) / rate
 
 
 ProgressCallback = Callable[[Progress], None]
