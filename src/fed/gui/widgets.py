@@ -138,7 +138,8 @@ class KeyValues(QWidget):
         self.grid.setColumnStretch(1, 1)
         self.values: dict[str, QLabel] = {}
 
-    def set(self, key: str, value: str, state: str | None = None, mono: bool = False) -> None:
+    def set(self, key: str, value: str, state: str | None = None, mono: bool = False,
+            tip: str | None = None) -> None:
         if key not in self.values:
             row = self.grid.rowCount()
             self.grid.addWidget(label(key, "Muted"), row, 0, Qt.AlignmentFlag.AlignTop)
@@ -150,6 +151,7 @@ class KeyValues(QWidget):
             self.values[key] = v
         v = self.values[key]
         v.setText(value)
+        v.setToolTip(tip or "")
         restyle(v, {"ok": "Ok", "warn": "Warn", "error": "Error"}.get(state or "", "Mono" if mono else ""))
 
     def clear(self) -> None:

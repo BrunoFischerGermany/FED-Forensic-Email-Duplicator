@@ -1881,6 +1881,10 @@ class FinishPage(QWidget):
         self.open_dir.clicked.connect(lambda: self._open(self.st.case.root))
         self.open_pdf.setEnabled(False)  # erst aktiv, wenn ein Bericht erzeugt wurde
         rep.add(self.open_pdf)
+        self.acc_reports = QWidget()  # je Konto ein „Bericht <E-Mail> öffnen“ (ab zwei Konten)
+        self.acc_reports_lay = QVBoxLayout(self.acc_reports)
+        self.acc_reports_lay.setContentsMargins(0, 0, 0, 0)
+        rep.add(self.acc_reports)
         rep.add(self.open_dir)
         rep.lay.addStretch(1)
         cols.addWidget(rep, 2)
@@ -1914,8 +1918,37 @@ class FinishPage(QWidget):
     def _open(path) -> None:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))
 
+    def _clear_account_reports(self) -> None:
+        while self.acc_reports_lay.count():
+            w = self.acc_reports_lay.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        self.open_pdf.setText(self.tr("Bericht öffnen"))
+
+    def _accounts(self) -> list[tuple[int, str, str]]:
+        return self.st.case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
+
+    def _show_account_reports(self) -> None:
+        """Ab zwei Konten: „Gesamtbericht öffnen“ plus je Konto „Bericht <E-Mail> öffnen“."""
+        from fed.core.report import account_report_name
+
+        self._clear_account_reports()
+        accounts = self._accounts()
+        if len(accounts) < 2:
+            return
+        self.open_pdf.setText(self.tr("Gesamtbericht öffnen"))
+        for _id, evidence, email in accounts:
+            path = self.st.case.root / account_report_name(evidence, email, ".pdf", self.st.case.replace_spaces)
+            if not path.exists():
+                continue
+            b = QPushButton(self.tr("Bericht {0} öffnen").format(email))
+            b.setToolTip(f"{evidence} · {path}")
+            b.clicked.connect(lambda _=False, p=path: self._open(p))
+            self.acc_reports_lay.addWidget(b)
+
     def _no_report(self) -> None:
         """Kein (neuer) Bericht vorhanden – „Bericht öffnen“ sperren, Anzeige leeren."""
+        self._clear_account_reports()
         self.open_pdf.setEnabled(False)
         self.report_lbl.setText(self.tr("Kein Bericht – Abschluss nicht durchgeführt"))
 
@@ -1979,6 +2012,7 @@ class FinishPage(QWidget):
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.report_lbl.setText("")
+        self._clear_account_reports()
         self.check_kv.clear()
         self.check_kv.set(self.tr("Postfach"), self.tr("wird vorbereitet …"))  # zuerst: steht über dem Schritt
         self.check_kv.set(self.tr("Bericht-Einstellungen"), self._report_settings_text(st.cfg))
@@ -2117,19 +2151,21 @@ class FinishPage(QWidget):
         ).fetchone()[0]
         k.set(self.tr("Vorher/Nachher-Vergleich"), self.tr("unverändert ✓") if not changed
               else self.tr("{0} Ordner geändert").format(changed), "ok" if not changed else "warn")
-        for z in res.zips:
-            k.set(self.tr("ZIP gepackt"), f"{z.path.name} · {_fmt_bytes(z.size)}", "ok")
-            k.set(self.tr("ZIP verifiziert"), self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
+        tags = self._zip_tags(res)  # je ZIP eine Kennung (Asservat), damit keine Zeile die andere überschreibt
+        for z, tag in zip(res.zips, tags, strict=True):
+            k.set(self.tr("ZIP gepackt") + tag, f"{z.path.name} · {_fmt_bytes(z.size)}", "ok", tip=str(z.path))
+            k.set(self.tr("ZIP verifiziert") + tag, self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
                   if z.verified else "; ".join(describe(p) for p in z.problems), "ok" if z.verified else "error")
         deleted = not self.st.case.work_dir.exists()
         k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
               else self.tr("behalten"), "ok" if deleted else None)
-        for ts, err in res.timestamps:
+        ts_tags = tags if len(res.timestamps) == len(tags) else [""] * len(res.timestamps)
+        for (ts, err), tag in zip(res.timestamps, ts_tags, strict=True):
             if ts is not None:
-                k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("{0} UTC · Seriennr. {1}").format(
+                k.set(self.tr("Zeitstempel (RFC 3161)") + tag, self.tr("{0} UTC · Seriennr. {1}").format(
                     ts.gen_time.replace("T", " ").rstrip("Z"), ts.serial), "ok")
             elif err:
-                k.set(self.tr("Zeitstempel (RFC 3161)"), self.tr("fehlgeschlagen: {0}").format(err), "warn")
+                k.set(self.tr("Zeitstempel (RFC 3161)") + tag, self.tr("fehlgeschlagen: {0}").format(err), "warn")
         reports = "report.pdf · report.txt · log.csv"
         if res.account_reports:
             reports += self.tr(" · {0} Einzelberichte je Konto").format(len(res.account_reports) // 2)
@@ -2144,14 +2180,26 @@ class FinishPage(QWidget):
                 k.set(self.tr("Hinweis"), describe(p), "warn")
         h = self.hash_kv
         h.clear()
-        for z in res.zips:
+        for z, tag in zip(res.zips, tags, strict=True):
             for name in ("sha256", "md5", "sha512"):
                 if name in z.hashes:
                     v = z.hashes[name]
-                    key = name.upper().replace("SHA", "SHA-") + (f" · {z.path.name}" if len(res.zips) > 1 else "")
-                    h.set(key, "\n".join(v[i:i + 64] for i in range(0, len(v), 64)), mono=True)
+                    key = name.upper().replace("SHA", "SHA-") + tag
+                    # in 32er-Blöcken umbrechen, damit nichts abgeschnitten wird; voller Wert im Tooltip
+                    h.set(key, "\n".join(v[i:i + 32] for i in range(0, len(v), 32)), mono=True,
+                          tip=f"{z.path.name}\n{key}: {v}")
         self.report_lbl.setText(str(res.report_pdf))
         self.open_pdf.setEnabled(True)
+        self._show_account_reports()
+
+    def _zip_tags(self, res) -> list[str]:
+        """Kennung je ZIP für die Übersicht: „ · DF001“ bei einem ZIP je Konto, sonst leer bzw. Nummer."""
+        if len(res.zips) <= 1:
+            return [""] * len(res.zips)
+        accounts = self._accounts()
+        if res.zip_mode == "je_konto" and len(accounts) == len(res.zips):
+            return [f" · {ev or email}" for _id, ev, email in accounts]
+        return [f" · {i}" for i in range(1, len(res.zips) + 1)]
 
     def _failed(self, err, tb) -> None:
         allow_sleep(self.st)
