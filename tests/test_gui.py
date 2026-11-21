@@ -772,6 +772,30 @@ def test_folder_page_shows_account_and_clears_old_mailbox(app, monkeypatch):
     p.deleteLater()
 
 
+def test_folder_page_ctrl_s_starts_backup(app):
+    """Strg+S/Cmd+S löst „Sicherung starten" aus – aber nicht, solange der Knopf gesperrt ist (Scan)."""
+    from PySide6.QtGui import QShortcut
+
+    from fed.core.config import Config
+    from fed.gui.assistant import FolderPage, State
+
+    p = FolderPage(State(Config()))
+    scs = {s.key().toString(): s for s in p.findChildren(QShortcut)}
+    assert "Ctrl+S" in scs
+    p.show()
+    clicked = []
+    p.go.animateClick = lambda *a: clicked.append(1)  # animateClick ist asynchron
+    p.go.setEnabled(True)
+    scs["Ctrl+S"].activated.emit()
+    assert clicked == [1]
+    clicked.clear()
+    p.go.setEnabled(False)                          # z. B. während des Scans
+    scs["Ctrl+S"].activated.emit()
+    assert clicked == []
+    p.hide()
+    p.deleteLater()
+
+
 def test_account_page_shortcuts(app):
     """Strg+T löst „Verbindung testen“ aus, Strg+P „Postfach scannen“ – nur wenn der Knopf aktiv ist."""
     from PySide6.QtGui import QShortcut

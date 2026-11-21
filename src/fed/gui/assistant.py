@@ -1340,6 +1340,14 @@ class FolderPage(QWidget):
         outer.setSpacing(0)
         outer.addWidget(scroll(w), 1)
         outer.addWidget(bar)
+        # Strg+S / Cmd+S: „Sicherung starten“ – nur wenn der Knopf aktiv ist (nicht während des Scans).
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        sc = QShortcut(QKeySequence("Ctrl+S"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)  # greift, solange diese Seite sichtbar ist
+        sc.activated.connect(lambda: self.go.isVisible() and self.go.isEnabled() and self.go.animateClick())
+        self.go.setToolTip(self.tr("Sicherung starten")
+                           + "  ·  " + QKeySequence("Ctrl+S").toString(QKeySequence.SequenceFormat.NativeText))
 
     def _account_text(self) -> str:
         sp = self.st.spec
