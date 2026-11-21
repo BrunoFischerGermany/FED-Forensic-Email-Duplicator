@@ -1924,6 +1924,7 @@ class FinishPage(QWidget):
         self.sub.setVisible(True)
         self.open_pdf.setEnabled(False)
         self.check_kv.clear()
+        self.check_kv.set(self.tr("Postfach"), self.tr("wird vorbereitet …"))  # zuerst: steht über dem Schritt
         self._fin_total_bytes = 0                       # wird beim ersten „zip“-Ereignis gesetzt
         self._fin_encrypt = password is not None        # Verschlüsseln ist eine weitere Byte-Phase
         self._set_busy(True)
@@ -1947,6 +1948,9 @@ class FinishPage(QWidget):
         }
 
         def progress(p):
+            # Immer anzeigen, welches Postfach gerade abgeschlossen wird (bei „ein ZIP je Konto“);
+            # fallende Schritte wie Zeitstempel und Berichte gelten für alle Konten.
+            self.check_kv.set(self.tr("Postfach"), p.account or self.tr("alle Konten"))
             step = labels.get(p.phase, p.phase)
             if p.mails_total:
                 step += f" · {p.mails_done:,} / {p.mails_total:,}".replace(",", ".")

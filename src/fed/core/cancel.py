@@ -47,6 +47,7 @@ class Progress:
     folder_done: int = 0
     folder_total: int = 0
     current_uid: int | None = None
+    account: str = ""          # aktuell bearbeitetes Postfach (z. B. "DF001 · info@…"), leer = alle Konten
     warnings: int = 0
     errors: int = 0
     started: float = field(default_factory=time.monotonic)

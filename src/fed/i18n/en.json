@@ -669,5 +669,7 @@
   "Im Schlüsselbund wurde kein Passwort für {host} / {acc} gefunden (oder der Zugriff wurde verweigert). Bitte von Hand eingeben.": "No password for {host} / {acc} was found in the Keychain (or access was denied). Please enter it by hand.",
   "Muster ZIP-Name": "ZIP name pattern",
   "Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}": "Placeholders: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}",
-  "Beispiel je Konto: {0}.zip": "Example per account: {0}.zip"
+  "Beispiel je Konto: {0}.zip": "Example per account: {0}.zip",
+  "Postfach": "Mailbox",
+  "alle Konten": "all accounts"
 }

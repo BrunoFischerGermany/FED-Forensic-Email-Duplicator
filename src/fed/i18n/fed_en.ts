@@ -1221,6 +1221,14 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Creating and verifying ZIP, hashes and reports</translation>
     </message>
     <message>
+        <source>Postfach</source>
+        <translation>Mailbox</translation>
+    </message>
+    <message>
+        <source>wird vorbereitet …</source>
+        <translation>preparing …</translation>
+    </message>
+    <message>
         <source>Vorbereitung …</source>
         <translation>Preparing …</translation>
     </message>
@@ -1263,6 +1271,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Verschlüsselte Weitergabe-Kopie wird erstellt und geprüft</source>
         <translation>Creating and verifying encrypted hand-over copy</translation>
+    </message>
+    <message>
+        <source>alle Konten</source>
+        <translation>all accounts</translation>
     </message>
     <message>
         <source> · Abschluss gesamt noch ca. {0}</source>
