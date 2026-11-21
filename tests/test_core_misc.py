@@ -25,6 +25,26 @@ def test_invalid_hash_rejected(tmp_path):
         config.load(p)
 
 
+def test_report_content_settings_defaults_and_validation(tmp_path):
+    """Neue Bericht-Einstellungen: Vorgaben und Validierung (DKIM-Liste, DNS-Modus)."""
+    cfg = config.Config()
+    assert cfg.programm.bericht_dkimliste == "auto" and cfg.programm.bericht_dkimliste_max == 500
+    assert cfg.programm.bericht_dns == "csv"
+
+    p = tmp_path / "config.toml"
+    # immer/nie werden wie bei der Mailliste normalisiert
+    p.write_text('[programm]\nbericht_dkimliste = "immer"\nbericht_dns = "tabelle"\n', encoding="utf-8")
+    cfg = config.load(p)
+    assert cfg.programm.bericht_dkimliste == "liste" and cfg.programm.bericht_dns == "tabelle"
+
+    p.write_text('[programm]\nbericht_dns = "xml"\n', encoding="utf-8")
+    with pytest.raises(config.ConfigError):
+        config.load(p)
+    p.write_text('[programm]\nbericht_dkimliste = "quatsch"\n', encoding="utf-8")
+    with pytest.raises(config.ConfigError):
+        config.load(p)
+
+
 def test_hashes():
     h = hash_bytes(b"abc", ["md5", "sha512"])
     assert h["sha256"] == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"

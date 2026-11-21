@@ -267,6 +267,33 @@ def test_account_reports_reuse_collected_data(tmp_path, imap_server, test_mails,
     case.close()
 
 
+def test_reports_dns_csv_by_default_both_reports(tmp_path, imap_server, test_mails):
+    """Vorgabe dns=csv: Gesamt- UND Einzelbericht verweisen auf die CSV (Einzel wie Gesamt),
+    keine DNS-Tabelle. dns_snapshot.csv wird mit Inhalt erzeugt."""
+    from fed.core import report as rep
+    from fed.core.finalize import write_dns_snapshot_csv
+
+    case = _two_accounts(tmp_path, imap_server)
+    acc_id, ev = case.conn.execute("SELECT id, evidence_number FROM account ORDER BY id LIMIT 1").fetchone()
+    case.conn.execute("DELETE FROM domain_dns")  # deterministisch
+    case.conn.execute(
+        "INSERT INTO domain_dns (account_id, domain, rtype, name, value, sha256, status, fetched_utc) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (acc_id, "ex.example", "MX", "ex.example", "10 mail.ex.example.", "abc123def", "ok", "2026-01-01T00:00:00Z"))
+    case.conn.commit()
+
+    assert write_dns_snapshot_csv(case, case.root / "dns_snapshot.csv") == 1
+    assert "10 mail.ex.example." in (case.root / "dns_snapshot.csv").read_text(encoding="utf-8")
+
+    rep.write_reports(case, "de")                          # Vorgabe dns_mode="csv"
+    overall = (case.root / "report.txt").read_text(encoding="utf-8")
+    single = (case.root / f"report_{ev}.txt").read_text(encoding="utf-8")
+    for txt in (overall, single):                          # Einzel wie Gesamt
+        assert "dns_snapshot.csv" in txt
+        assert "10 mail.ex.example." not in txt            # kein Tabellenwert im Bericht
+    case.close()
+
+
 def test_one_zip_per_account(tmp_path, imap_server, test_mails):
     from validation import testmailbox
     from validation.fake_tsa import FakeTsa, available
@@ -432,8 +459,8 @@ def test_report_caps_many_dkim_issues(acquired):
         case.conn.execute("UPDATE message SET dkim_result = 'fail', dkim_domain = 'x.de' WHERE status = 'valid'")
     n = case.conn.execute("SELECT COUNT(*) FROM message WHERE status = 'valid'").fetchone()[0]
     assert n >= 1
-    full = render_txt(case, mail_list="immer")          # immer -> alle Auffälligkeiten gelistet
-    capped = render_txt(case, mail_list="auto", mail_list_max=0)  # auto + Grenze 0 -> weggelassen
+    full = render_txt(case, dkim_list="immer")          # eigene DKIM-Liste: immer -> alle Auffälligkeiten gelistet
+    capped = render_txt(case, dkim_list="auto", dkim_list_max=0)  # DKIM-Liste auto + Grenze 0 -> weggelassen
     assert len(capped) < len(full)
     assert labels("de")["dkim_issues_omitted"].format(n=n) in capped
     assert "log.csv" in capped
@@ -495,8 +522,9 @@ def test_write_reports_emits_txt_and_pdf_phases(acquired):
     assert phases.index("reports_txt") < phases.index("reports_pdf")
 
 
-def test_dns_keys_list_capped_and_exported(acquired, tmp_path):
-    """Große DKIM-Schlüsselliste wird im Bericht gedrosselt; vollständige Liste geht in dns_keys.csv."""
+def test_dns_keys_list_csv_or_table_and_exported(acquired, tmp_path):
+    """DNS-Abfragen: Vorgabe csv -> Bericht verweist auf dns_keys.csv; tabelle -> volle Liste im Bericht.
+    Vollständige Liste geht in dns_keys.csv."""
     from fed.core.finalize import write_dns_keys_csv
     from fed.core.report import labels, render_txt
 
@@ -509,9 +537,11 @@ def test_dns_keys_list_capped_and_exported(acquired, tmp_path):
     n = case.conn.execute("SELECT COUNT(*) FROM dns_record").fetchone()[0]
     assert n >= 5
 
-    capped = render_txt(case, mail_list="auto", mail_list_max=0)   # Grenze 0 -> Liste weggelassen
-    assert labels("de")["dns_omitted"].format(n=n) in capped
-    assert "dns_keys.csv" in capped
+    csv_ref = render_txt(case, dns_mode="csv")                     # Vorgabe: nur Verweis auf die CSV
+    assert labels("de")["dns_keys_csv"].format(n=n) in csv_ref
+    assert "dns_keys.csv" in csv_ref
+    table = render_txt(case, dns_mode="tabelle")                   # tabelle: Schlüssel im Bericht gelistet
+    assert "sel0._domainkey.d0.example" in table
 
     out = tmp_path / "dns_keys.csv"
     assert write_dns_keys_csv(case, out) == n                      # Export enthält alle Schlüssel

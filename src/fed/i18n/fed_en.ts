@@ -1229,6 +1229,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>preparing …</translation>
     </message>
     <message>
+        <source>Bericht-Einstellungen</source>
+        <translation>Report settings</translation>
+    </message>
+    <message>
         <source>Vorbereitung …</source>
         <translation>Preparing …</translation>
     </message>
@@ -1287,6 +1291,30 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Aktueller Schritt</source>
         <translation>Current step</translation>
+    </message>
+    <message>
+        <source>auto bis {0}</source>
+        <translation>auto up to {0}</translation>
+    </message>
+    <message>
+        <source>vollständig</source>
+        <translation>full</translation>
+    </message>
+    <message>
+        <source>nur Verweis</source>
+        <translation>reference only</translation>
+    </message>
+    <message>
+        <source>CSV-Verweis</source>
+        <translation>CSV reference</translation>
+    </message>
+    <message>
+        <source>Tabelle</source>
+        <translation>table</translation>
+    </message>
+    <message>
+        <source>Mailliste: {0} · DKIM-Prüfung: {1} · DNS-Abfragen: {2}</source>
+        <translation>Mail list: {0} · DKIM check: {1} · DNS lookups: {2}</translation>
     </message>
     <message>
         <source>Während des Abschlusses nicht möglich – bitte warten, bis der Fall verifiziert und geschrieben ist.</source>
@@ -2663,6 +2691,26 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation> messages</translation>
     </message>
     <message>
+        <source>vollständige Liste</source>
+        <translation>full list</translation>
+    </message>
+    <message>
+        <source>nur Verweis auf log.csv</source>
+        <translation>reference to log.csv only</translation>
+    </message>
+    <message>
+        <source> Prüfungen</source>
+        <translation> checks</translation>
+    </message>
+    <message>
+        <source>als CSV-Verweis (mit SHA-256)</source>
+        <translation>as CSV reference (with SHA-256)</translation>
+    </message>
+    <message>
+        <source>als Tabelle im Bericht</source>
+        <translation>as a table in the report</translation>
+    </message>
+    <message>
         <source>Sprache Oberfläche</source>
         <translation>Interface language</translation>
     </message>
@@ -2677,6 +2725,18 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Grenze</source>
         <translation>Limit</translation>
+    </message>
+    <message>
+        <source>DKIM-Prüfung im Bericht</source>
+        <translation>DKIM check in report</translation>
+    </message>
+    <message>
+        <source>Grenze DKIM-Prüfung</source>
+        <translation>DKIM check limit</translation>
+    </message>
+    <message>
+        <source>DNS-Abfragen im Bericht</source>
+        <translation>DNS lookups in report</translation>
     </message>
     <message>
         <source>Sicherung</source>

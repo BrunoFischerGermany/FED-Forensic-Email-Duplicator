@@ -20,6 +20,9 @@ bericht_sprache  = ""           # leer = wie Oberfläche, sonst de | en
 bericht_mailliste     = "auto"  # Bericht: liste = Ordnerstruktur + Mail-Liste, ordner = nur Ordnerstruktur
                                 #         mit Anzahl (Liste in log.csv), auto = Liste nur bis zur Grenze
 bericht_mailliste_max = 500     # bei auto: Liste nur bis zu so vielen Mails
+bericht_dkimliste     = "auto"  # DKIM-Prüfungsliste: liste | ordner (nur log.csv) | auto (bis Grenze)
+bericht_dkimliste_max = 500     # bei auto: DKIM-Liste nur bis zu so vielen Einträgen
+bericht_dns           = "csv"   # DNS-Abfragen (Schnappschuss + Schlüssel): csv (Verweis) | tabelle
 design           = "system"     # system | hell | dunkel
 zielpfad         = ""           # leer = Laufwerk des Programms
 ntp              = true         # Zeitabgleich beim Start

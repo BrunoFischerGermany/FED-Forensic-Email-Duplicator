@@ -672,5 +672,20 @@
   "Beispiel je Konto: {0}.zip": "Example per account: {0}.zip",
   "Postfach": "Mailbox",
   "alle Konten": "all accounts",
-  " · Abschluss fast fertig …": " · finishing up …"
+  " · Abschluss fast fertig …": " · finishing up …",
+  "vollständige Liste": "full list",
+  "nur Verweis auf log.csv": "reference to log.csv only",
+  " Prüfungen": " checks",
+  "als CSV-Verweis (mit SHA-256)": "as CSV reference (with SHA-256)",
+  "als Tabelle im Bericht": "as a table in the report",
+  "DKIM-Prüfung im Bericht": "DKIM check in report",
+  "Grenze DKIM-Prüfung": "DKIM check limit",
+  "DNS-Abfragen im Bericht": "DNS lookups in report",
+  "Bericht-Einstellungen": "Report settings",
+  "auto bis {0}": "auto up to {0}",
+  "vollständig": "full",
+  "nur Verweis": "reference only",
+  "CSV-Verweis": "CSV reference",
+  "Tabelle": "table",
+  "Mailliste: {0} · DKIM-Prüfung: {1} · DNS-Abfragen: {2}": "Mail list: {0} · DKIM check: {1} · DNS lookups: {2}"
 }

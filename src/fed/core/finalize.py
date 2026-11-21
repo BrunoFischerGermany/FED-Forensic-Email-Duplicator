@@ -319,6 +319,21 @@ def write_dns_keys_csv(case: Case, path: Path) -> int:
     return len(rows)
 
 
+def write_dns_snapshot_csv(case: Case, path: Path) -> int:
+    """DNS-Schnappschuss der Domains vollständig als CSV (der Bericht kann statt der Tabelle darauf verweisen)."""
+    import csv
+
+    rows = case.conn.execute(
+        "SELECT domain, rtype, name, value, status, fetched_utc, sha256 FROM domain_dns ORDER BY domain, rtype, id"
+    ).fetchall()
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["Domain", "Typ", "Name", "Wert", "Status", "Abgerufen_UTC", "SHA-256"])
+        for domain, rtype, name, value, status, fetched, sha in rows:
+            w.writerow([domain, rtype, name, (value or "").replace("\n", " "), status, fetched, sha or ""])
+    return len(rows)
+
+
 def close_case(case: Case) -> None:
     with case.conn:
         case.conn.execute("UPDATE case_info SET closed_utc = ? WHERE id = 1", (utc_now(),))
@@ -491,10 +506,14 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     if case.conn.execute("SELECT 1 FROM dns_record LIMIT 1").fetchone():
         write_dns_keys_csv(case, case.root / "dns_keys.csv")  # vollständige DKIM-Schlüsselliste als eigene Datei
         record_output(case, case.root / "dns_keys.csv", cfg)
+    if case.conn.execute("SELECT 1 FROM domain_dns LIMIT 1").fetchone():
+        write_dns_snapshot_csv(case, case.root / "dns_snapshot.csv")  # DNS-Schnappschuss als eigene Datei
+        record_output(case, case.root / "dns_snapshot.csv", cfg)
     report_language = report_language_for(language or cfg.programm.bericht_sprache or cfg.programm.sprache)
     txt, pdf = write_reports(case, report_language, cfg.programm.bericht_mailliste,
                              cfg.programm.bericht_mailliste_max, encrypted_planned=encrypt_password is not None,
-                             progress=progress)
+                             progress=progress, dkim_list=cfg.programm.bericht_dkimliste,
+                             dkim_list_max=cfg.programm.bericht_dkimliste_max, dns_mode=cfg.programm.bericht_dns)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
     from fed.core.report import account_reports

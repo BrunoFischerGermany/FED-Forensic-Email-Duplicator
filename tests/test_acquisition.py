@@ -397,7 +397,10 @@ def test_domain_dns_snapshot_stored_hashed_and_in_report(acquired, monkeypatch):
     dmarc = next(r for r in rows if r[3] == "nxdomain")
     assert dmarc[1] is None and dmarc[2] is None                      # Fehlen festgehalten, kein Hash
 
-    txt = render_txt(case)
+    txt = render_txt(case, dns_mode="tabelle")                       # volle Tabelle (Vorgabe wäre CSV-Verweis)
     assert "DNS-Schnappschuss der Domain" in txt
     assert "v=spf1" in txt
     assert "nicht vorhanden" in txt                                   # fehlender DMARC-Eintrag (nxdomain) dokumentiert
+    # Vorgabe csv: nur Verweis auf dns_snapshot.csv, keine Tabellenwerte
+    csv_txt = render_txt(case)
+    assert "dns_snapshot.csv" in csv_txt and "v=spf1" not in csv_txt

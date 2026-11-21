@@ -222,5 +222,7 @@
   "dns_type": "Typ",
   "dns_value": "Wert",
   "dns_omitted": "{n} aufbewahrte Schlüssel – wegen der Menge hier nicht einzeln aufgeführt. Vollständige Liste in dns_keys.csv (im Fallordner).",
-  "thousands_sep": "."
+  "thousands_sep": ".",
+  "domain_dns_csv": "DNS-Schnappschuss der Domain – als CSV abgelegt. Vollständige Tabelle in dns_snapshot.csv (im Fallordner, mit SHA-256).",
+  "dns_keys_csv": "{n} aufbewahrte DKIM-Schlüssel – als CSV abgelegt. Vollständige Liste in dns_keys.csv (im Fallordner, mit SHA-256)."
 }
