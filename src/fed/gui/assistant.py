@@ -1949,7 +1949,8 @@ class FinishPage(QWidget):
             "scan": self.tr("Arbeitsordner wird geprüft"),
             "zip": self.tr("ZIP-Archiv wird gepackt"),
             "verify": self.tr("ZIP wird geprüft – jede .eml erneut gehasht"),
-            "timestamp": self.tr("Qualifizierter Zeitstempel (RFC 3161) wird geholt"),
+            "timestamp": (self.tr("Qualifizierter Zeitstempel (RFC 3161) wird geholt")
+                          if st.cfg.tsa_qualifiziert else self.tr("Zeitstempel (RFC 3161) wird geholt")),
             "reports_txt": self.tr("Textbericht (TXT) wird geschrieben"),
             "reports_pdf": self.tr("PDF-Bericht wird erzeugt"),
             "reports": self.tr("Berichte werden erzeugt (TXT/PDF) und gehasht"),

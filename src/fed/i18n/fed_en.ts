@@ -1261,6 +1261,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Fetching qualified timestamp (RFC 3161)</translation>
     </message>
     <message>
+        <source>Zeitstempel (RFC 3161) wird geholt</source>
+        <translation>Fetching timestamp (RFC 3161)</translation>
+    </message>
+    <message>
         <source>Textbericht (TXT) wird geschrieben</source>
         <translation>Writing text report (TXT)</translation>
     </message>
@@ -2835,6 +2839,14 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>empty = off</translation>
     </message>
     <message>
+        <source>benutzerdefiniert / aus</source>
+        <translation>custom / off</translation>
+    </message>
+    <message>
+        <source>Dienst ist qualifiziert (eIDAS) – sonst „RFC-3161-Zeitstempel“</source>
+        <translation>Service is qualified (eIDAS) – otherwise “RFC 3161 timestamp”</translation>
+    </message>
+    <message>
         <source>NTP-Server</source>
         <translation>NTP server</translation>
     </message>
@@ -2845,6 +2857,10 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
     <message>
         <source>Zeitstempeldienst (RFC 3161)</source>
         <translation>Timestamp service (RFC 3161)</translation>
+    </message>
+    <message>
+        <source>Vorlage Zeitstempeldienst</source>
+        <translation>Timestamp service preset</translation>
     </message>
     <message>
         <source>Google / Microsoft 365</source>

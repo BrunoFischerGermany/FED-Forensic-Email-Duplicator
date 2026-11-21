@@ -86,6 +86,7 @@ class Config:
     programm: Programm = field(default_factory=Programm)
     proxy_url: str = ""
     tsa_url: str = ""
+    tsa_qualifiziert: bool = False  # True nur bei einem eIDAS-qualifizierten Dienst (dann Beschriftung „Qualifiziert")
     oauth_google: OAuthGoogle = field(default_factory=OAuthGoogle)
     oauth_microsoft: OAuthMicrosoft = field(default_factory=OAuthMicrosoft)
     source_path: Path | None = None
@@ -172,6 +173,7 @@ def _from_dict(d: dict) -> Config:
         programm=Programm(**d.get("programm", {})),
         proxy_url=d.get("proxy", {}).get("url", ""),
         tsa_url=d.get("zeitstempel", {}).get("tsa_url", ""),
+        tsa_qualifiziert=bool(d.get("zeitstempel", {}).get("qualifiziert", False)),
         oauth_google=OAuthGoogle(**oauth.get("google", {})),
         oauth_microsoft=OAuthMicrosoft(**oauth.get("microsoft", {})),
     )
@@ -184,7 +186,7 @@ def _to_dict(cfg: Config) -> dict:
         "case": {"nummer_muster": cfg.case_nummer_muster},
         "programm": asdict(cfg.programm),
         "proxy": {"url": cfg.proxy_url},
-        "zeitstempel": {"tsa_url": cfg.tsa_url},
+        "zeitstempel": {"tsa_url": cfg.tsa_url, "qualifiziert": cfg.tsa_qualifiziert},
         "oauth": {
             "google": asdict(cfg.oauth_google),
             "microsoft": asdict(cfg.oauth_microsoft),

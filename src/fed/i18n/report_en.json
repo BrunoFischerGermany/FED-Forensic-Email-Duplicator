@@ -198,7 +198,7 @@
   "log_reconnect": "Connection {worker} re-established (attempt {try}, folder {folder}): {error}",
   "log_connection_refused": "Connection {worker} refused by the server: {error}",
   "log_emlx_unreadable": "Apple Mail file unreadable and skipped (folder {folder}, file {file}): {error}",
-  "log_timestamp_failed": "Qualified timestamp (RFC 3161) failed for {zip}: {error}",
+  "log_timestamp_failed": "Timestamp (RFC 3161) failed for {zip}: {error}",
   "log_oauth_account_mismatch": "Signed-in account ({login}) differs from the target account ({target})",
   "log_previous_deleted": "{files} existing file(s) deleted before restart",
   "log_zip_aborted": "ZIP creation aborted ({file}) – incomplete file removed",
@@ -224,5 +224,6 @@
   "dns_omitted": "{n} retained keys – not listed individually here due to the volume. Full list in dns_keys.csv (in the case folder).",
   "thousands_sep": ",",
   "domain_dns_csv": "Domain DNS snapshot – stored as CSV. Full table in dns_snapshot.csv (in the case folder, with SHA-256).",
-  "dns_keys_csv": "{n} retained DKIM keys – stored as CSV. Full list in dns_keys.csv (in the case folder, with SHA-256)."
+  "dns_keys_csv": "{n} retained DKIM keys – stored as CSV. Full list in dns_keys.csv (in the case folder, with SHA-256).",
+  "ts_qualified": "Qualified timestamp (RFC 3161)"
 }

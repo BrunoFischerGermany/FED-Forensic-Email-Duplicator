@@ -687,5 +687,9 @@
   "nur Verweis": "reference only",
   "CSV-Verweis": "CSV reference",
   "Tabelle": "table",
-  "Mailliste: {0} · DKIM-Prüfung: {1} · DNS-Abfragen: {2}": "Mail list: {0} · DKIM check: {1} · DNS lookups: {2}"
+  "Mailliste: {0} · DKIM-Prüfung: {1} · DNS-Abfragen: {2}": "Mail list: {0} · DKIM check: {1} · DNS lookups: {2}",
+  "benutzerdefiniert / aus": "custom / off",
+  "Vorlage Zeitstempeldienst": "Timestamp service preset",
+  "Dienst ist qualifiziert (eIDAS) – sonst „RFC-3161-Zeitstempel“": "Service is qualified (eIDAS) – otherwise “RFC 3161 timestamp”",
+  "Zeitstempel (RFC 3161) wird geholt": "Fetching timestamp (RFC 3161)"
 }

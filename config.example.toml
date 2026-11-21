@@ -44,6 +44,8 @@ url = ""                        # z. B. "http://proxy.behoerde.local:8080" oder 
 
 [zeitstempel]
 tsa_url = ""                    # RFC-3161-Zeitstempeldienst für den ZIP-Hash, leer = aus
+                                #   z. B. open-tsa.eu: "https://tsr.open-tsa.eu" (kostenlos, nicht qualifiziert)
+qualifiziert = false            # true nur bei eIDAS-qualifiziertem Dienst → Bericht/Anzeige „Qualifizierter …“
                                 # z. B. "https://freetsa.org/tsr" (kostenlos, nicht qualifiziert);
                                 # für gerichtsfeste Zeitstempel einen qualifizierten Dienst (eIDAS) eintragen
 
