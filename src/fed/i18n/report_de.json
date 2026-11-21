@@ -221,5 +221,6 @@
   "dns_none": "kein Eintrag",
   "dns_type": "Typ",
   "dns_value": "Wert",
-  "dns_omitted": "{n} aufbewahrte Schlüssel – wegen der Menge hier nicht einzeln aufgeführt. Vollständige Liste in dns_keys.csv (im Fallordner)."
+  "dns_omitted": "{n} aufbewahrte Schlüssel – wegen der Menge hier nicht einzeln aufgeführt. Vollständige Liste in dns_keys.csv (im Fallordner).",
+  "thousands_sep": "."
 }
