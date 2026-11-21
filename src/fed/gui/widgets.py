@@ -233,6 +233,27 @@ def row(*widgets, stretch_first: bool = False, spacing: int = 12) -> QHBoxLayout
     return lay
 
 
+_EXPECTED_ERRORS: tuple[type[BaseException], ...] | None = None
+
+
+def _is_expected_error(exc: BaseException) -> bool:
+    """Erwarteter Benutzer-/Umgebungsfehler (falsches Passwort, Verbindung, DNS, abgelehnte IMAP-Befehle …)
+    – kein Programmierfehler. Für solche wird kein Traceback auf stderr gedruckt."""
+    global _EXPECTED_ERRORS
+    if _EXPECTED_ERRORS is None:
+        import imaplib
+
+        types: list[type[BaseException]] = [imaplib.IMAP4.error, OSError]  # Login/Protokoll + Netz/SSL/Timeout
+        for mod, name in (("fed.core.imap_reader", "ImapError"), ("fed.core.imap_reader", "ForbiddenCommand"),
+                          ("fed.core.oauth", "OAuthError"), ("fed.core.authcheck", "DnsUnavailable")):
+            try:
+                types.append(getattr(__import__(mod, fromlist=[name]), name))
+            except Exception:
+                pass
+        _EXPECTED_ERRORS = tuple(types)
+    return isinstance(exc, _EXPECTED_ERRORS)
+
+
 # ---------------------------------------------------------------- Hintergrundarbeit
 class Worker(QObject):
     """Führt ``fn(cancel, report)`` in einem eigenen Thread aus; GUI bleibt bedienbar."""
@@ -258,9 +279,11 @@ class Worker(QObject):
             self.done.emit(self.fn(self.cancel, self.progress.emit))
         except Exception as e:
             tb = traceback.format_exc()
-            # Unerwartete Fehler (Programmierfehler) sichtbar machen: auf stderr für einen Start
-            # aus dem Terminal; die Fehlerstelle geht zusätzlich über das failed-Signal in die GUI.
-            print(tb, file=sys.stderr, flush=True)
+            # Erwartete Benutzer-/Umgebungsfehler (falsches Passwort, Verbindung, DNS …) gehen nur sauber
+            # über das failed-Signal in die GUI. Nur unerwartete (Programmier-)Fehler zusätzlich auf stderr,
+            # damit sie sich beim Start aus dem Terminal diagnostizieren lassen.
+            if not _is_expected_error(e):
+                print(tb, file=sys.stderr, flush=True)
             self.failed.emit(str(e) or type(e).__name__, tb)
         finally:
             self.finished.emit()
