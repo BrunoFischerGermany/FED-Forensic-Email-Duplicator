@@ -181,7 +181,10 @@ def build_zip(case: Case, cfg: Config | None = None, cancel: CancelToken | None 
     stray = [str(p.relative_to(case.work_dir)).replace("\\", "/") for p in scope.rglob("*.eml")
              if str(p.relative_to(case.work_dir)).replace("\\", "/") not in known] if scope.exists() else []
     for s in stray:
-        case.log("WARNING", "zip_file_not_in_case", {"path": s})
+        # Konto mitgeben, damit die Warnung auch im Einzelbericht des betroffenen Kontos erscheint
+        # (ein ZIP je Konto); ohne Konto bliebe sie nur im Gesamtbericht sichtbar.
+        details = {"path": s} if account_id is None else {"path": s, "account_id": account_id}
+        case.log("WARNING", "zip_file_not_in_case", details)
 
     try:
         with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
