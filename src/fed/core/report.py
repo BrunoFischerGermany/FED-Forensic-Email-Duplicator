@@ -159,6 +159,33 @@ def collect(case: Case, account_id: int | None = None) -> dict:
     }
 
 
+def account_subset(d: dict, account_id: int, case: Case) -> dict:
+    """Berichtsdaten eines Kontos aus den bereits gesammelten Gesamtdaten ``d`` (``collect(case, None)``)
+    ableiten – ohne die schweren Abfragen (v. a. ``message_rows`` über alle Mails) erneut auszuführen.
+
+    Entspricht ``collect(case, account_id)``, nutzt aber die vorhandenen Listen; nur eine winzige
+    DISTINCT-Abfrage für die verwendeten DKIM-Selektoren bleibt (um die DNS-Schlüssel zu filtern)."""
+    email = next(a["email"] for a in d["accounts"] if a["id"] == account_id)
+    used = {r[0] for r in case.conn.execute(
+        "SELECT DISTINCT LOWER(m.dkim_selector || '._domainkey.' || m.dkim_domain) FROM message m "
+        "JOIN folder f ON f.id = m.folder_id WHERE f.account_id = ? AND m.dkim_domain IS NOT NULL", (account_id,))}
+    sub = dict(d)  # flache Kopie; globale, nach Konto-ID geschlüsselte Werte (dkim_counts etc.) bleiben geteilt
+    sub["account_id"] = account_id
+    sub["accounts"] = [a for a in d["accounts"] if a["id"] == account_id]
+    sub["overview"] = [o for o in d["overview"] if o["id"] == account_id]
+    sub["attempts"] = [a for a in d["attempts"] if a["account_id"] == account_id]
+    sub["folders"] = [f for f in d["folders"] if f["account_id"] == account_id]
+    sub["issues"] = [x for x in d["issues"]
+                     if x["account_id"] == account_id or _details_account(x["details"]) == account_id]
+    sub["messages"] = [m for m in d["messages"] if m["Account"] == email]
+    sub["outputs"] = [o for o in d["outputs"] if o.get("account_id") in (None, account_id)]
+    sub["timestamps"] = [x for x in d["timestamps"] if x.get("account_id") in (None, account_id)]
+    sub["dkim_issues"] = [x for x in d["dkim_issues"] if x["account_id"] == account_id]
+    sub["dns"] = [r for r in d["dns"] if r["name"] in used]
+    sub["domain_dns"] = [r for r in d["domain_dns"] if r["account_id"] == account_id]
+    return sub
+
+
 def _details_account(details: str) -> int | None:
     try:
         d = json.loads(details)
@@ -1061,10 +1088,14 @@ def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
     accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
     if len(accounts) > 1:
         for acc_id, evidence, email in accounts:
-            write_txt(case, case.root / account_report_name(evidence, email, ".txt", case.replace_spaces), language, mail_list,
-                      mail_list_max, acc_id, encrypted_planned)
-            write_pdf(case, case.root / account_report_name(evidence, email, ".pdf", case.replace_spaces), language, mail_list,
-                      mail_list_max, acc_id, encrypted_planned)
+            # Konto-Daten aus den schon gesammelten Gesamtdaten ableiten – nicht je Konto neu sammeln
+            da = account_subset(d, acc_id, case)
+            if progress:
+                progress(Progress(phase="reports_pdf"))  # Schritt am Leben halten (je Konto ein Einzelbericht)
+            write_txt(case, case.root / account_report_name(evidence, email, ".txt", case.replace_spaces), language,
+                      mail_list, mail_list_max, acc_id, encrypted_planned, data=da)
+            write_pdf(case, case.root / account_report_name(evidence, email, ".pdf", case.replace_spaces), language,
+                      mail_list, mail_list_max, acc_id, encrypted_planned, data=da)
     return txt, pdfp
 
 

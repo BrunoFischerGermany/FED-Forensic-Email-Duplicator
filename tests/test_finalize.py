@@ -215,6 +215,34 @@ def _two_accounts(tmp_path, imap_server):
     return case
 
 
+def test_account_reports_reuse_collected_data(tmp_path, imap_server, test_mails, monkeypatch):
+    """Einzelberichte je Konto leiten ihre Daten aus der Gesamtsammlung ab: collect() läuft nur EINMAL,
+    nicht erneut (und früher sogar doppelt) je Konto."""
+    from fed.core import report as rep
+
+    case = _two_accounts(tmp_path, imap_server)
+    real_collect = rep.collect
+    calls: list = []
+
+    def counting(c, account_id=None):
+        calls.append(account_id)
+        return real_collect(c, account_id)
+
+    monkeypatch.setattr(rep, "collect", counting)
+    rep.write_reports(case, "de")
+
+    assert calls == [None]                                   # genau einmal gesammelt, kein Re-collect je Konto
+    names = sorted(p.name for p in rep.account_reports(case))
+    assert names == ["report_A-01.pdf", "report_A-01.txt", "report_A-02.pdf", "report_A-02.txt"]
+    # Inhalt stimmt weiterhin: Einzelbericht enthält nur Mails seines Kontos
+    one = (case.root / "report_A-01.txt").read_text(encoding="utf-8")
+    assert f"({len(test_mails)})" in one
+    for p in rep.account_reports(case):
+        if p.suffix == ".pdf":
+            assert p.read_bytes().startswith(b"%PDF")
+    case.close()
+
+
 def test_one_zip_per_account(tmp_path, imap_server, test_mails):
     from validation import testmailbox
     from validation.fake_tsa import FakeTsa, available
