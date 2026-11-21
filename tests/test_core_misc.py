@@ -45,6 +45,20 @@ def test_report_content_settings_defaults_and_validation(tmp_path):
         config.load(p)
 
 
+def test_tsa_qualified_default_and_roundtrip(tmp_path):
+    """Zeitstempel-Dienst: Vorgabe nicht qualifiziert; Laden/Speichern des qualifiziert-Flags."""
+    assert config.Config().tsa_qualifiziert is False
+
+    p = tmp_path / "config.toml"
+    p.write_text('[zeitstempel]\ntsa_url = "https://tsr.open-tsa.eu"\nqualifiziert = true\n', encoding="utf-8")
+    cfg = config.load(p)
+    assert cfg.tsa_url == "https://tsr.open-tsa.eu" and cfg.tsa_qualifiziert is True
+
+    out = tmp_path / "out.toml"
+    config.save(cfg, out)
+    assert config.load(out).tsa_qualifiziert is True
+
+
 def test_hashes():
     h = hash_bytes(b"abc", ["md5", "sha512"])
     assert h["sha256"] == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"

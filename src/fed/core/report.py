@@ -465,12 +465,13 @@ def _dkim_summary(counts: dict, L: dict) -> str:
     return " · ".join(f"{_n(counts[k], L)} {L['dkim_' + k]}" for k in order if counts.get(k))
 
 
-def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
+def _tail_sections(d: dict, L: dict, ts_qualified: bool = False) -> list[tuple[str, list[tuple[str, str]]]]:
     """Zeitstempel und Log-Kette (Ende des Berichts)."""
     secs = []
+    ts_label = L["ts_qualified"] if ts_qualified else L["ts"]  # „Qualifiziert" nur bei eIDAS-Dienst
     many = len(d.get("timestamps", [])) > 1
     for ts in d.get("timestamps", []):
-        title = L["ts"] + (f" – {ts.get('file', '').removesuffix('.tsr') or ts.get('zip', '')}" if many else "")
+        title = ts_label + (f" – {ts.get('file', '').removesuffix('.tsr') or ts.get('zip', '')}" if many else "")
         if not ts["ok"]:
             secs.append((title, [(L["status"], L["ts_failed"]), (L["ts_tsa"], ts["tsa"]), ("", ts["error"])]))
             continue
@@ -559,7 +560,8 @@ def _folder_lines(d: dict, L: dict, email: str) -> list[str]:
 @_time_language
 def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
                account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None,
-               dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv") -> str:
+               dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv",
+               ts_qualified: bool = False) -> str:
     L = labels(language)
     d = data if data is not None else collect(case, account_id)
     out = []
@@ -620,7 +622,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         else:
             out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
     out.append("")
-    for title, items in _tail_sections(d, L):
+    for title, items in _tail_sections(d, L, ts_qualified):
         out += [title, "-" * len(title), *_kv_txt(items), ""]
     out += [L["issues"], "-" * len(L["issues"])]
     out += [f"{tf.both(x['ts_utc'])} {x['level']:<7} {describe_event(x['event'], x['details'], L)}"
@@ -659,9 +661,10 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
 
 def write_txt(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
               account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None,
-              dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv") -> None:
+              dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv",
+              ts_qualified: bool = False) -> None:
     path.write_text(render_txt(case, language, mail_list, mail_list_max, account_id, encrypted_planned, data,
-                               dkim_list, dkim_list_max, dns_mode), encoding="utf-8")
+                               dkim_list, dkim_list_max, dns_mode, ts_qualified), encoding="utf-8")
 
 
 def _encrypted_name(d: dict) -> str:
@@ -674,7 +677,8 @@ def _encrypted_name(d: dict) -> str:
 @_time_language
 def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "auto", mail_list_max: int = 500,
               account_id: int | None = None, encrypted_planned: bool = False, data: dict | None = None,
-              dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv") -> None:
+              dkim_list: str = "auto", dkim_list_max: int = 500, dns_mode: str = "csv",
+              ts_qualified: bool = False) -> None:
     from fpdf import FPDF
     from fpdf.fonts import FontFace
 
@@ -856,7 +860,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                 for r in _dns_rows(d, L):
                     t.row(r)
 
-    for title, items in _tail_sections(d, L):
+    for title, items in _tail_sections(d, L, ts_qualified):
         h2(title)
         kv(items)
 
@@ -1086,7 +1090,7 @@ def account_report_name(evidence: str, email: str, suffix: str, replace_spaces: 
 def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
                   mail_list_max: int = 500, encrypted_planned: bool = False,
                   progress: object = None, dkim_list: str = "auto", dkim_list_max: int = 500,
-                  dns_mode: str = "csv") -> tuple[Path, Path]:
+                  dns_mode: str = "csv", ts_qualified: bool = False) -> tuple[Path, Path]:
     """Gesamtbericht ``report.txt``/``report.pdf`` und – bei mehreren Konten – je Konto
     ``report_<Evidence>.txt``/``.pdf``. Rückgabe: der Gesamtbericht.
 
@@ -1095,7 +1099,7 @@ def write_reports(case: Case, language: str = "de", mail_list: str = "auto",
     (das PDF ist bei großen Fällen der langsame Teil)."""
     from fed.core.cancel import Progress
 
-    opts = dict(dkim_list=dkim_list, dkim_list_max=dkim_list_max, dns_mode=dns_mode)
+    opts = dict(dkim_list=dkim_list, dkim_list_max=dkim_list_max, dns_mode=dns_mode, ts_qualified=ts_qualified)
     txt, pdfp = case.root / "report.txt", case.root / "report.pdf"
     d = collect(case, None)  # nur einmal sammeln und für TXT und PDF wiederverwenden (spart bei großen Fällen viel Zeit)
     if progress:

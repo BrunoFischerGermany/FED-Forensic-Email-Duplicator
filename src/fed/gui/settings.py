@@ -202,9 +202,19 @@ class SettingsTab(QWidget):
         self.ntp_server, self.proxy, self.tsa = QLineEdit(), QLineEdit(), QLineEdit()
         self.proxy.setPlaceholderText("http://proxy.local:8080")
         self.tsa.setPlaceholderText(self.tr("leer = aus"))
+        # Vorlagen für bekannte kostenlose RFC-3161-Dienste; setzt die URL ins Feld (weiter editierbar)
+        self.tsa_preset = QComboBox()
+        self.tsa_preset.addItem(self.tr("benutzerdefiniert / aus"), "")
+        self.tsa_preset.addItem("open-tsa.eu", "https://tsr.open-tsa.eu")
+        self.tsa_preset.addItem("FreeTSA.org", "https://freetsa.org/tsr")
+        self.tsa_preset.activated.connect(
+            lambda _: self.tsa_preset.currentData() and self.tsa.setText(self.tsa_preset.currentData()))
+        self.tsa_qual = QCheckBox(self.tr("Dienst ist qualifiziert (eIDAS) – sonst „RFC-3161-Zeitstempel“"))
         f.addRow(self.tr("NTP-Server"), self.ntp_server)
         f.addRow(self.tr("Proxy"), self.proxy)
         f.addRow(self.tr("Zeitstempeldienst (RFC 3161)"), self.tsa)
+        f.addRow(self.tr("Vorlage Zeitstempeldienst"), self.tsa_preset)
+        f.addRow("", self.tsa_qual)
         n.add(f)
         grid.addWidget(n, 2, 0)
 
@@ -295,6 +305,8 @@ class SettingsTab(QWidget):
         self.ntp_server.setText(p.ntp_server)
         self.proxy.setText(c.proxy_url)
         self.tsa.setText(c.tsa_url)
+        self.tsa_preset.setCurrentIndex(max(self.tsa_preset.findData(c.tsa_url), 0))  # 0 = benutzerdefiniert
+        self.tsa_qual.setChecked(c.tsa_qualifiziert)
         self.g_id.setText(c.oauth_google.client_id)
         self.g_secret.setText(c.oauth_google.client_secret)
         self.m_id.setText(c.oauth_microsoft.client_id)
@@ -308,6 +320,8 @@ class SettingsTab(QWidget):
             self.examiner.text(), self.pattern.text(), self.target.text(),
             self.design.value(), self.lang.currentData(), self.rlang.currentData(),
             self.mlist.currentData(), self.mlist_max.value(),
+            self.dkimlist.currentData(), self.dkimlist_max.value(), self.dns.currentData(),
+            self.tsa_qual.isChecked(),
             self.h_md5.isChecked(), self.h_sha1.isChecked(), self.h_sha512.isChecked(),
             self.zt_int.isChecked(), self.timeout.value(), self.chunk.value(),
             self.awake.isChecked(), self.dkim.isChecked(), self.spaces.isChecked(),
@@ -419,6 +433,7 @@ class SettingsTab(QWidget):
         p.verbindungen = self.conns.value()
         p.ntp, p.ntp_server = self.ntp.isChecked(), self.ntp_server.text()
         c.proxy_url, c.tsa_url = self.proxy.text(), self.tsa.text()
+        c.tsa_qualifiziert = self.tsa_qual.isChecked()
         c.oauth_google.client_id, c.oauth_google.client_secret = self.g_id.text().strip(), self.g_secret.text().strip()
         c.oauth_microsoft.client_id, c.oauth_microsoft.tenant = self.m_id.text().strip(), self.m_tenant.text().strip()
         try:

@@ -666,6 +666,31 @@ def test_worker_expected_error_no_traceback():
     assert not _is_expected_error(KeyError("k"))
 
 
+def test_settings_tsa_preset_and_qualified(app, tmp_path):
+    """TSA-Vorlage füllt die URL; der qualifiziert-Schalter wird geladen/gespeichert."""
+    from fed.core import config as cfgmod
+    from fed.gui.settings import SettingsTab
+
+    cfg = cfgmod.Config()
+    cfg.tsa_url = "https://tsr.open-tsa.eu"
+    cfg.tsa_qualifiziert = True
+    st = SettingsTab(cfg, tmp_path / "config.toml")
+    assert st.tsa_qual.isChecked()
+    assert st.tsa_preset.currentData() == "https://tsr.open-tsa.eu"  # Vorlage erkannt
+
+    st.tsa.setText("")
+    idx = st.tsa_preset.findData("https://freetsa.org/tsr")
+    st.tsa_preset.setCurrentIndex(idx)
+    st.tsa_preset.activated.emit(idx)
+    assert st.tsa.text() == "https://freetsa.org/tsr"               # Vorlage setzt die URL
+
+    st.tsa_qual.setChecked(False)
+    assert st.is_dirty()
+    assert st.save() is True
+    assert cfg.tsa_qualifiziert is False and cfg.tsa_url == "https://freetsa.org/tsr"
+    st.deleteLater()
+
+
 def test_account_page_shortcuts(app):
     """Strg+T löst „Verbindung testen“ aus, Strg+P „Postfach scannen“ – nur wenn der Knopf aktiv ist."""
     from PySide6.QtGui import QShortcut

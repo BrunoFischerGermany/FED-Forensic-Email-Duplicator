@@ -317,6 +317,20 @@ def test_stray_file_warning_attributed_to_account(tmp_path, imap_server, test_ma
     case.close()
 
 
+def test_report_timestamp_qualified_label(acquired):
+    """ts_qualified steuert die Zeitstempel-Überschrift: „Qualifiziert" nur bei eIDAS-Dienst."""
+    from fed.core.report import render_txt
+
+    case = acquired
+    case.log("WARNING", "timestamp_failed",
+             {"file": "x.zip.tsr", "tsa": "https://tsr.open-tsa.eu", "error": "kaputt"})
+    qualified = render_txt(case, ts_qualified=True)
+    neutral = render_txt(case, ts_qualified=False)
+    assert "Qualifizierter Zeitstempel (RFC 3161)" in qualified
+    assert "Qualifizierter Zeitstempel" not in neutral
+    assert "Zeitstempel (RFC 3161)" in neutral
+
+
 def test_one_zip_per_account(tmp_path, imap_server, test_mails):
     from validation import testmailbox
     from validation.fake_tsa import FakeTsa, available

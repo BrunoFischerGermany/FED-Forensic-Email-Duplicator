@@ -516,7 +516,8 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     txt, pdf = write_reports(case, report_language, cfg.programm.bericht_mailliste,
                              cfg.programm.bericht_mailliste_max, encrypted_planned=encrypt_password is not None,
                              progress=progress, dkim_list=cfg.programm.bericht_dkimliste,
-                             dkim_list_max=cfg.programm.bericht_dkimliste_max, dns_mode=cfg.programm.bericht_dns)
+                             dkim_list_max=cfg.programm.bericht_dkimliste_max, dns_mode=cfg.programm.bericht_dns,
+                             ts_qualified=cfg.tsa_qualifiziert)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
     from fed.core.report import account_reports
