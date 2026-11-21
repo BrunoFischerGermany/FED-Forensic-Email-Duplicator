@@ -691,6 +691,41 @@ def test_settings_tsa_preset_and_qualified(app, tmp_path):
     st.deleteLater()
 
 
+def test_translocation_command_and_text(app, tmp_path):
+    """xattr-Befehl mit echtem (gequotetem) Pfad; Platzhalter nur, wenn der Ablageort unbekannt ist."""
+    from fed.gui.app import translocation_command, translocation_text
+
+    bundle = tmp_path / "My Apps" / "FED.app"            # Leerzeichen -> muss gequotet werden
+    info = {"running": bundle, "original": bundle, "config_dir": tmp_path}
+    cmd = translocation_command(info)
+    assert cmd.startswith("xattr -dr com.apple.quarantine ")
+    assert "FED.app" in cmd and "'" in cmd               # gequotet wegen Leerzeichen
+    assert cmd in translocation_text(info)               # echter Befehl steht im Text
+
+    none = {"running": bundle, "original": None, "config_dir": tmp_path}
+    assert translocation_command(none) == ""
+    assert "<Pfad>/FED.app" in translocation_text(none)  # Platzhalter, wenn Pfad unbekannt
+
+
+def test_translocation_dialog_copies_command(app, tmp_path, monkeypatch):
+    """„Befehl kopieren" legt den xattr-Befehl mit echtem Pfad in die Zwischenablage, Dialog bleibt offen."""
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtWidgets import QDialog, QPushButton
+
+    from fed.gui import app as appmod
+
+    seen = {}
+    monkeypatch.setattr(QDialog, "exec", lambda self: seen.setdefault("dlg", self) and 0)
+    bundle = tmp_path / "FED.app"
+    info = {"running": bundle, "original": bundle, "config_dir": tmp_path}
+    appmod.show_translocation_dialog(None, info)
+    btn = next(b for b in seen["dlg"].findChildren(QPushButton) if b.text() == "Befehl kopieren")
+    btn.click()
+    assert QGuiApplication.clipboard().text() == appmod.translocation_command(info)
+    assert btn.text() == "Kopiert ✓"
+    assert seen["dlg"].result() == 0                   # Kopieren schließt den Dialog nicht
+
+
 def test_account_page_shortcuts(app):
     """Strg+T löst „Verbindung testen“ aus, Strg+P „Postfach scannen“ – nur wenn der Knopf aktiv ist."""
     from PySide6.QtGui import QShortcut

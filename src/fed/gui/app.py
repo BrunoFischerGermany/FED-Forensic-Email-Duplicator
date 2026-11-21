@@ -63,6 +63,14 @@ def program_dir() -> Path:
     return _PROGRAM_DIR
 
 
+def translocation_command(info: dict) -> str:
+    """xattr-Befehl mit dem echten Pfad zu FED.app – leer, wenn der Ablageort nicht ermittelbar ist."""
+    import shlex
+
+    orig = info.get("original")
+    return "xattr -dr com.apple.quarantine " + shlex.quote(str(orig)) if orig else ""
+
+
 def translocation_text(info: dict) -> str:
     from PySide6.QtCore import QCoreApplication
 
@@ -70,12 +78,13 @@ def translocation_text(info: dict) -> str:
              if info["original"] else
              QCoreApplication.translate("App", "Der Ablageort von FED.app ist nicht ermittelbar – Einstellungen werden hier gespeichert:\n{0}")
              .format(info["config_dir"]))
+    cmd = translocation_command(info) or "xattr -dr com.apple.quarantine <Pfad>/FED.app"  # echter Pfad, wenn bekannt
     return (QCoreApplication.translate("App", "macOS führt FED aus einer schreibgeschützten Kopie aus („App Translocation“), weil das "
                       "Programm aus dem Internet geladen und nicht von Apple notarisiert ist.")
             + "\n\n" + where + "\n\n"
             + QCoreApplication.translate("App", "Dauerhaft beheben (danach startet FED direkt am Ablageort):\n"
                         "• FED.app im Finder in einen anderen Ordner ziehen, z. B. „Programme“, oder\n"
-                        "• im Terminal: xattr -dr com.apple.quarantine <Pfad>/FED.app"))
+                        "• im Terminal:") + "\n" + cmd)
 
 
 def selftest(out: Path) -> int:
@@ -201,10 +210,39 @@ def main() -> int:
     win.assistant.st.device_asked_utc = datetime.now(UTC).isoformat(timespec="seconds")
     win.show()
     if TRANSLOCATION:  # macOS startet eine verschobene Kopie – erklären, wo gespeichert wird
-        from PySide6.QtWidgets import QMessageBox
-
-        QMessageBox.information(win, APP_NAME, translocation_text(TRANSLOCATION))
+        show_translocation_dialog(win, TRANSLOCATION)
     return app.exec()
+
+
+def show_translocation_dialog(parent, info: dict) -> None:
+    """Hinweis zur App Translocation mit einem Knopf, der den xattr-Befehl (echter Pfad) kopiert."""
+    from PySide6.QtCore import QCoreApplication, Qt
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QVBoxLayout
+
+    from fed import APP_NAME
+
+    dlg = QDialog(parent)
+    dlg.setWindowTitle(APP_NAME)
+    lay = QVBoxLayout(dlg)
+    text = QLabel(translocation_text(info))
+    text.setWordWrap(True)
+    text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)  # Befehl auch manuell markierbar
+    lay.addWidget(text)
+    box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+    cmd = translocation_command(info)
+    if cmd:  # nur wenn der echte Pfad bekannt ist
+        copy = box.addButton(QCoreApplication.translate("App", "Befehl kopieren"),
+                             QDialogButtonBox.ButtonRole.ActionRole)  # schließt den Dialog nicht
+
+        def _copy() -> None:
+            QGuiApplication.clipboard().setText(cmd)
+            copy.setText(QCoreApplication.translate("App", "Kopiert ✓"))
+
+        copy.clicked.connect(_copy)
+    box.accepted.connect(dlg.accept)
+    lay.addWidget(box)
+    dlg.exec()
 
 
 if __name__ == "__main__":
