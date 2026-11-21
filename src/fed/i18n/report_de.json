@@ -221,5 +221,7 @@
   "dns_none": "kein Eintrag",
   "dns_type": "Typ",
   "dns_value": "Wert",
-  "dns_omitted": "{n} aufbewahrte Schlüssel – wegen der Menge hier nicht einzeln aufgeführt. Vollständige Liste in dns_keys.csv (im Fallordner)."
+  "dns_omitted": "{n} aufbewahrte Schlüssel – wegen der Menge hier nicht einzeln aufgeführt. Vollständige Liste in dns_keys.csv (im Fallordner).",
+  "domain_dns_single": "DNS-Schnappschuss der Domain – im Einzelbericht nicht abgedruckt. Vollständige Tabelle in dns_snapshot.csv (im Fallordner, mit SHA-256) und im Gesamtbericht.",
+  "dns_keys_single": "{n} aufbewahrte DKIM-Schlüssel – im Einzelbericht nicht abgedruckt. Vollständige Liste in dns_keys.csv (im Fallordner, mit SHA-256) und im Gesamtbericht."
 }

@@ -221,5 +221,7 @@
   "dns_none": "no record",
   "dns_type": "Type",
   "dns_value": "Value",
-  "dns_omitted": "{n} retained keys – not listed individually here due to the volume. Full list in dns_keys.csv (in the case folder)."
+  "dns_omitted": "{n} retained keys – not listed individually here due to the volume. Full list in dns_keys.csv (in the case folder).",
+  "domain_dns_single": "Domain DNS snapshot – not printed in the single-account report. Full table in dns_snapshot.csv (in the case folder, with SHA-256) and in the overall report.",
+  "dns_keys_single": "{n} retained DKIM keys – not printed in the single-account report. Full list in dns_keys.csv (in the case folder, with SHA-256) and in the overall report."
 }

@@ -215,6 +215,36 @@ def _two_accounts(tmp_path, imap_server):
     return case
 
 
+def test_single_report_references_dns_csv(tmp_path, imap_server, test_mails):
+    """Einzelberichte verweisen für DNS-Schnappschuss/DKIM-Schlüssel nur auf die CSV (mit Hash);
+    der Gesamtbericht behält die volle Tabelle. dns_snapshot.csv wird erzeugt."""
+    from fed.core import report as rep
+    from fed.core.finalize import write_dns_snapshot_csv
+
+    case = _two_accounts(tmp_path, imap_server)
+    acc_id, ev = case.conn.execute("SELECT id, evidence_number FROM account ORDER BY id LIMIT 1").fetchone()
+    case.conn.execute("DELETE FROM domain_dns")  # evtl. aus der Akquise – deterministisch neu setzen
+    case.conn.execute(
+        "INSERT INTO domain_dns (account_id, domain, rtype, name, value, sha256, status, fetched_utc) "
+        "VALUES (?,?,?,?,?,?,?,?)",
+        (acc_id, "ex.example", "MX", "ex.example", "10 mail.ex.example.", "abc123def", "ok", "2026-01-01T00:00:00Z"))
+    case.conn.commit()
+
+    n = write_dns_snapshot_csv(case, case.root / "dns_snapshot.csv")
+    assert n == 1
+    csv_text = (case.root / "dns_snapshot.csv").read_text(encoding="utf-8")
+    assert "ex.example" in csv_text and "abc123def" in csv_text and "10 mail.ex.example." in csv_text
+
+    rep.write_reports(case, "de")
+    overall = (case.root / "report.txt").read_text(encoding="utf-8")
+    single = (case.root / f"report_{ev}.txt").read_text(encoding="utf-8")
+
+    assert "10 mail.ex.example." in overall                 # Gesamtbericht: volle Tabelle
+    assert "10 mail.ex.example." not in single              # Einzelbericht: kein Tabellenwert
+    assert "dns_snapshot.csv" in single                     # sondern Verweis auf die CSV
+    case.close()
+
+
 def test_one_zip_per_account(tmp_path, imap_server, test_mails):
     from validation import testmailbox
     from validation.fake_tsa import FakeTsa, available

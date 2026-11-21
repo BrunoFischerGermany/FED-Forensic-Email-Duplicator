@@ -563,21 +563,28 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
                        f"{tf.both(x['ended_utc']) if x['ended_utc'] else '…'}{dur}  {x['reason'] or ''}"
                        f"{'  -> ' + x['moved_to'] if x['moved_to'] else ''}")
         out += ["", f"{L['folders']}:", *_folder_lines(d, L, a["email"]), ""]
+    single = account_id is not None  # Einzelbericht: DKIM-/DNS-Details nur als CSV-Verweis, volle Tabellen im Gesamtbericht
     out += [L["dkim_section"], "-" * len(L["dkim_section"]), L["dkim_intro"], ""]
     dkim_rows = _dkim_issue_rows(d, L)
-    if dkim_rows and not include_mail_list(len(dkim_rows), mail_list, mail_list_max):
+    if dkim_rows and (single or not include_mail_list(len(dkim_rows), mail_list, mail_list_max)):
         out.append("  " + L["dkim_issues_omitted"].format(n=len(dkim_rows)))
     elif dkim_rows:
         out += [f"  {r[0]}  {r[1]}  {r[2]}  [{r[3]}]  {r[4]}" for r in dkim_rows]
     else:
         out.append(f"  {L['dkim_none_issues']}")
     if d["domain_dns"]:
-        out += ["", f"{L['domain_dns_section']}:", f"  {L['domain_dns_intro']}"]
-        out += [f"  {r[0]:<5} {r[1]}  {r[2].replace(chr(10), ' / ')}"
-                + (f"\n        SHA-256 {r[3]}" if r[3] != "–" else "") for r in _domain_dns_rows(d, L)]
+        out += ["", f"{L['domain_dns_section']}:"]
+        if single:
+            out.append(f"  {L['domain_dns_single']}")
+        else:
+            out.append(f"  {L['domain_dns_intro']}")
+            out += [f"  {r[0]:<5} {r[1]}  {r[2].replace(chr(10), ' / ')}"
+                    + (f"\n        SHA-256 {r[3]}" if r[3] != "–" else "") for r in _domain_dns_rows(d, L)]
     if d["dns"]:
         out += ["", f"{L['dns_section']}:", f"  {L['dns_intro']}"]
-        if include_mail_list(len(d["dns"]), mail_list, mail_list_max):
+        if single:
+            out.append(f"  {L['dns_keys_single'].format(n=len(d['dns']))}")
+        elif include_mail_list(len(d["dns"]), mail_list, mail_list_max):
             out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
         else:
             out.append(f"  {L['dns_omitted'].format(n=len(d['dns']))}")
@@ -781,8 +788,9 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.set_font("DejaVu", "", 8)
     pdf.multi_cell(0, 4.2, L["dkim_intro"], new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
+    single = account_id is not None  # Einzelbericht: DKIM-/DNS-Details nur als CSV-Verweis, volle Tabellen im Gesamtbericht
     issues = _dkim_issue_rows(d, L)
-    if issues and not include_mail_list(len(issues), mail_list, mail_list_max):
+    if issues and (single or not include_mail_list(len(issues), mail_list, mail_list_max)):
         pdf.multi_cell(0, 4.2, L["dkim_issues_omitted"].format(n=len(issues)), new_x="LMARGIN", new_y="NEXT")
     elif issues:
         with pdf.table(col_widths=(18, 40, 46, 28, 48), headings_style=head, line_height=4.2, text_align="LEFT") as t:
@@ -794,18 +802,23 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     if d["domain_dns"]:
         h2(L["domain_dns_section"])
         pdf.set_font("DejaVu", "", 8)
-        pdf.multi_cell(0, 4.2, L["domain_dns_intro"], new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(1)
-        with pdf.table(col_widths=(16, 45, 58, 61), headings_style=head, line_height=4.2, text_align="LEFT") as t:
-            t.row([L["dns_type"], L["dns_name"], L["dns_value"], "SHA-256"])
-            for r in _domain_dns_rows(d, L):
-                t.row(r)
+        if single:
+            pdf.multi_cell(0, 4.2, L["domain_dns_single"], new_x="LMARGIN", new_y="NEXT")
+        else:
+            pdf.multi_cell(0, 4.2, L["domain_dns_intro"], new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(1)
+            with pdf.table(col_widths=(16, 45, 58, 61), headings_style=head, line_height=4.2, text_align="LEFT") as t:
+                t.row([L["dns_type"], L["dns_name"], L["dns_value"], "SHA-256"])
+                for r in _domain_dns_rows(d, L):
+                    t.row(r)
     if d["dns"]:
         h2(L["dns_section"])
         pdf.set_font("DejaVu", "", 8)
         pdf.multi_cell(0, 4.2, L["dns_intro"], new_x="LMARGIN", new_y="NEXT")
         pdf.ln(1)
-        if include_mail_list(len(d["dns"]), mail_list, mail_list_max):
+        if single:
+            pdf.multi_cell(0, 4.2, L["dns_keys_single"].format(n=len(d["dns"])), new_x="LMARGIN", new_y="NEXT")
+        elif include_mail_list(len(d["dns"]), mail_list, mail_list_max):
             with pdf.table(col_widths=(55, 25, 40, 60), headings_style=head, line_height=4.2, text_align="LEFT") as t:
                 t.row([L["dns_name"], L["status"], L["fetched"], "SHA-256"])
                 for r in _dns_rows(d, L):
