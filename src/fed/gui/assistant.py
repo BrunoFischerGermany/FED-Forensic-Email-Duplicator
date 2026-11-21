@@ -1241,6 +1241,7 @@ class FolderPage(QWidget):
         super().__init__()
         self.st = st
         w, lay = page(self.tr("Ordner wählen"))
+        self.title = lay.itemAt(0).widget()  # zeigt zusätzlich das Postfach (Asservat · E-Mail)
         self.sub = w.subtitle
         top = QHBoxLayout()
         top.addStretch(1)
@@ -1340,10 +1341,39 @@ class FolderPage(QWidget):
         outer.addWidget(scroll(w), 1)
         outer.addWidget(bar)
 
+    def _account_text(self) -> str:
+        sp = self.st.spec
+        if sp is not None:
+            return f"{sp.evidence_number} · {sp.email}" if sp.evidence_number else sp.email
+        return self.st.email or ""
+
+    def _set_title(self) -> None:
+        acc = self._account_text()
+        self.title.setText(self.tr("Ordner wählen") + (f" – {acc}" if acc else ""))
+
+    def _clear_for_loading(self) -> None:
+        """Beim Scan eines (anderen) Postfachs nichts vom vorherigen Konto stehen lassen."""
+        self.tree.blockSignals(True)
+        self.tree.clear()
+        loading = QTreeWidgetItem([self.tr("wird geladen …"), "", ""])
+        loading.setFlags(Qt.ItemFlag.NoItemFlags)
+        self.tree.addTopLevelItem(loading)
+        self.tree.blockSignals(False)
+        self.summary.clear()
+        for e in self.flt.values():
+            e.clear()
+        self.gmail_box.setVisible(False)
+        self.error.setText("")
+
     def scan(self) -> None:
         st = self.st
         self.go.setEnabled(False)
-        self.sub.setText(self.tr("Postfach wird gescannt …"))
+        self._set_title()
+        self._clear_for_loading()
+        acc = self._account_text()
+        self.sub.setText(self.tr("Postfach {0} wird gescannt …").format(acc) if acc
+                         else self.tr("Postfach wird gescannt …"))
+        restyle(self.sub, "Muted")
         self.sub.setVisible(True)
 
         def work(cancel, report):
@@ -1359,6 +1389,7 @@ class FolderPage(QWidget):
                                                    restyle(self.sub, "Error")), parent=self)
 
     def _show(self, rows) -> None:
+        self._set_title()
         self.tree.blockSignals(True)
         self.tree.clear()
         cur = self.st.case.conn.execute(

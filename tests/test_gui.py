@@ -742,6 +742,33 @@ def test_finish_page_no_report_after_abort_or_failure(app):
     p.open_pdf.setEnabled(True)
     p._failed("kaputt", "")
     assert not p.open_pdf.isEnabled()
+
+
+def test_folder_page_shows_account_and_clears_old_mailbox(app, monkeypatch):
+    """„Ordner wählen" nennt das Postfach; beim Scan eines anderen Kontos verschwinden die alten Daten
+    sofort und es steht „wird geladen …" da."""
+    from PySide6.QtWidgets import QTreeWidgetItem
+
+    from fed.core import acquisition as acq
+    from fed.core.config import Config
+    from fed.gui import assistant
+    from fed.gui.assistant import FolderPage, State
+
+    monkeypatch.setattr(assistant, "run_async", lambda *a, **k: None)  # Scan selbst nicht ausführen
+    st = State(Config())
+    st.spec = acq.AccountSpec(email="maik.mayer.85@t-online.de", evidence_number="DF002", server="imap.t-online.de")
+    p = FolderPage(st)
+    # Reste des vorherigen Postfachs
+    p.tree.addTopLevelItem(QTreeWidgetItem(["INBOX", "31", "86.9 MB"]))
+    p.summary.set("Ausgewählt", "8 Ordner")
+    next(iter(p.flt.values())).setText("mueller@firma.de")
+
+    p.scan()
+    assert "DF002 · maik.mayer.85@t-online.de" in p.title.text()
+    assert p.tree.topLevelItemCount() == 1 and p.tree.topLevelItem(0).text(0) == "wird geladen …"
+    assert all(not e.text() for e in p.flt.values())
+    assert "maik.mayer.85@t-online.de" in p.sub.text()
+    assert not p.go.isEnabled()
     p.deleteLater()
 
 

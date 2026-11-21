@@ -1532,6 +1532,14 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Start acquisition</translation>
     </message>
     <message>
+        <source>wird geladen …</source>
+        <translation>loading …</translation>
+    </message>
+    <message>
+        <source>Postfach {0} wird gescannt …</source>
+        <translation>Scanning mailbox {0} …</translation>
+    </message>
+    <message>
         <source>Postfach wird gescannt …</source>
         <translation>Scanning mailbox …</translation>
     </message>
