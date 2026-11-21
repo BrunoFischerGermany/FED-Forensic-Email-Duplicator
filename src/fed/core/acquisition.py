@@ -722,6 +722,7 @@ def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cance
     total = len(rows)
     if prog is not None:
         prog.folder_total, prog.folder_done = total, 0
+        prog.sample()
         if progress:
             progress(prog)
     dns = authcheck.DnsCache(timeout=min(timeout, 10))
@@ -742,6 +743,7 @@ def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cance
             if prog is not None:
                 prog.folder_done = i
                 if progress and (i % step == 0 or i == total):
+                    prog.sample()
                     progress(prog)
     conn = case.conn
     with conn:

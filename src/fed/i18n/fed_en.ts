@@ -545,8 +545,8 @@
         <translation>Authenticity check (DKIM): verifying each message's signature via DNS …</translation>
     </message>
     <message>
-        <source>{0} / {1} Mails geprüft</source>
-        <translation>{0} / {1} messages checked</translation>
+        <source>{0} / {1} Mails geprüft · Restzeit ca. {2}</source>
+        <translation>{0} / {1} messages checked · approx. {2} left</translation>
     </message>
     <message>
         <source>Aktueller Ordner: </source>

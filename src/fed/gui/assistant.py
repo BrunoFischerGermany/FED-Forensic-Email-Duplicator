@@ -1666,7 +1666,8 @@ class AcquirePage(QWidget):
         self.bar.setValue(pct)
         self.pct.setText(f"{pct} %")
         bps, mpm = p.speed()
-        eta = p.eta_seconds()
+        # DKIM-Prüfung hat keinen Byte-Durchsatz: Restzeit aus der Rate der geprüften Mails.
+        eta = p.folder_eta_seconds() if p.phase == "auth_check" else p.eta_seconds()
         self.bytes_lbl.setText(f"{_fmt_bytes(p.bytes_done)} / {_fmt_bytes(p.bytes_total)}")
         self.eta_lbl.setText(self.tr("Restzeit ca. ") + fmt_secs(eta))
         self.stat["mails"][0].setText(f"{p.mails_done:,} / {p.mails_total:,}".replace(",", "."))
@@ -1679,8 +1680,8 @@ class AcquirePage(QWidget):
         self.stat["time"][1].setText(self.tr("Restzeit ca. ") + fmt_secs(eta))
         if p.phase == "auth_check":
             self.folder_lbl.setText(self.tr("Echtheitsprüfung (DKIM): Signaturen je Mail per DNS prüfen …"))
-            self.uid_lbl.setText(self.tr("{0} / {1} Mails geprüft").format(
-                f"{p.folder_done:,}".replace(",", "."), f"{p.folder_total:,}".replace(",", ".")))
+            self.uid_lbl.setText(self.tr("{0} / {1} Mails geprüft · Restzeit ca. {2}").format(
+                f"{p.folder_done:,}".replace(",", "."), f"{p.folder_total:,}".replace(",", "."), fmt_secs(eta)))
         else:
             self.folder_lbl.setText(self.tr("Aktueller Ordner: ") + f"{p.folder}  ·  {p.folder_done} / {p.folder_total}")
             self.uid_lbl.setText(f"UID {p.current_uid}")
