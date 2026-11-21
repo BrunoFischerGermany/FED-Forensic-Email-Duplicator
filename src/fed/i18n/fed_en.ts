@@ -630,10 +630,18 @@ No = delete permanently.</translation>
     <message>
         <source>Dauerhaft beheben (danach startet FED direkt am Ablageort):
 • FED.app im Finder in einen anderen Ordner ziehen, z. B. „Programme“, oder
-• im Terminal: xattr -dr com.apple.quarantine &lt;Pfad&gt;/FED.app</source>
+• im Terminal:</source>
         <translation>Permanent fix (FED then starts directly from its location):
 • drag FED.app to another folder in Finder, e.g. “Applications”, or
-• in Terminal: xattr -dr com.apple.quarantine &lt;path&gt;/FED.app</translation>
+• in Terminal:</translation>
+    </message>
+    <message>
+        <source>Befehl kopieren</source>
+        <translation>Copy command</translation>
+    </message>
+    <message>
+        <source>Kopiert ✓</source>
+        <translation>Copied ✓</translation>
     </message>
 </context>
 <context>
