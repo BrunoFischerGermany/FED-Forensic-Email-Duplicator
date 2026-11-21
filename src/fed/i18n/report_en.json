@@ -221,5 +221,6 @@
   "dns_none": "no record",
   "dns_type": "Type",
   "dns_value": "Value",
-  "dns_omitted": "{n} retained keys – not listed individually here due to the volume. Full list in dns_keys.csv (in the case folder)."
+  "dns_omitted": "{n} retained keys – not listed individually here due to the volume. Full list in dns_keys.csv (in the case folder).",
+  "thousands_sep": ","
 }

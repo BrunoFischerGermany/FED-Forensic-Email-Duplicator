@@ -279,6 +279,11 @@ def _fmt_bytes(n: int | None) -> str:
     return str(n)
 
 
+def _n(value, L: dict) -> str:
+    """Ganzzahl (z. B. E-Mail-Anzahl) mit sprachabhängigem Tausendertrennzeichen: de 3.399, en 3,399."""
+    return f"{int(value or 0):,}".replace(",", L.get("thousands_sep", ","))
+
+
 def folder_tree(folders: list[dict]) -> list[dict]:
     """Ordner je Konto hierarchisch sortiert, mit eingerückter Bezeichnung (``label``) und Tiefe."""
     def key(f):
@@ -353,8 +358,8 @@ def _state_text(o: dict, L: dict) -> str:
 
 
 def _overview_rows(d: dict, L: dict) -> list[list[str]]:
-    return [[o["evidence"], o["email"], _state_text(o, L), f"{o['saved']} / {o['expected']}", _fmt_bytes(o["bytes"]),
-             str(o["attempts"])] for o in d["overview"]]
+    return [[o["evidence"], o["email"], _state_text(o, L), f"{_n(o['saved'], L)} / {_n(o['expected'], L)}",
+             _fmt_bytes(o["bytes"]), str(o["attempts"])] for o in d["overview"]]
 
 
 def fmt_duration(seconds: float | None) -> str:
@@ -409,11 +414,11 @@ def _provenance_items(sc: dict | None, L: dict) -> list[tuple[str, str]]:
         return []
     parts = []
     if sc.get("imap"):
-        parts.append(L["prov_imap"].format(sc["imap"]))
+        parts.append(L["prov_imap"].format(_n(sc["imap"], L)))
     if sc.get("apple_mail"):
-        imp = L["prov_import"].format(sc["apple_mail"])
+        imp = L["prov_import"].format(_n(sc["apple_mail"], L))
         if sc.get("partial"):
-            imp += " (" + L["prov_partial"].format(sc["partial"]) + ")"
+            imp += " (" + L["prov_partial"].format(_n(sc["partial"], L)) + ")"
         parts.append(imp)
     return [(L["provenance"], " · ".join(parts))]
 
@@ -447,9 +452,9 @@ def _gmail_items(a: dict, d: dict, L: dict) -> list[tuple[str, str]]:
     g = d.get("gmail", {}).get(a["id"])
     if not g:
         return []
-    text = L["gmail_text"].format(n=g["messages"])
+    text = L["gmail_text"].format(n=_n(g["messages"], L))
     if g["dups"]:
-        text += " · " + L["gmail_dups"].format(n=g["dups"], ids=g["dup_ids"])
+        text += " · " + L["gmail_dups"].format(n=_n(g["dups"], L), ids=_n(g["dup_ids"], L))
     return [(L["gmail"], text)]
 
 
@@ -457,7 +462,7 @@ def _dkim_summary(counts: dict, L: dict) -> str:
     if not counts:
         return "–"
     order = ("pass", "fail", "permerror", "temperror", "none", "unchecked")
-    return " · ".join(f"{counts[k]} {L['dkim_' + k]}" for k in order if counts.get(k))
+    return " · ".join(f"{_n(counts[k], L)} {L['dkim_' + k]}" for k in order if counts.get(k))
 
 
 def _tail_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
@@ -543,9 +548,10 @@ def _folder_lines(d: dict, L: dict, email: str) -> list[str]:
     out = []
     for f in (x for x in folder_tree(d["folders"]) if x["email"] == email):
         diff = (f["count_saved"] or 0) - (f["count_server"] or 0) if f["selected"] else ""
+        diff_s = _n(diff, L) if diff != "" else ""
         name = "  " + "  " * f["depth"] + ("└ " if f["depth"] else "") + f["display_name"].split(f["delimiter"] or "\0")[-1]
-        out.append(f"{name:<36} {'[x]' if f['selected'] else '[ ]'}  {L['server_count']} {f['count_server'] or 0:>6}  "
-                   f"{L['saved']} {f['count_saved'] or 0:>6}  {L['diff']} {diff!s:>4}  "
+        out.append(f"{name:<36} {'[x]' if f['selected'] else '[ ]'}  {L['server_count']} {_n(f['count_server'] or 0, L):>8}  "
+                   f"{L['saved']} {_n(f['count_saved'] or 0, L):>8}  {L['diff']} {diff_s:>6}  "
                    f"{_fmt_bytes(f['size_server']):>9}  {_status_pair(f, L)}")
     return out
 
@@ -575,7 +581,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         out += ["  ".join(c.ljust(w) for c, w in zip(r, widths, strict=True)).rstrip() for r in rows]
         tot = d["overview"]
         out += ["", L["overview_sum"].format(n=len(tot), done=sum(o["state"] == "done" for o in tot),
-                                             mails=sum(o["saved"] for o in tot),
+                                             mails=_n(sum(o["saved"] for o in tot), L),
                                              size=_fmt_bytes(sum(o["bytes"] for o in tot))), ""]
     for a in d["accounts"]:
         head = f"{L['account']} {a['evidence_number']} · {a['email']}"
@@ -593,7 +599,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
     out += [L["dkim_section"], "-" * len(L["dkim_section"]), L["dkim_intro"], ""]
     dkim_rows = _dkim_issue_rows(d, L)
     if dkim_rows and not include_mail_list(len(dkim_rows), mail_list, mail_list_max):
-        out.append("  " + L["dkim_issues_omitted"].format(n=len(dkim_rows)))
+        out.append("  " + L["dkim_issues_omitted"].format(n=_n(len(dkim_rows), L)))
     elif dkim_rows:
         out += [f"  {r[0]}  {r[1]}  {r[2]}  [{r[3]}]  {r[4]}" for r in dkim_rows]
     else:
@@ -607,7 +613,7 @@ def render_txt(case: Case, language: str = "de", mail_list: str = "auto", mail_l
         if include_mail_list(len(d["dns"]), mail_list, mail_list_max):
             out += [f"  {r[0]}  {r[1]}  {r[2].replace(chr(10), ' / ')}\n    SHA-256 {r[3]}" for r in _dns_rows(d, L)]
         else:
-            out.append(f"  {L['dns_omitted'].format(n=len(d['dns']))}")
+            out.append(f"  {L['dns_omitted'].format(n=_n(len(d['dns']), L))}")
     out.append("")
     for title, items in _tail_sections(d, L):
         out += [title, "-" * len(title), *_kv_txt(items), ""]
@@ -774,7 +780,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
         tot = d["overview"]
         pdf.ln(1)
         pdf.multi_cell(0, 4.6, L["overview_sum"].format(n=len(tot), done=sum(o["state"] == "done" for o in tot),
-                                                        mails=sum(o["saved"] for o in tot),
+                                                        mails=_n(sum(o["saved"] for o in tot), L),
                                                         size=_fmt_bytes(sum(o["bytes"] for o in tot))),
                        new_x="LMARGIN", new_y="NEXT")
 
@@ -810,7 +816,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.ln(1)
     issues = _dkim_issue_rows(d, L)
     if issues and not include_mail_list(len(issues), mail_list, mail_list_max):
-        pdf.multi_cell(0, 4.2, L["dkim_issues_omitted"].format(n=len(issues)), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 4.2, L["dkim_issues_omitted"].format(n=_n(len(issues), L)), new_x="LMARGIN", new_y="NEXT")
     elif issues:
         with pdf.table(col_widths=(18, 40, 46, 28, 48), headings_style=head, line_height=4.2, text_align="LEFT") as t:
             t.row([L["evidence"], L["mail"], L["subject"], L["result"], L["detail"]])
@@ -838,7 +844,7 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
                 for r in _dns_rows(d, L):
                     t.row(r)
         else:
-            pdf.multi_cell(0, 4.2, L["dns_omitted"].format(n=len(d["dns"])), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 4.2, L["dns_omitted"].format(n=_n(len(d["dns"]), L)), new_x="LMARGIN", new_y="NEXT")
 
     for title, items in _tail_sections(d, L):
         h2(title)
@@ -884,16 +890,16 @@ def write_pdf(case: Case, path: Path, language: str = "de", mail_list: str = "au
     pdf.multi_cell(0, 4.6, L["sign_text"], new_x="LMARGIN", new_y="NEXT")
     kv([(L["examiner"], info["examiner"]), (L["sign_created"], tf.both(info["closed_utc"] or utc_now()))])
 
-    h2(f"{L['mails']} ({len(d['messages'])})")
+    h2(f"{L['mails']} ({_n(len(d['messages']), L)})")
     if not include_mail_list(len(d["messages"]), mail_list, mail_list_max):
         pdf.set_font("DejaVu", "", 8.5)
-        pdf.multi_cell(0, 4.6, L["list_omitted"].format(n=len(d["messages"])), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 4.6, L["list_omitted"].format(n=_n(len(d["messages"]), L)), new_x="LMARGIN", new_y="NEXT")
         pdf.output(str(path))
         return
 
     pdf.add_page()
     pdf.set_font("DejaVu", "B", 11)
-    pdf.cell(0, 7, f"{L['mails']} ({len(d['messages'])})", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 7, f"{L['mails']} ({_n(len(d['messages']), L)})", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("DejaVu", "", 6.5)
     multi = d["all_accounts"] > 1 and account_id is None
     with pdf.table(col_widths=(8, 30, 40, 102), headings_style=head, line_height=3.3, text_align="LEFT") as t:
