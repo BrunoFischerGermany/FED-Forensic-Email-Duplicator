@@ -1181,6 +1181,14 @@ Open and continue this case?</translation>
         <translation>Quit FED</translation>
     </message>
     <message>
+        <source>Gesamtbericht öffnen</source>
+        <translation>Open overall report</translation>
+    </message>
+    <message>
+        <source>Bericht {0} öffnen</source>
+        <translation>Open report {0}</translation>
+    </message>
+    <message>
         <source>Kein Bericht – Abschluss nicht durchgeführt</source>
         <translation>No report – finalisation not performed</translation>
     </message>

@@ -331,6 +331,40 @@ def test_report_timestamp_qualified_label(acquired):
     assert "Zeitstempel (RFC 3161)" in neutral
 
 
+def test_finish_page_lists_each_zip_and_account_reports(tmp_path, imap_server, test_mails):
+    """Abschlussseite bei „ein ZIP je Konto": jede ZIP-/Prüf-/Hash-Zeile je Konto (nichts überschrieben),
+    voller Hash im Tooltip, „Gesamtbericht öffnen" plus je Konto „Bericht <E-Mail> öffnen"."""
+    from PySide6.QtWidgets import QApplication, QPushButton
+
+    from fed.gui.assistant import FinishPage, State
+
+    qapp = QApplication.instance() or QApplication([])
+    case = _two_accounts(tmp_path, imap_server)
+    cfg = Config()
+    cfg.programm.zip_aufteilung = "je_konto"
+    res = finish_case(case, cfg)
+    st = State(cfg)
+    st.case = case
+    p = FinishPage(st)
+    p._done(res)
+
+    keys = set(p.check_kv.values)
+    assert {"ZIP gepackt · A-01", "ZIP gepackt · A-02", "ZIP verifiziert · A-01", "ZIP verifiziert · A-02"} <= keys
+    full = res.zips[0].hashes["sha256"]
+    lbl = p.hash_kv.values["SHA-256 · A-01"]
+    assert lbl.text().replace("\n", "") == full and full in lbl.toolTip()   # komplett, nichts abgeschnitten
+    assert p.open_pdf.text() == "Gesamtbericht öffnen"
+    emails = [e for (e,) in case.conn.execute("SELECT email FROM account ORDER BY id")]
+    assert [b.text() for b in p.acc_reports.findChildren(QPushButton)] == [f"Bericht {e} öffnen" for e in emails]
+
+    p._no_report()                                                     # z. B. erneuter Lauf/Fehler
+    qapp.processEvents()
+    assert p.open_pdf.text() == "Bericht öffnen"
+    p.deleteLater()                                                    # vor dem Ende sauber abbauen
+    qapp.processEvents()
+    case.close()
+
+
 def test_one_zip_per_account(tmp_path, imap_server, test_mails):
     from validation import testmailbox
     from validation.fake_tsa import FakeTsa, available

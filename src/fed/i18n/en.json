@@ -696,5 +696,7 @@
   "Kopiert ✓": "Copied ✓",
   "Kein Bericht – Abschluss nicht durchgeführt": "No report – finalisation not performed",
   "wird geladen …": "loading …",
-  "Postfach {0} wird gescannt …": "Scanning mailbox {0} …"
+  "Postfach {0} wird gescannt …": "Scanning mailbox {0} …",
+  "Gesamtbericht öffnen": "Open overall report",
+  "Bericht {0} öffnen": "Open report {0}"
 }
