@@ -133,6 +133,8 @@
   "Zeitraum bis einschließlich (JJJJ-MM-TT)": "Date range up to and including (YYYY-MM-DD)",
   "Zeitstempel abgelehnt: {reason}": "Timestamp rejected: {reason}",
   "Zeitstempel bezieht sich nicht auf den angefragten Hash": "Timestamp does not refer to the requested hash",
+  "Zeitstempel übersprungen – Dienst zuvor nicht erreichbar": "Timestamp skipped – service was unreachable earlier",
+  "Zeitstempeldienst hat nicht innerhalb von {s}s geantwortet": "Timestamp service did not respond within {s}s",
   "Zeitstempeldienst nicht erreichbar: {error}": "Timestamp service not reachable: {error}",
   "Zeitüberschreitung bei der Anmeldung im Browser": "Timeout during sign-in in the browser",
   "Zielordner (Datenträger)": "Target folder (drive)",
