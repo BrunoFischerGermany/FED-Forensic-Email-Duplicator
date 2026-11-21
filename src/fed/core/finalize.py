@@ -343,15 +343,38 @@ def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult, account_id: in
 
     if not cfg.tsa_url:
         return None, ""
+    import threading
+
     tsr = zip_result.path.parent / (zip_result.path.name + ".tsr")
     case.log("INFO", "timestamp_requested", {"tsa": cfg.tsa_url, "sha256": zip_result.hashes["sha256"]})
-    try:
-        info = tsmod.request_timestamp(zip_result.hashes["sha256"], cfg.tsa_url, tsr, cfg.proxy_url,
-                                       cfg.programm.socket_timeout_s)
-    except tsmod.TimestampError as e:
-        case.log("WARNING", "timestamp_failed", {"tsa": cfg.tsa_url, "error": str(e), "zip": zip_result.path.name,
+    # Harte Gesamtfrist: urllibs timeout gilt je Socket-Operation, nicht als Gesamtzeit. Ein TSA, der die
+    # Verbindung annimmt aber stockt (oder gefilterte Pakete beim Connect), würde den Abschluss sonst
+    # minutenlang blockieren. Der Zeitstempel ist optional – nach der Frist geht es ohne ihn weiter.
+    timeout = cfg.programm.socket_timeout_s
+    box: dict = {}
+
+    def _worker() -> None:
+        try:
+            box["info"] = tsmod.request_timestamp(zip_result.hashes["sha256"], cfg.tsa_url, tsr, cfg.proxy_url, timeout)
+        except BaseException as e:   # im Thread gefangen, unten ausgewertet
+            box["err"] = e
+
+    th = threading.Thread(target=_worker, name="fed-tsa", daemon=True)
+    th.start()
+    th.join(timeout + 2)
+    if th.is_alive():
+        msg = _t("Zeitstempeldienst hat nicht innerhalb von {s}s geantwortet", s=int(timeout + 2))
+        case.log("WARNING", "timestamp_timeout", {"tsa": cfg.tsa_url, "zip": zip_result.path.name,
                                                   "account_id": account_id})
-        return None, str(e)
+        return None, msg
+    err = box.get("err")
+    if isinstance(err, tsmod.TimestampError):
+        case.log("WARNING", "timestamp_failed", {"tsa": cfg.tsa_url, "error": str(err), "zip": zip_result.path.name,
+                                                  "account_id": account_id})
+        return None, str(err)
+    if err is not None:
+        raise err
+    info = box["info"]
     gen = datetime.fromisoformat(info.gen_time.replace("Z", "+00:00"))
     offset = round((datetime.now(UTC) - gen).total_seconds(), 3)
     case.log("INFO", "timestamp_done", {
@@ -427,7 +450,17 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
             progress(Progress(phase=name))
 
     _phase("timestamp")
-    timestamps = [add_timestamp(case, cfg, z, acc) for z, acc in zip(zips, ids, strict=True)]
+    timestamps = []
+    skip = False  # ist der TSA beim ersten Konto nicht erreichbar, nicht jedes weitere Konto erneut abwarten
+    for z, acc in zip(zips, ids, strict=True):
+        if skip:
+            case.log("WARNING", "timestamp_skipped", {"zip": z.path.name, "account_id": acc})
+            timestamps.append((None, _t("Zeitstempel übersprungen – Dienst zuvor nicht erreichbar")))
+            continue
+        info, err = add_timestamp(case, cfg, z, acc)
+        timestamps.append((info, err))
+        if info is None and err:          # Zeitstempel fehlgeschlagen/zeitüberschritten → Rest überspringen
+            skip = True
     close_case(case)
     if delete_work is None:
         delete_work = cfg.programm.arbeitsordner_loeschen == "ja"

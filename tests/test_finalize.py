@@ -146,6 +146,30 @@ def test_finish_continues_when_timestamp_fails(acquired):
     assert "fehlgeschlagen" in res.report_txt.read_text(encoding="utf-8")
 
 
+def test_finish_does_not_hang_on_stalling_tsa(acquired, monkeypatch):
+    """Ein TSA, der die Verbindung annimmt aber nicht antwortet, darf den Abschluss nicht blockieren:
+    harte Gesamtfrist (socket_timeout_s + 2 s), danach geht es ohne Zeitstempel weiter."""
+    import time
+
+    from fed.core import timestamp as tsmod
+
+    def _stall(*a, **k):
+        time.sleep(30)  # länger als die Frist – würde ohne harte Grenze minutenlang hängen
+
+    monkeypatch.setattr(tsmod, "request_timestamp", _stall)
+    case = acquired
+    cfg = Config()
+    cfg.tsa_url = "http://example.invalid/tsa"
+    cfg.programm.socket_timeout_s = 1          # Frist also ~3 s
+    t0 = time.monotonic()
+    res = finish_case(case, cfg)
+    elapsed = time.monotonic() - t0
+    assert elapsed < 15                         # nicht minutenlang hängen
+    assert res.zip.verified and res.timestamp is None
+    assert "nicht innerhalb" in res.timestamp_error
+    assert case.closed
+
+
 def test_report_overview_per_account_and_notes(tmp_path, imap_server, test_mails):
     """Mehrere Konten: Gesamtbericht mit Übersicht und Abschnitt je Konto, Einzelbericht je Konto,
     Case-Anmerkungen und Konto-Notizen im Bericht."""
