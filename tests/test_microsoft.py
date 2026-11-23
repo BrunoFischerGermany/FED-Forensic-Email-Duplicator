@@ -38,6 +38,32 @@ def test_tenant_for_private_accounts():
     assert "/consumers/" in oauth.microsoft("consumers").auth_url
 
 
+
+def test_private_account_uses_consumer_endpoints_for_browser_and_device_code():
+    """Die Standardkonfiguration muss private MSA-Konten auf allen OAuth-Endpunkten zulassen."""
+    from fed.core.config import OAuthMicrosoft
+
+    cfg = OAuthMicrosoft()  # Standard: organizations; FED-eigene Client-ID
+    tenant = oauth.microsoft_tenant(cfg.tenant, " Max@Outlook.de ")
+    provider = oauth.provider_for("microsoft", tenant)
+
+    assert tenant == "consumers"
+    assert provider.auth_url == "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize"
+    assert provider.token_url == "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
+    assert provider.device_url == "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode"
+    assert "https://outlook.office.com/IMAP.AccessAsUser.All" in provider.scopes
+    assert provider.redirect_host == "localhost"
+
+
+def test_organization_account_keeps_organizations_endpoint():
+    tenant = oauth.microsoft_tenant("organizations", "forensic@example.org")
+    provider = oauth.provider_for("microsoft", tenant)
+
+    assert tenant == "organizations"
+    assert "/organizations/" in provider.auth_url
+    assert "/organizations/" in provider.token_url
+    assert "/organizations/" in provider.device_url
+
 def test_login_error_hint():
     msg = explain_login_error("outlook.office365.com", "LOGIN failed.")
     assert msg.startswith("LOGIN failed.") and "OAuth" in msg and "IMAP" in msg
