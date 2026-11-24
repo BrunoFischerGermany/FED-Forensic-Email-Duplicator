@@ -60,6 +60,8 @@ class Case:
         self._local.conn = conn
         self._all = [conn]
         self._lock = threading.Lock()
+        self.chain_ok_at_open: bool = True  # Ergebnis der Kettenprüfung beim Öffnen (Case.open)
+        self.chain_first_bad: int | None = None
 
     @property
     def conn(self) -> sqlite3.Connection:
@@ -127,7 +129,10 @@ class Case:
             raise FileNotFoundError(db)
         case = cls(root, _connect(db))
         _migrate(case)
-        case.log("INFO", "case_opened", {"tool_version": __version__, "host": host_snapshot()})
+        ok, bad = case.verify_log()  # Kette bei jedem Öffnen prüfen; Ergebnis steht im Eintrag selbst
+        case.chain_ok_at_open, case.chain_first_bad = ok, bad
+        case.log("INFO" if ok else "ERROR", "case_opened",
+                 {"tool_version": __version__, "host": host_snapshot(), "chain_ok": ok, "first_bad": bad})
         case.recover_interrupted()
         return case
 

@@ -1024,3 +1024,23 @@ def test_history_exports_chain_of_custody(app, tmp_path):
     tab.deleteLater()
     app.processEvents()
     case.close()
+
+
+def test_history_case_check_shows_result(app, tmp_path):
+    from fed.core.case import Case, CaseInfo
+    from fed.core.casecheck import check_case
+    from fed.gui.history import HistoryTab
+
+    case = Case.create(tmp_path, CaseInfo("AZ-P", "Tester"))
+    tab = HistoryTab(lambda: case)
+    tab.quiet = True
+    tab.show_check(check_case(case))
+    assert tab.chain.text().startswith("✓") and "Log-Kette" in tab.chain.toolTip()
+    with case.conn:
+        case.conn.execute("DROP TRIGGER log_no_update")
+        case.conn.execute("UPDATE log SET details = 'x' WHERE id = 1")
+    tab.show_check(check_case(case))
+    assert tab.chain.text().startswith("✗")
+    tab.deleteLater()
+    app.processEvents()
+    case.close()

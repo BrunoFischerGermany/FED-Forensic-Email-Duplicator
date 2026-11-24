@@ -510,6 +510,11 @@ class CasePage(QWidget):
         except (FileNotFoundError, OSError) as e:
             self.error.setText(str(e))
             return
+        if not case.chain_ok_at_open:  # Fall-Datei verändert? Deutlich warnen (steht auch im Log und im Bericht)
+            QMessageBox.warning(self, self.tr("Log-Kette gebrochen"), self.tr(
+                "Die Hash-Kette des Fall-Logs ist ab Eintrag {0} gebrochen – die Fall-Datei wurde außerhalb von FED "
+                "verändert oder ist beschädigt. Das ist im Log festgehalten und erscheint im Bericht. Details: "
+                "Historie → „Fallakte prüfen“.").format(case.chain_first_bad))
         if not case.closed:  # Fortsetzung, evtl. auf einem anderen Rechner: erneut dokumentieren
             owner = self._device_owner()
             if owner in (None, "quit"):

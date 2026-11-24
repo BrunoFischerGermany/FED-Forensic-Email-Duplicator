@@ -709,5 +709,12 @@
   "Chain of Custody …": "Chain of custody …",
   "Chain of Custody speichern": "Save chain of custody",
   "✓ Chain of Custody: {0} Einträge": "✓ Chain of custody: {0} entries",
-  "{0}\nLetzter Eintrag: {1}\nSHA-256 der Datei: {2}\nPrüfanleitung: {3}": "{0}\nLast entry: {1}\nSHA-256 of the file: {2}\nVerification guide: {3}"
+  "{0}\nLetzter Eintrag: {1}\nSHA-256 der Datei: {2}\nPrüfanleitung: {3}": "{0}\nLast entry: {1}\nSHA-256 of the file: {2}\nVerification guide: {3}",
+  "Log-Kette gebrochen": "Log chain broken",
+  "Die Hash-Kette des Fall-Logs ist ab Eintrag {0} gebrochen – die Fall-Datei wurde außerhalb von FED verändert oder ist beschädigt. Das ist im Log festgehalten und erscheint im Bericht. Details: Historie → „Fallakte prüfen“.": "The hash chain of the case log is broken from entry {0} – the case file was modified outside FED or is damaged. This is recorded in the log and appears in the report. Details: History → “Verify case file”.",
+  "Fallakte prüfen": "Verify case file",
+  "prüfe Fallakte …": "verifying case file …",
+  "✓ Fallakte geprüft – keine Abweichung": "✓ Case file verified – no discrepancy",
+  "✗ Fallakte: {0} Abweichung(en)": "✗ Case file: {0} discrepancy(ies)",
+  "Das Prüfergebnis ist im Log des Falls festgehalten.": "The result is recorded in the case log."
 }

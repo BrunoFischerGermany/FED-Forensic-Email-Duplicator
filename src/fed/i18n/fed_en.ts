@@ -1088,6 +1088,14 @@ Open and continue this case?</translation>
         <source>Im gewählten Ordner wurde kein Fall gefunden (keine „case.sqlite“). Bitte den Fall-Ordner selbst wählen – oder den übergeordneten Ordner, wenn dort genau ein Fall liegt.</source>
         <translation>No case was found in the selected folder (no “case.sqlite”). Please choose the case folder itself – or the parent folder if it contains exactly one case.</translation>
     </message>
+    <message>
+        <source>Log-Kette gebrochen</source>
+        <translation>Log chain broken</translation>
+    </message>
+    <message>
+        <source>Die Hash-Kette des Fall-Logs ist ab Eintrag {0} gebrochen – die Fall-Datei wurde außerhalb von FED verändert oder ist beschädigt. Das ist im Log festgehalten und erscheint im Bericht. Details: Historie → „Fallakte prüfen“.</source>
+        <translation>The hash chain of the case log is broken from entry {0} – the case file was modified outside FED or is damaged. This is recorded in the log and appears in the report. Details: History → “Verify case file”.</translation>
+    </message>
 </context>
 <context>
     <name>ConnectionStatus</name>
@@ -1751,12 +1759,8 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>History</translation>
     </message>
     <message>
-        <source>Hash-Kette prüfen</source>
-        <translation>Check hash chain</translation>
-    </message>
-    <message>
-        <source>Dateien nachhashen</source>
-        <translation>Re-hash files</translation>
+        <source>Fallakte prüfen</source>
+        <translation>Verify case file</translation>
     </message>
     <message>
         <source>Export CSV</source>
@@ -1825,28 +1829,20 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>no</translation>
     </message>
     <message>
-        <source>✓ Log-Kette unverändert · {0} Einträge</source>
-        <translation>✓ Log chain intact · {0} entries</translation>
+        <source>prüfe Fallakte …</source>
+        <translation>verifying case file …</translation>
     </message>
     <message>
-        <source>✗ Log-Kette gebrochen ab Eintrag {0}</source>
-        <translation>✗ Log chain broken at entry {0}</translation>
+        <source>✓ Fallakte geprüft – keine Abweichung</source>
+        <translation>✓ Case file verified – no discrepancy</translation>
     </message>
     <message>
-        <source>hashe nach …</source>
-        <translation>re-hashing …</translation>
+        <source>✗ Fallakte: {0} Abweichung(en)</source>
+        <translation>✗ Case file: {0} discrepancy(ies)</translation>
     </message>
     <message>
-        <source>Weder Arbeitsordner noch ZIP vorhanden</source>
-        <translation>Neither working folder nor ZIP present</translation>
-    </message>
-    <message>
-        <source>✓ {0} Dateien identisch</source>
-        <translation>✓ {0} files identical</translation>
-    </message>
-    <message>
-        <source>✗ {0} von {1} Dateien abweichend oder fehlend</source>
-        <translation>✗ {0} of {1} files different or missing</translation>
+        <source>Das Prüfergebnis ist im Log des Falls festgehalten.</source>
+        <translation>The result is recorded in the case log.</translation>
     </message>
     <message>
         <source>Bitte zuerst eine oder mehrere Mails markieren.</source>
@@ -1859,6 +1855,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>✓ Chain of Custody: {0} Einträge</source>
         <translation>✓ Chain of custody: {0} entries</translation>
+    </message>
+    <message>
+        <source>✗ Log-Kette gebrochen ab Eintrag {0}</source>
+        <translation>✗ Log chain broken at entry {0}</translation>
     </message>
     <message>
         <source>{0}
