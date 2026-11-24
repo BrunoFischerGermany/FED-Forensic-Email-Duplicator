@@ -243,5 +243,9 @@
   "anchor_text": "manifest.json – wird nach diesem Bericht erstellt und enthält die SHA-256 aller Ausgabedateien (auch dieses Berichts) sowie Anzahl und Hash des letzten Log-Eintrags; mit eingerichtetem Zeitstempeldienst zusätzlich RFC-3161-Zeitstempel manifest.json.tsr. Das vollständige Log steht nachrechenbar in chain_of_custody.csv (Anleitung: chain_of_custody_README.txt).",
   "log_manifest_created": "Manifest {file} erstellt ({files} Dateien, Log-Stand {log_entries} Einträge, SHA-256 {sha256})",
   "log_chain_of_custody_written": "Chain-of-Custody-Protokoll {file} geschrieben ({entries} Einträge, SHA-256 {sha256})",
-  "log_chain_of_custody_exported": "Chain-of-Custody-Protokoll exportiert nach {file} ({entries} Einträge)"
+  "log_chain_of_custody_exported": "Chain-of-Custody-Protokoll exportiert nach {file} ({entries} Einträge)",
+  "settings_changes": "Einstellungen nach der Fallanlage geändert",
+  "settings_step_attempt": "bei Sicherungsversuch",
+  "settings_step_finalize": "beim Abschluss",
+  "log_settings_changed": "Einstellungen gegenüber dem Stand des Falls geändert: {summary}"
 }

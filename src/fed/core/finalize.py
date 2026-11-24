@@ -520,9 +520,11 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
     """
     from fed.core.report import write_reports
 
-    cfg = cfg or Config()
     if case.closed:
         raise ValueError(_t("Fall ist bereits abgeschlossen"))
+    if cfg is not None:  # wirksame Einstellungen des Abschlusses gegen den Stand des Falls
+        case.record_settings(cfg, "finalize")
+    cfg = cfg or Config()
     if encrypt_password is not None:
         from fed.core.encrypt import check_password
 

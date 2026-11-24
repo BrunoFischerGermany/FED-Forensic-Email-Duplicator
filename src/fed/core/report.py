@@ -138,6 +138,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "system": _q(case, "SELECT * FROM system_check ORDER BY id LIMIT 1"),  # bei Fallanlage
         "system_checks": _q(case, "SELECT user, hostname, ntp_offset_s, ts_utc FROM system_check ORDER BY id"),
         "hosts": case.host_history(),
+        "settings_changes": case.settings_changes(),
         "device": case.device_owner_history(),
         "based_on": _based_on(case),
         "accounts": accounts,
@@ -356,6 +357,11 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
             (L["online"], yn.get(s["online"], "?")), (L["target"], s["target_path"]),
             (L["removable"], yn.get(s["target_removable"], "?")), (L["free"], _fmt_bytes(s["free_bytes"])),
         ]))
+    changes = d.get("settings_changes") or []
+    if changes:  # Einstellungen nach der Fallanlage geändert – mit Zeitpunkt und Arbeitsschritt
+        secs.append((L["settings_changes"], [
+            (c["key"], f"{c['old'] or '–'} → {c['new'] or '–'} ({L.get('settings_step_' + c['step'], c['step'])}, "
+                       f"{tf.utc_str(c['ts_utc'])})") for c in changes]))
     hosts = _host_items(d.get("hosts") or [], d.get("system_checks") or [], L)
     if hosts:
         secs.append((L["hosts"], hosts))
