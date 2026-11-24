@@ -135,7 +135,9 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "replace_spaces": case.replace_spaces,
         "agency": agency,
         "logo": snap[0] if snap else {},
-        "system": _q(case, "SELECT * FROM system_check ORDER BY id DESC LIMIT 1"),
+        "system": _q(case, "SELECT * FROM system_check ORDER BY id LIMIT 1"),  # bei Fallanlage
+        "system_checks": _q(case, "SELECT user, hostname, ntp_offset_s, ts_utc FROM system_check ORDER BY id"),
+        "hosts": case.host_history(),
         "device": case.device_owner_history(),
         "based_on": _based_on(case),
         "accounts": accounts,
@@ -354,7 +356,48 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
             (L["online"], yn.get(s["online"], "?")), (L["target"], s["target_path"]),
             (L["removable"], yn.get(s["target_removable"], "?")), (L["free"], _fmt_bytes(s["free_bytes"])),
         ]))
+    hosts = _host_items(d.get("hosts") or [], d.get("system_checks") or [], L)
+    if hosts:
+        secs.append((L["hosts"], hosts))
     return secs
+
+
+def _host_items(history: list[dict], checks: list[dict], L: dict) -> list[tuple[str, str]]:
+    """Rechner/Benutzer je Arbeitsschritt, zusammengefasst je (Benutzer, Rechner, Betriebssystem).
+    Wurde an mehreren Rechnern oder mit mehreren Benutzerkonten gearbeitet, steht ein Hinweis davor."""
+    if not history:
+        return []
+    groups: dict[tuple, list[dict]] = {}
+    for h in history:
+        groups.setdefault((h["user"], h["hostname"], h["os"]), []).append(h)
+    items: list[tuple[str, str]] = []
+    if len(groups) > 1:
+        note = L["hosts_differ"].format(n=len({(u, hn) for u, hn, _ in groups}))
+        acquired = {k for k, v in groups.items() if any(h["step"] == "attempt" for h in v)}
+        finalized = {k for k, v in groups.items() if any(h["step"] == "finalize" for h in v)}
+        if acquired and finalized and not finalized & acquired:
+            note += " " + L["hosts_finalize_other"]
+        items.append((L["hosts_note"], note))
+    for (user, hostname, os_), rows in groups.items():
+        counts: dict[str, int] = {}
+        for h in rows:
+            counts[h["step"]] = counts.get(h["step"], 0) + 1
+        steps = ", ".join(L[f"host_step_{k}"] + (f" ({v}×)" if v > 1 else "")
+                          for k, v in counts.items())
+        first, last = tf.utc_str(rows[0]["ts_utc"]), tf.utc_str(rows[-1]["ts_utc"])
+        when = first if first == last else f"{first} – {last}"
+        lines = [os_ or "?", f"{steps} · {when}"]
+        accounts = sorted({f"{h['email']} #{h['nr']}" for h in rows if h["step"] == "attempt" and h["email"]})
+        if accounts:
+            lines.append(L["host_attempts"] + ": " + ", ".join(accounts))
+        ntp = [c["ntp_offset_s"] for c in checks if c["user"] == user and c["hostname"] == hostname
+               and c["ntp_offset_s"] is not None]
+        if ntp:
+            lines.append(f"{L['ntp']}: {ntp[-1]:+.3f} s")
+        if rows[-1].get("tz"):
+            lines.append(f"{L['host_tz']}: {rows[-1]['tz']}")
+        items.append((f"{user or '?'} @ {hostname or '?'}", "\n".join(lines)))
+    return items
 
 
 def _device_text(history: list[dict], L: dict) -> str:
@@ -559,7 +602,8 @@ def _title(d: dict, L: dict) -> str:
 # ---------------------------------------------------------------- TXT
 def _kv_txt(items: list[tuple[str, str]], indent: str = "") -> list[str]:
     w = max((len(k) for k, _ in items), default=0)
-    return [f"{indent}{k:<{w}}  {v}" for k, v in items]
+    pad = "\n" + indent + " " * (w + 2)  # mehrzeilige Werte unter dem Wert einrücken, nicht am Zeilenanfang
+    return [f"{indent}{k:<{w}}  {str(v).replace(chr(10), pad)}" for k, v in items]
 
 
 def _folder_lines(d: dict, L: dict, email: str) -> list[str]:

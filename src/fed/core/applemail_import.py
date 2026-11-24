@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
+from fed.core.syscheck import host_snapshot
 from fed.core import applemail, mailmeta
 from fed.core.case import Case, utc_now
 from fed.core.hashing import hash_bytes
@@ -131,7 +132,8 @@ def import_account(case: Case, account: applemail.AppleAccount, email: str, evid
             "INSERT INTO attempt (account_id, nr, mode, reason, started_utc, status, phase) VALUES (?,?,?,?,?,?,?)",
             (account_id, 1, "import", IMPORT_SOURCE, utc_now(), "running", "import")).lastrowid
     case.mark_live(attempt_id)
-    case.log("INFO", "attempt_started", {"nr": 1, "mode": "import", "reason": IMPORT_SOURCE}, attempt_id)
+    case.log("INFO", "attempt_started", {"nr": 1, "mode": "import", "reason": IMPORT_SOURCE,
+                                          "host": host_snapshot()}, attempt_id)
 
     res = ImportResult(account_id)
     account_dir = case.work_dir / sanitize_component(email)

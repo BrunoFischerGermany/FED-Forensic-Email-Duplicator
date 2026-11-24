@@ -621,6 +621,41 @@ def test_reuse_base_data_of_closed_case(app, tmp_path, monkeypatch):
     app.processEvents()
 
 
+def test_reopened_case_records_system_check(app, tmp_path, monkeypatch):
+    """Offener Fall wird (z. B. im Amt auf anderem Rechner) erneut geöffnet: Systemprüfung dieses
+    Rechners kommt in den Fall."""
+    from fed.core import config as cfgmod
+    from fed.gui import assistant as ga
+    from fed.gui.main_window import MainWindow
+
+    monkeypatch.setattr(ga, "ask_device_owner", lambda *a, **k: "own")
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    w = MainWindow(cfg, tmp_path)
+    a = w.assistant
+    _pump(app, lambda: a.st.system is not None)
+    a.p_case.case_no.setText("AZ-8")
+    a.p_case._go_clicked()
+    case_dir = a.st.case.root
+    a._new_case()
+    a.p_case._open(case_dir)
+    case = a.st.case
+
+    def checks():
+        return case.conn.execute("SELECT COUNT(*) FROM system_check").fetchone()[0]
+
+    _pump(app, lambda: checks() == 2)
+    assert checks() == 2 and a.p_case._check_for is None
+    assert [h["step"] for h in case.host_history()] == ["create", "open"]
+    w.close()
+    w.deleteLater()
+    app.processEvents()
+
+
 def test_encrypt_dialog_defaults_to_no_copy(app):
     """Der Abschluss-Dialog erscheint, ist aber standardmäßig OHNE verschlüsselte Kopie (kein Passwort)."""
     from fed.gui.encrypt_dialog import EncryptDialog

@@ -173,6 +173,16 @@ def free_bytes(path: Path) -> int:
     return shutil.disk_usage(path).free
 
 
+def host_snapshot() -> dict:
+    """Benutzer, Rechnername und Betriebssystem – ohne Netzwerk, für jeden protokollierten Arbeitsschritt."""
+    try:
+        hostname = socket.gethostname()
+    except OSError:
+        hostname = ""
+    return {"user": current_user(), "hostname": hostname, "os": os_description(),
+            "tz": str(datetime.now(UTC).astimezone().tzinfo)}
+
+
 def collect(target: Path, ntp_server: str | None, proxy: str = "") -> SystemInfo:
     now = datetime.now(UTC)
     local = now.astimezone()

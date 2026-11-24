@@ -227,5 +227,16 @@
   "dns_keys_csv": "{n} retained DKIM keys – stored as CSV. Full list in dns_keys.csv (in the case folder, with SHA-256).",
   "ts_qualified": "Qualified timestamp (RFC 3161)",
   "log_case_base_data_taken_over": "Base data taken over from case {from_case_number} ({from_case_path})",
-  "based_on": "Base data taken over from case"
+  "based_on": "Base data taken over from case",
+  "hosts": "Computers used",
+  "hosts_note": "Note",
+  "hosts_differ": "The case was processed on {n} different computers or with different user accounts (per step, from the log).",
+  "hosts_finalize_other": "The case was finalized on a different computer than the acquisition.",
+  "host_step_create": "Case created",
+  "host_step_open": "Case opened",
+  "host_step_attempt": "Acquisition attempt",
+  "host_step_finalize": "Finalization",
+  "host_attempts": "Attempts",
+  "host_tz": "Time zone",
+  "log_finalize_started": "Finalization started"
 }
