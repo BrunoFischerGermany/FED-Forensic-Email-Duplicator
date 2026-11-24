@@ -247,5 +247,10 @@
   "settings_changes": "Settings changed after case creation",
   "settings_step_attempt": "at acquisition attempt",
   "settings_step_finalize": "at finalization",
-  "log_settings_changed": "Settings changed compared to the case state: {summary}"
+  "log_settings_changed": "Settings changed compared to the case state: {summary}",
+  "assessment": "Overall assessment",
+  "completeness": "Completeness",
+  "integrity": "Integrity",
+  "figures": "Key figures",
+  "completeness_note": "“Complete” means: as many messages acquired as the server reported at the time of acquisition. A partial acquisition (deselected folders, date range, search criteria) is a deliberate restriction, not a defect."
 }

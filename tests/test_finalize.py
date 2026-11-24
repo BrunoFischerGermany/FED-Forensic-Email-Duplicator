@@ -357,6 +357,9 @@ def test_finish_page_lists_each_zip_and_account_reports(tmp_path, imap_server, t
 
     keys = set(p.check_kv.values)
     assert {"ZIP gepackt · A-01", "ZIP gepackt · A-02", "ZIP verifiziert · A-01", "ZIP verifiziert · A-02"} <= keys
+    assert list(p.check_kv.values)[:3] == ["Vollständigkeit", "Integrität", "Kennzahlen"]  # Bewertung zuoberst
+    assert p.assessment.completeness == "complete" and p.assessment.integrity == "verified"
+    assert "2 Konten" in p.check_kv.values["Kennzahlen"].text()
     full = res.zips[0].hashes["sha256"]
     lbl = p.hash_kv.values["SHA-256 · A-01"]
     assert lbl.text().replace("\n", "") == full and full in lbl.toolTip()   # komplett, nichts abgeschnitten
@@ -807,3 +810,53 @@ def _with(cfg, **programm):
     for k, v in programm.items():
         setattr(cfg.programm, k, v)
     return cfg
+
+
+def test_assessment_complete_partial_incomplete(acquired, tmp_path, imap_server):
+    """Gesamtbewertung: offener Fall vollständig, aber noch nicht verifiziert; abgewählter Ordner ->
+    Teilsicherung mit Begründung; abgebrochener letzter Versuch -> unvollständig; nach dem Abschluss
+    verifiziert; im Bericht als erster Abschnitt."""
+    from fed.core.assessment import assess, figures_text, label
+    from fed.core.report import _fmt_bytes, fmt_duration
+
+    case = acquired
+    a = assess(case)
+    assert a.completeness == "complete" and a.integrity == "pending"
+    assert a.figures["accounts"] == 1 and a.figures["mails_saved"] == a.figures["mails_expected"] > 0
+    assert "1 Konto" in figures_text(a, _fmt_bytes, fmt_duration)
+    # Ordner abwählen -> Teilsicherung (bewusst), kein Mangel
+    fid, name = case.conn.execute("SELECT id, display_name FROM folder ORDER BY id DESC LIMIT 1").fetchone()
+    with case.conn:
+        case.conn.execute("UPDATE folder SET selected = 0 WHERE id = ?", (fid,))
+    a = assess(case)
+    assert a.completeness == "partial" and any(name in r and "bewusst" in r for r in a.completeness_reasons)
+    assert label(a.completeness) == "Teilsicherung"
+    with case.conn:
+        case.conn.execute("UPDATE folder SET selected = 1 WHERE id = ?", (fid,))
+        case.conn.execute("UPDATE attempt SET status = 'cancelled' WHERE nr = (SELECT MAX(nr) FROM attempt)")
+    a = assess(case)
+    assert a.completeness == "incomplete" and any("abgebrochen" in r for r in a.completeness_reasons)
+    with case.conn:
+        case.conn.execute("UPDATE attempt SET status = 'done'")
+    res = finish_case(case, Config())
+    a = assess(case)
+    assert a.completeness == "complete" and a.integrity == "verified"
+    txt = res.report_txt.read_text(encoding="utf-8")
+    head = txt.split("Grunddaten")[0]
+    assert "Gesamtbewertung" in head and "Vollständig" in head and "Verifiziert" in head
+    assert "Server zum Sicherungszeitpunkt" in head
+    en = __import__("fed.core.report", fromlist=["render_txt"]).render_txt(case, "en")
+    assert "Overall assessment" in en and "Complete" in en and "Verified" in en
+
+
+def test_assessment_per_account(tmp_path, imap_server, test_mails):
+    from fed.core.assessment import assess
+
+    case = _two_accounts(tmp_path, imap_server)
+    with case.conn:
+        case.conn.execute("UPDATE attempt SET status = 'failed' WHERE account_id = 2")
+    a = assess(case)
+    assert a.completeness == "incomplete" and any(r.startswith("A-02:") for r in a.completeness_reasons)
+    assert assess(case, 1).completeness == "complete" and assess(case, 2).completeness == "incomplete"
+    assert assess(case, 1).figures["accounts"] == 1
+    case.close()
