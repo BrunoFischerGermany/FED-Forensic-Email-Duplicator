@@ -713,3 +713,66 @@ def test_chain_of_custody_export_recomputable(acquired, tmp_path):
     again = Case.open(root)
     assert again.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'chain_of_custody_exported'").fetchone()[0] == 1
     again.close()
+
+
+def test_case_check_detects_every_kind_of_change(acquired):
+    """„Fallakte prüfen“: abgeschlossener Fall ohne Abweichung; danach Bericht, Manifest, ZIP-Prüfsumme
+    und Log-Eintrag manipulieren – jede Änderung wird erkannt; CLI `fed verify` meldet Exit-Code 2."""
+    from fed.cli import main
+    from fed.core.casecheck import check_case, check_text
+    from fed.core.timestamp import parse_response
+    from validation.fake_tsa import FakeTsa, available
+
+    case = acquired
+    cfg = Config()
+    if available():
+        with FakeTsa() as tsa:
+            cfg.tsa_url = tsa.url
+            finish_case(case, cfg)
+    else:
+        finish_case(case, cfg)
+    res = check_case(case)
+    names = {i.name: i for i in res.items}
+    assert res.ok, check_text(res)
+    assert {"Log-Kette", "Manifest", "Ausgabedateien", "ZIP-Prüfsummendateien", "Mails im ZIP"} <= set(names)
+    if available():
+        assert names["Zeitstempel (RFC 3161)"].ok and "2 passend" in names["Zeitstempel (RFC 3161)"].detail
+        assert parse_response((case.root / "manifest.json.tsr").read_bytes()).hashed_message
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'case_check'").fetchone()[0] == 1
+    root = case.root
+    assert main(["verify", "--case-dir", str(root)]) == 0
+
+    (root / "report.txt").write_text("verändert", encoding="utf-8")
+    res = check_case(case)
+    assert not res.ok and "report.txt" in {i.name: i for i in res.items}["Ausgabedateien"].detail
+    zip_name = next(p.name for p in root.glob("*.zip"))
+    (root / (zip_name + ".sha256")).write_text("0" * 64 + "  x.zip\n", encoding="utf-8")
+    assert {i.name: i for i in check_case(case).items}["ZIP-Prüfsummendateien"].ok is False
+    m = root / "manifest.json"
+    m.write_text(m.read_text(encoding="utf-8").replace('"chain_ok": true', '"chain_ok": false'), encoding="utf-8")
+    assert {i.name: i for i in check_case(case).items}["Manifest"].ok is False
+    if available():
+        assert {i.name: i for i in check_case(case).items}["Zeitstempel (RFC 3161)"].ok is False
+    with case.conn:  # Log-Eintrag „von außen“ ändern (Schutz-Trigger umgehen, wie ein Angreifer)
+        case.conn.execute("DROP TRIGGER log_no_update")
+        case.conn.execute("UPDATE log SET details = 'x' WHERE id = 2")
+    res = check_case(case)
+    assert {i.name: i for i in res.items}["Log-Kette"].ok is False
+    case.close()
+    again = Case.open(root)  # Bruch wird schon beim Öffnen erkannt und protokolliert
+    assert again.chain_ok_at_open is False and again.chain_first_bad == 2
+    again.close()
+    assert main(["verify", "--case-dir", str(root)]) == 2
+
+
+def test_case_check_open_case_uses_work_dir(acquired):
+    from fed.core.casecheck import check_case
+
+    case = acquired
+    res = check_case(case)
+    names = {i.name: i for i in res.items}
+    assert res.ok and names["Manifest"].ok is None and names["Mails im Arbeitsordner"].ok
+    first = case.conn.execute("SELECT zip_path FROM message WHERE status = 'valid' LIMIT 1").fetchone()[0]
+    (case.work_dir / first).write_bytes(b"manipuliert")
+    res = check_case(case)
+    assert not res.ok and first in {i.name: i for i in res.items}["Mails im Arbeitsordner"].detail

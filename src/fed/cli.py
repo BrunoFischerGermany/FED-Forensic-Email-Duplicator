@@ -190,11 +190,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "verify":
         from fed.core.case import Case
 
+        from fed.core.casecheck import check_case, check_text
+
         case = Case.open(args.case_dir)
-        ok, bad = case.verify_log()
+        res = check_case(case)
         case.close()
-        print(t("Log-Hash-Kette: OK") if ok else t("Log-Hash-Kette GEBROCHEN ab Eintrag {n}", n=bad))
-        return 0 if ok else 2
+        print(check_text(res))
+        print(t("Fallakte: keine Abweichung") if res.ok else t("Fallakte: {n} Abweichung(en)", n=len(res.errors)))
+        return 0 if res.ok else 2
     if args.command == "custody":
         from fed.core import custody
         from fed.core.case import Case

@@ -158,7 +158,7 @@ class HistoryTab(QWidget):
         head.addStretch(1)
         self.chain = label("", "Ok")
         head.addWidget(self.chain)
-        for text, fn in ((self.tr("Hash-Kette prüfen"), self.verify_chain), (self.tr("Dateien nachhashen"), self.rehash),
+        for text, fn in ((self.tr("Fallakte prüfen"), self.check_case),
                          (self.tr("Export CSV"), self.export), (self.tr("Chain of Custody …"), self.export_custody)):
             b = QPushButton(text)
             b.clicked.connect(fn)
@@ -268,51 +268,34 @@ class HistoryTab(QWidget):
                              (r[4] or 0) - (r[3] or 0) if r[2] else "", ba])
             self.folders.fill(rows)
 
-    def verify_chain(self) -> None:
+    def check_case(self) -> None:
+        """„Fallakte prüfen“: Log-Kette, Manifest, Ausgabedateien, ZIPs/Mails und Zeitstempel in einem Durchgang."""
         case = self.get_case()
         if not case:
             return
-        ok, bad = case.verify_log()
-        n = case.conn.execute("SELECT COUNT(*) FROM log").fetchone()[0]
-        case.log("INFO" if ok else "ERROR", "history_chain_check", {"ok": ok, "first_bad": bad})
-        self.chain.setText(self.tr("✓ Log-Kette unverändert · {0} Einträge").format(n) if ok
-                           else self.tr("✗ Log-Kette gebrochen ab Eintrag {0}").format(bad))
-        restyle(self.chain, "Ok" if ok else "Error")
+        from fed.core.casecheck import check_case
 
-    def rehash(self) -> None:
-        case = self.get_case()
-        if not case:
-            return
-        self.chain.setText(self.tr("hashe nach …"))
+        self.chain.setText(self.tr("prüfe Fallakte …"))
+        restyle(self.chain, "Muted")
+        run_async(lambda cancel, report: check_case(case, cancel), self.show_check,
+                  lambda e, tb: QMessageBox.critical(self, "FED", e), parent=self)
 
-        def work(cancel, report):
-            if not case.work_dir.exists():  # Arbeitsordner gelöscht -> gegen die ZIPs prüfen
-                from fed.core.finalize import verify_case_zips
+    def show_check(self, res) -> None:
+        from fed.core.casecheck import check_text
 
-                results = verify_case_zips(case, cancel)
-                if not results:
-                    raise RuntimeError(self.tr("Weder Arbeitsordner noch ZIP vorhanden"))
-                problems = [p for v in results for p in v.problems]
-                case.log("INFO" if not problems else "ERROR", "history_rehash_zip",
-                         {"zips": [v.path.name for v in results], "problems": problems})
-                return sum(v.files for v in results), problems
-            bad, n = [], 0
-            for zip_path, sha in case.conn.execute("SELECT zip_path, sha256 FROM message WHERE status = 'valid'"):
-                cancel.raise_if_cancelled()
-                p = case.work_dir / zip_path
-                n += 1
-                if not p.exists() or hash_file(p)["sha256"] != sha:
-                    bad.append(zip_path)
-            case.log("INFO" if not bad else "ERROR", "history_rehash", {"checked": n, "invalid": bad})
-            return n, bad
-
-        def done(res):
-            n, bad = res
-            self.chain.setText(self.tr("✓ {0} Dateien identisch").format(n) if not bad
-                               else self.tr("✗ {0} von {1} Dateien abweichend oder fehlend").format(len(bad), n))
-            restyle(self.chain, "Ok" if not bad else "Error")
-
-        run_async(work, done, lambda e, tb: QMessageBox.critical(self, "FED", e), parent=self)
+        errors = len(res.errors)
+        self.chain.setText(self.tr("✓ Fallakte geprüft – keine Abweichung") if res.ok
+                           else self.tr("✗ Fallakte: {0} Abweichung(en)").format(errors))
+        restyle(self.chain, "Ok" if res.ok else "Error")
+        text = check_text(res)
+        self.chain.setToolTip(text)
+        self.last_check = res
+        if not getattr(self, "quiet", False):
+            box = QMessageBox(QMessageBox.Icon.Information if res.ok else QMessageBox.Icon.Warning,
+                              self.tr("Fallakte prüfen"), self.chain.text(), parent=self)
+            box.setDetailedText(text)
+            box.setInformativeText(self.tr("Das Prüfergebnis ist im Log des Falls festgehalten."))
+            box.exec()
 
     def selected_mail_ids(self) -> list[int]:
         rows = sorted({self.mails.proxy.mapToSource(i).row() for i in self.mails.view.selectionModel().selectedRows()})

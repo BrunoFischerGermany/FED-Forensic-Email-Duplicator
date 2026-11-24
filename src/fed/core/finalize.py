@@ -535,7 +535,9 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         raise ValueError(_t("Es läuft noch ein Versuch"))
     from fed.core.syscheck import host_snapshot
 
-    case.log("INFO", "finalize_started", {"host": host_snapshot()})  # Rechner/Benutzer des Abschlusses
+    chain_ok, first_bad = case.verify_log()  # vor dem Abschluss prüfen; ein Bruch steht im Log und im Bericht
+    case.log("INFO" if chain_ok else "ERROR", "finalize_started",
+             {"host": host_snapshot(), "chain_ok": chain_ok, "first_bad": first_bad})  # Rechner/Benutzer des Abschlusses
     if closing_note is not None or closing_note_html is not None:
         case.set_closing_note(closing_note or "", closing_note_html)
     mode = zip_mode_for(case, cfg)
