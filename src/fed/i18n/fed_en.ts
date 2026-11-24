@@ -263,6 +263,10 @@
         <translation>testing …</translation>
     </message>
     <message>
+        <source>Ein Browserfenster zur Anmeldung bei {0} wurde geöffnet – bitte dort anmelden. FED wartet und macht danach automatisch weiter.</source>
+        <translation>A browser window for signing in to {0} has been opened – please sign in there. FED waits and continues automatically afterwards.</translation>
+    </message>
+    <message>
         <source>Code {0} auf {1} eingeben</source>
         <translation>Enter code {0} at {1}</translation>
     </message>

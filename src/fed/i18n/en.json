@@ -719,5 +719,7 @@
   "Das Prüfergebnis ist im Log des Falls festgehalten.": "The result is recorded in the case log.",
   "Vollständigkeit": "Completeness",
   "Integrität": "Integrity",
-  "Kennzahlen": "Key figures"
+  "Kennzahlen": "Key figures",
+  "Ein Browserfenster zur Anmeldung bei {0} wurde geöffnet – bitte dort anmelden. FED wartet und macht danach automatisch weiter.": "A browser window for signing in to {0} has been opened – please sign in there. FED waits and continues automatically afterwards.",
+  "Kein Fenster zu sehen? Erneut öffnen": "No window visible? Open again"
 }

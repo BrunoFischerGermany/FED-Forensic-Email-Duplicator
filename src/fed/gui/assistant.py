@@ -1149,7 +1149,17 @@ class AccountPage(QWidget):
                 cid = cfg.oauth_google.client_id if m == "google" else cfg.oauth_microsoft.effective_client_id
                 secret = cfg.oauth_google.client_secret if m == "google" else ""
                 sess = OAuthSession(prov, cid, secret, cfg.proxy_url)
-                sess.login_interactive(login_hint=hint, device_code=device, show_device_code=report, cancel=cancel)
+
+                def open_browser(url: str):
+                    import webbrowser
+
+                    ok = webbrowser.open(url)
+                    if ok is not False:  # Hinweis in der Oberfläche: Anmeldung läuft im Browserfenster
+                        report(("browser", url))
+                    return ok
+
+                sess.login_interactive(login_hint=hint, device_code=device, show_device_code=report, cancel=cancel,
+                                       open_browser=open_browser)
                 st.oauth_session = sess
                 connect = make_connector(host, port, sec, user, oauth_session=sess, timeout=timeout)
             c = connect()
@@ -1158,11 +1168,23 @@ class AccountPage(QWidget):
             finally:
                 c.logout()
 
+        provider = "Google" if m == "google" else "Microsoft"
+
         def progress(dc):
             if isinstance(dc, oauth.DeviceCode):
                 self._show_device_code(dc)
+            elif isinstance(dc, tuple) and dc[0] == "browser":
+                self._show_browser_hint(provider, dc[1])
 
         run_async(work, self._test_ok, self._test_failed, progress, parent=self)
+
+    def _show_browser_hint(self, provider: str, url: str) -> None:
+        """Statt „teste …“: Hinweis, dass die Anmeldung im (evtl. verdeckten) Browserfenster läuft."""
+        self.test_state.setText(
+            html.escape(self.tr("Ein Browserfenster zur Anmeldung bei {0} wurde geöffnet – bitte dort anmelden. "
+                                "FED wartet und macht danach automatisch weiter.").format(provider))
+            + f' <a href="{html.escape(url)}">{html.escape(self.tr("Kein Fenster zu sehen? Erneut öffnen"))}</a>')
+        restyle(self.test_state, "Hint")
 
     def _show_device_code(self, dc: oauth.DeviceCode) -> None:
         """Gerätecode groß, in der Zwischenablage, Adresse anklickbar (Anmeldung auch auf diesem Gerät möglich)."""
