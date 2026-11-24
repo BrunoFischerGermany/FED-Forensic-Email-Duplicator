@@ -145,3 +145,70 @@ def test_linkify():
     assert '<a href="https://account.live.com/activity">account.live.com/activity</a>' in h
     assert "Outlook.com:" in h and 'href="https://Outlook' not in h
     assert "&lt;b&gt;" in h and "<br>" in h and "b.de</a>" not in h
+
+
+def _fake_token(monkeypatch):
+    monkeypatch.setattr(oauth, "_post", lambda *a, **k: {"access_token": "x", "expires_in": 3600})
+
+
+def _redirect(url, host="127.0.0.1"):
+    import urllib.parse
+    import urllib.request
+
+    q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
+    port = urllib.parse.urlsplit(q["redirect_uri"]).port
+    netloc = f"[{host}]" if ":" in host else host
+    return q, port, lambda: urllib.request.urlopen(
+        f"http://{netloc}:{port}/?code=abc&state={q['state']}", timeout=5).read()
+
+
+def test_preconnect_does_not_block_redirect(monkeypatch):
+    """Chrome/Edge öffnen oft eine leere Vorab-Verbindung – die darf die Rückleitung nicht blockieren
+    (vorher: Zeitüberschreitung, typisch unter Windows)."""
+    import socket
+    import time
+
+    _fake_token(monkeypatch)
+
+    def browser(url):
+        _q, port, go = _redirect(url)
+        idle = socket.create_connection(("127.0.0.1", port))  # verbindet, sendet nie etwas
+        time.sleep(0.2)
+        go()
+        idle.close()
+
+    t0 = time.monotonic()
+    tok = oauth.authorize(oauth.microsoft(), "cid", open_browser=browser, timeout_s=10)
+    assert tok.access_token == "x" and time.monotonic() - t0 < 5
+
+
+def test_localhost_redirect_also_on_ipv6(monkeypatch):
+    """Microsoft leitet auf http://localhost:<port>/ zurück; der Browser kann das als ::1 auflösen."""
+    import socket
+
+    try:
+        with socket.socket(socket.AF_INET6) as s:
+            s.bind(("::1", 0))
+    except OSError:
+        pytest.skip("kein IPv6-Loopback")
+    _fake_token(monkeypatch)
+    tok = oauth.authorize(oauth.microsoft(), "cid", open_browser=lambda url: _redirect(url, "::1")[2](),
+                          timeout_s=10)
+    assert tok.access_token == "x"
+
+
+def test_browser_open_failure_reported_immediately(monkeypatch):
+    """Lässt sich der Browser nicht öffnen, kommt sofort eine verständliche Meldung statt 5 Minuten Warten."""
+    import time
+
+    _fake_token(monkeypatch)
+
+    def broken(url):
+        raise OSError("[WinError 1155] Keine Anwendung zugeordnet")
+
+    t0 = time.monotonic()
+    with pytest.raises(oauth.OAuthError, match="Gerätecode"):
+        oauth.authorize(oauth.microsoft(), "cid", open_browser=broken, timeout_s=60)
+    assert time.monotonic() - t0 < 5
+    with pytest.raises(oauth.OAuthError, match="kein Browser"):
+        oauth.authorize(oauth.microsoft(), "cid", open_browser=lambda url: False, timeout_s=60)
