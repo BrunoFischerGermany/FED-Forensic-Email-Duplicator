@@ -744,6 +744,10 @@ class AccountPage(QWidget):
             sc.activated.connect(lambda b=btn: b.isEnabled() and b.animateClick())
             btn.setToolTip((btn.toolTip() + "  ·  " if btn.toolTip() else "")
                            + QKeySequence(seq).toString(QKeySequence.SequenceFormat.NativeText))
+        # Strg+K / Cmd+K: weiteres Konto – Formular leeren, Cursor in die E-Mail-Adresse (auch ohne Fokus im Formular)
+        self.new_account_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        self.new_account_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)  # solange die Konto-Seite sichtbar ist
+        self.new_account_shortcut.activated.connect(self._new_account_key)
         back = QPushButton(self.tr("Zurück"))
         back.clicked.connect(self.back.emit)
         # ohne neues Konto direkt zum Abschluss (z. B. nach einem Neustart von FED)
@@ -755,6 +759,8 @@ class AccountPage(QWidget):
         self.new_btn.setToolTip(self.tr("Formular leeren und ein weiteres Konto zu diesem Fall hinzufügen"))
         self.new_btn.clicked.connect(self.new_account.emit)
         self.new_btn.setVisible(False)
+        self.new_btn.setToolTip(self.new_btn.toolTip() + "  ·  "
+                                + QKeySequence("Ctrl+K").toString(QKeySequence.SequenceFormat.NativeText))
         # Leiste unten bleibt beim Scrollen sichtbar: Stand der Eingaben und genau ein Hauptknopf
         footer = QWidget()
         footer.setObjectName("Page")
@@ -784,6 +790,15 @@ class AccountPage(QWidget):
             x.textChanged.connect(lambda *_: self._update_status())
         self._show_notes(False)
         self._update_conn_view()
+
+    def _new_account_key(self) -> None:
+        """Strg/Cmd+K: neues Konto im offenen Fall; sonst nur in die Adresse springen."""
+        case = self.st.case
+        if case is not None and not case.closed and case.conn.execute("SELECT 1 FROM account LIMIT 1").fetchone():
+            self.new_account.emit()  # Assistent leert das Formular und setzt den Cursor in die Adresse
+        else:
+            self.email.setFocus()
+            self.email.selectAll()
 
     # ------------------------------------------------------------ Darstellung
 
@@ -2899,6 +2914,7 @@ class Assistant(QWidget):
         self.rail_accounts.mails_requested.connect(lambda o: self.show_mails.emit(o["id"]))
         self.p_acc.accounts.remove_requested.connect(self._remove_account)
         self.case_changed.connect(self._update_rail)
+        self.p_acc.email.editingFinished.connect(self._update_rail)  # Leiste folgt dem Konto im Formular
         self._show(0, 0)
 
     def _show(self, page_index: int, step: int = 0) -> None:
@@ -2925,9 +2941,14 @@ class Assistant(QWidget):
         if case is not None and page in (1, 2, 3):
             if page == 3 and self.p_acq.job is not None:
                 who, aid = f"{self.p_acq.job.evidence} · {self.p_acq.job.email}", self.p_acq.job.account_id
+            elif page == 1:  # Konto-Seite: was im Formular steht (nicht das zuletzt bearbeitete Konto)
+                email = normalize_email(self.p_acc.email.text())
+                row = case.conn.execute("SELECT id FROM account WHERE email = ?", (email,)).fetchone() if email else None
+                aid = row[0] if row else None
+                who = email or self.tr("neues Konto")
             else:
-                sp = self.st.spec if page > 1 else None
-                email = (sp.email if sp else "") or self.st.email or normalize_email(self.p_acc.email.text())
+                sp = self.st.spec
+                email = (sp.email if sp else "") or self.st.email
                 who = (f"{sp.evidence_number} · {email}" if sp and sp.evidence_number else email) or self.tr("neues Konto")
                 aid = self.st.account_id
             parts = []
@@ -3080,11 +3101,15 @@ class Assistant(QWidget):
     def _another(self) -> None:
         self.st.account_id = None
         self.st.oauth_session = None
+        self.st.spec = None
+        self.st.email = ""
         p = self.p_acc
         p.reset()
         p.prepare()
         self.refresh_accounts()
         self._show(1, 2)
+        p.email.setFocus()  # Cursor gleich in die E-Mail-Adresse
+        QTimer.singleShot(0, p.email.setFocus)  # nach dem Seitenwechsel noch einmal (Fokus-Wechsel der Plattform)
 
     def _new_case(self) -> None:
         if self.st.case:

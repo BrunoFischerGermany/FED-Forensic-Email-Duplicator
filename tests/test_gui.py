@@ -1198,3 +1198,48 @@ def test_rail_case_accounts_closing(app, tmp_path, monkeypatch):
     w.close()
     w.deleteLater()
     app.processEvents()
+
+
+def test_ctrl_k_on_account_page_starts_new_account(app, tmp_path, monkeypatch):
+    """Strg+K/Cmd+K auf der Konto-Seite (auch wenn dort ein gesichertes Konto steht): Formular leer,
+    Cursor in der E-Mail-Adresse; die linke Leiste folgt dem Formular."""
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+
+    from fed.core import config as cfgmod
+    from fed.gui import assistant as ga
+    from fed.gui.main_window import MainWindow
+
+    monkeypatch.setattr(ga, "ask_device_owner", lambda *a, **k: "own")
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    w = MainWindow(cfg, tmp_path)
+    w.show()
+    w.activateWindow()
+    a = w.assistant
+    _pump(app, lambda: a.st.system is not None)
+    a.p_case.case_no.setText("AZ-K")
+    a.p_case._go_clicked()
+    with a.st.case.conn:
+        a.st.case.conn.execute(
+            "INSERT INTO account (email, evidence_number, server, port, security, auth_method, username) "
+            "VALUES ('max@example.org', 'DF001', 'imap.example.org', 993, 'ssl', 'password', 'max@example.org')")
+    a.refresh_accounts()
+    p = a.p_acc
+    p.prepare()
+    p._pick(next(o for o in p.accounts.rows if o["email"] == "max@example.org"))
+    a._update_rail()
+    assert "<b>Verbinden</b>" in a.rail_accounts.steps.text() and a.rail_accounts.current is not None
+    p.test_btn.setFocus()
+    QTest.keyClick(w, Qt.Key.Key_K, Qt.KeyboardModifier.ControlModifier)
+    app.processEvents()
+    assert p.email.text() == "" and p.evidence.text() == "DF002"  # neues Konto, nächste Nummer vorgeschlagen
+    _pump(app, lambda: w.focusWidget() is p.email, 5)  # Cursor in der Adresse (offscreen: Fokus-Widget des Fensters)
+    assert a.rail_accounts.current is None and "neues Konto" in a.rail_accounts.steps.text()
+    w.close()
+    w.deleteLater()
+    app.processEvents()
