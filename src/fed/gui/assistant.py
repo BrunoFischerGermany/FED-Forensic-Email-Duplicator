@@ -2090,6 +2090,7 @@ class FinishPage(QWidget):
             "reports_pdf": self.tr("PDF-Bericht wird erzeugt"),
             "reports": self.tr("Berichte werden erzeugt (TXT/PDF) und gehasht"),
             "encrypt": self.tr("Verschlüsselte Weitergabe-Kopie wird erstellt und geprüft"),
+            "manifest": self.tr("Manifest (Prüfanker für Dateien und Log) wird erstellt"),
         }
 
         def progress(p):
@@ -2174,7 +2175,7 @@ class FinishPage(QWidget):
             if remaining <= planned * 0.01:           # praktisch fertig – kein „00:00:00“
                 return "final"
             return remaining / bps
-        if p.phase in ("timestamp", "reports_txt", "reports_pdf", "reports", "encrypt"):
+        if p.phase in ("timestamp", "reports_txt", "reports_pdf", "reports", "encrypt", "manifest"):
             return "final"                            # kurze Schlussphase ohne Byte-Zähler
         return None
 
@@ -2229,6 +2230,16 @@ class FinishPage(QWidget):
                   + self.tr("geprüft"), "ok")
             k.set(self.tr("Passwort (nur jetzt sichtbar)"), getattr(self, "_password", "") or "", mono=True)
         self._password = None
+        if res.manifest is not None:
+            sha = res.manifest_hashes.get("sha256", "")
+            k.set(self.tr("Manifest (Prüfanker)"), f"{res.manifest.name} · SHA-256 {sha[:16]}…", "ok",
+                  tip=f"{res.manifest}\nSHA-256: {sha}")
+            ts, err = res.manifest_timestamp
+            if ts is not None:
+                k.set(self.tr("Zeitstempel Manifest"), self.tr("{0} UTC · Seriennr. {1}").format(
+                    ts.gen_time.replace("T", " ").rstrip("Z"), ts.serial), "ok")
+            elif err:
+                k.set(self.tr("Zeitstempel Manifest"), self.tr("fehlgeschlagen: {0}").format(err), "warn")
         for z in res.zips:
             for p in z.problems:
                 k.set(self.tr("Hinweis"), describe(p), "warn")

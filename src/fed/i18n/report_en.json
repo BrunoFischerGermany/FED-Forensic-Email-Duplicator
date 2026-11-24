@@ -238,5 +238,8 @@
   "host_step_finalize": "Finalization",
   "host_attempts": "Attempts",
   "host_tz": "Time zone",
-  "log_finalize_started": "Finalization started"
+  "log_finalize_started": "Finalization started",
+  "anchor": "Verification anchor",
+  "anchor_text": "manifest.json – created after this report; contains the SHA-256 of all output files (including this report) and the count and hash of the last log entry; with a timestamp service configured, additionally the RFC 3161 timestamp manifest.json.tsr.",
+  "log_manifest_created": "Manifest {file} created ({files} files, log state {log_entries} entries, SHA-256 {sha256})"
 }
