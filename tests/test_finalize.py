@@ -776,3 +776,34 @@ def test_case_check_open_case_uses_work_dir(acquired):
     (case.work_dir / first).write_bytes(b"manipuliert")
     res = check_case(case)
     assert not res.ok and first in {i.name: i for i in res.items}["Mails im Arbeitsordner"].detail
+
+
+def test_settings_changes_after_case_creation_are_logged(acquired):
+    """Einstellungen nach der Fallanlage geändert: beim Abschluss protokolliert (alt → neu, Schritt),
+    Geheimnisse geschwärzt, im Bericht aufgeführt; unveränderte Einstellungen erzeugen keinen Eintrag."""
+    case = acquired
+    base = Config()
+    with case.conn:
+        case.conn.execute("DELETE FROM config_snapshot")
+    case.store_config_snapshot('[programm]\nbericht_dns = "csv"\nbericht_mailliste = "immer"\n', None)
+    assert case.record_settings(_with(base, bericht_mailliste="liste"), "attempt") == []  # Altwert normalisiert
+    cfg = _with(Config(), bericht_dns="tabelle", bericht_mailliste="liste")
+    cfg.proxy_url = "http://user:geheim@proxy.local:3128"
+    cfg.oauth_google.client_secret = "GOCSPX-geheim"
+    res = finish_case(case, cfg)
+    changes = {c["key"]: c for c in case.settings_changes()}
+    assert changes["programm.bericht_dns"]["old"] == "csv" and changes["programm.bericht_dns"]["new"] == "tabelle"
+    assert changes["programm.bericht_dns"]["step"] == "finalize"
+    assert changes["proxy.url"]["new"] == "http://***@proxy.local:3128"
+    assert changes["oauth.google.client_secret"]["new"] == "***"
+    raw = " ".join(r[0] for r in case.conn.execute("SELECT details FROM log"))
+    assert "geheim" not in raw
+    txt = res.report_txt.read_text(encoding="utf-8")
+    assert "Einstellungen nach der Fallanlage geändert" in txt and "programm.bericht_dns" in txt and "geheim" not in txt
+    assert case.settings_state()["programm.bericht_dns"] == "tabelle"  # Stand fortgeschrieben
+
+
+def _with(cfg, **programm):
+    for k, v in programm.items():
+        setattr(cfg.programm, k, v)
+    return cfg

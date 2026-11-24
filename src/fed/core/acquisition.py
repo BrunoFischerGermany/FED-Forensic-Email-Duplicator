@@ -251,10 +251,12 @@ def run_attempt(
     delete_old: bool = False,
     cfg: Config | None = None,
 ) -> AttemptResult:
-    cfg = cfg or Config()
-    cancel = cancel or CancelToken()
     if case.closed:
         raise ValueError(_t("Fall ist abgeschlossen – keine weiteren Versuche möglich"))
+    if cfg is not None:  # Einstellungen geändert seit Fallanlage? -> protokollieren (nur mit echter Config)
+        case.record_settings(cfg, "attempt")
+    cfg = cfg or Config()
+    cancel = cancel or CancelToken()
     conn = case.conn
     acc = conn.execute("SELECT email, date_from, date_to, filters FROM account WHERE id = ?", (account_id,)).fetchone()
     if not acc:

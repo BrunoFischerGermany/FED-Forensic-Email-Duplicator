@@ -157,6 +157,69 @@ def validate(cfg: Config) -> None:
         raise ConfigError(t("{key} muss eins von {values} sein", key="design", values=["system", "hell", "dunkel"]))
 
 
+SECRET_KEYS = {"oauth.google.client_secret"}  # nie im Klartext ins Log
+
+
+def _mask_url(url: str) -> str:
+    """Zugangsdaten in einer Proxy-URL schwärzen (``http://user:pw@host`` -> ``http://***@host``)."""
+    from urllib.parse import urlsplit, urlunsplit
+
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return "***" if "@" in url else url
+    if parts.username is None and parts.password is None:
+        return url
+    host = parts.hostname or ""
+    netloc = "***@" + host + (f":{parts.port}" if parts.port else "")
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
+
+def flat_settings(cfg: Config) -> dict[str, str]:
+    """Wirksame Einstellungen flach (``programm.bericht_dns`` -> ``csv``), Geheimnisse geschwärzt –
+    für den Vergleich mit dem Stand bei der Fallanlage."""
+    out: dict[str, str] = {}
+
+    def walk(prefix: str, value) -> None:
+        if isinstance(value, dict):
+            for k, v in value.items():
+                walk(f"{prefix}.{k}" if prefix else k, v)
+            return
+        if isinstance(value, bool):
+            text = "true" if value else "false"
+        elif isinstance(value, list):
+            text = ", ".join(str(x) for x in value)
+        else:
+            text = str(value)
+        if prefix in SECRET_KEYS:
+            text = "***" if text else ""
+        elif prefix == "proxy.url":
+            text = _mask_url(text)
+        out[prefix] = text
+
+    walk("", _to_dict(cfg))
+    return out
+
+
+def parse_lenient(text: str) -> Config:
+    """Config aus Text (z. B. Kopie in der Fall-Datei); unbekannte Schlüssel älterer/neuerer Versionen
+    werden ignoriert, statt den Vergleich zu verhindern."""
+    from dataclasses import fields
+
+    data = tomllib.loads(text or "")
+
+    def keep(section: dict, cls) -> dict:
+        names = {f.name for f in fields(cls)}
+        return {k: v for k, v in (section or {}).items() if k in names}
+
+    data["agentur"] = keep(data.get("agentur", {}), Agentur)
+    data["programm"] = keep(data.get("programm", {}), Programm)
+    oauth = data.get("oauth", {})
+    data["oauth"] = {"google": keep(oauth.get("google", {}), OAuthGoogle),
+                     "microsoft": keep(oauth.get("microsoft", {}), OAuthMicrosoft)}
+    return _from_dict(data)
+
+
 def save(cfg: Config, path: Path) -> None:
     """Schreibt die Config (Kommentare der Vorlage gehen dabei verloren)."""
     import tomli_w

@@ -198,6 +198,54 @@ class Case:
             out.append({"ts_utc": ts, "device_owner": d.get("device_owner"), "hostname": d.get("hostname", "")})
         return out
 
+    def settings_state(self) -> dict[str, str] | None:
+        """Einstellungsstand des Falls: Kopie bei der Fallanlage plus alle seither protokollierten Änderungen."""
+        import tomllib
+
+        from fed.core import config
+
+        row = self.conn.execute("SELECT toml_text FROM config_snapshot WHERE id = 1").fetchone()
+        if row is None:
+            return None
+        try:
+            snap = config.parse_lenient(row[0])
+            try:
+                config.validate(snap)  # normalisiert Altwerte (z. B. „immer“ -> „liste“) wie beim Laden
+            except config.ConfigError:
+                pass
+            state = config.flat_settings(snap)
+        except (tomllib.TOMLDecodeError, TypeError, ValueError):
+            return None
+        for (details,) in self.conn.execute("SELECT details FROM log WHERE event = 'settings_changed' ORDER BY id"):
+            for c in json.loads(details).get("changes", []):
+                state[c["key"]] = c["new"]
+        return state
+
+    def record_settings(self, cfg, step: str) -> list[dict]:
+        """Wirksame Einstellungen mit dem Stand des Falls vergleichen; Abweichungen protokollieren
+        (``settings_changed``, Geheimnisse geschwärzt). Rückgabe: die Änderungen."""
+        from fed.core import config
+
+        base = self.settings_state()
+        if base is None:
+            return []
+        cur = config.flat_settings(cfg)
+        changes = [{"key": k, "old": base.get(k, ""), "new": cur.get(k, "")}
+                   for k in sorted(set(base) | set(cur)) if base.get(k, "") != cur.get(k, "")]
+        if changes:
+            summary = "; ".join(f"{c['key']}: {c['old'] or '–'} → {c['new'] or '–'}" for c in changes)
+            self.log("INFO", "settings_changed", {"step": step, "changes": changes, "summary": summary})
+        return changes
+
+    def settings_changes(self) -> list[dict]:
+        """Alle protokollierten Einstellungsänderungen (für den Bericht)."""
+        out = []
+        for ts, details in self.conn.execute(
+                "SELECT ts_utc, details FROM log WHERE event = 'settings_changed' ORDER BY id"):
+            d = json.loads(details)
+            out += [{"ts_utc": ts, "step": d.get("step", ""), **c} for c in d.get("changes", [])]
+        return out
+
     def host_history(self) -> list[dict]:
         """Rechner/Benutzer je Arbeitsschritt (Fallanlage, Öffnen, Sicherungsversuch, Abschluss) aus dem
         Log – so ist nachvollziehbar, wenn z. B. vor Ort gesichert und im Amt abgeschlossen wurde."""
