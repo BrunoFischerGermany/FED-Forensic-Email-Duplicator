@@ -353,7 +353,13 @@ class Case:
     MAX_LOGO_BYTES = 2 * 1024 * 1024
 
     def store_config_snapshot(self, toml_text: str, logo_path: Path | None) -> None:
-        """Kopie der Config und des Logos (als BLOB) – spätere Änderungen betreffen diesen Case nicht."""
+        """Kopie der Config und des Logos (als BLOB) – spätere Änderungen betreffen diesen Case nicht.
+
+        Geheimnisse (Google-Client-Secret, Zugangsdaten in der Proxy-URL) werden vor dem Speichern
+        geschwärzt; welche Schlüssel betroffen waren, steht im Log (nie der Wert)."""
+        from fed.core.config import redact_text
+
+        toml_text, redacted = redact_text(toml_text)
         blob = mime = sha = name = None
         if logo_path and logo_path.exists():
             blob = logo_path.read_bytes()
@@ -382,7 +388,10 @@ class Case:
                 "logo_sha256 = excluded.logo_sha256",
                 (toml_text, name, mime, blob, sha),
             )
-        self.log("INFO", "config_snapshot", {"logo": name, "logo_sha256": sha})
+        details = {"logo": name, "logo_sha256": sha}
+        if redacted:
+            details["redacted"] = redacted
+        self.log("INFO", "config_snapshot", details)
 
     def logo(self) -> tuple[bytes, str, str] | None:
         row = self.conn.execute("SELECT logo_blob, logo_mime, logo_sha256 FROM config_snapshot WHERE id = 1").fetchone()
