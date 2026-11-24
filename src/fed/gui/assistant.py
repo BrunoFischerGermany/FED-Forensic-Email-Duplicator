@@ -2206,6 +2206,7 @@ class FinishPage(QWidget):
         self.sub.setText(self.tr("{0} Mails gesichert und verifiziert · ab jetzt nur noch lesend").format(total))
         k = self.check_kv
         k.clear()
+        self._show_assessment(k)
         changed = self.st.case.conn.execute(
             "SELECT COUNT(*) FROM folder WHERE selected = 1 AND status_before IS NOT NULL AND status_before != status_after"
         ).fetchone()[0]
@@ -2261,6 +2262,24 @@ class FinishPage(QWidget):
         self.report_lbl.setText(str(res.report_pdf))
         self.open_pdf.setEnabled(True)
         self._show_account_reports()
+
+    def _show_assessment(self, k) -> None:
+        """Gesamtbewertung oben in der Abschlussübersicht: Vollständigkeit, Integrität (je mit Begründung)
+        und Kennzahlen – dieselbe Bewertung wie im Bericht."""
+        from fed.core.assessment import assess, figures_text, label
+        from fed.core.report import fmt_duration
+
+        a = assess(self.st.case)
+        tone = {"complete": "ok", "partial": None, "incomplete": "warn", "none": "warn",
+                "verified": "ok", "failed": "error", "pending": None}
+
+        def text(state, reasons):
+            return "\n".join([label(state), *("– " + r for r in reasons)])
+
+        k.set(self.tr("Vollständigkeit"), text(a.completeness, a.completeness_reasons), tone[a.completeness])
+        k.set(self.tr("Integrität"), text(a.integrity, a.integrity_reasons), tone[a.integrity])
+        k.set(self.tr("Kennzahlen"), figures_text(a, _fmt_bytes, fmt_duration))
+        self.assessment = a
 
     def _zip_tags(self, res) -> list[str]:
         """Kennung je ZIP für die Übersicht: „ · DF001“ bei einem ZIP je Konto, sonst leer bzw. Nummer."""

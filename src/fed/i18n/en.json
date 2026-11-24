@@ -716,5 +716,8 @@
   "prüfe Fallakte …": "verifying case file …",
   "✓ Fallakte geprüft – keine Abweichung": "✓ Case file verified – no discrepancy",
   "✗ Fallakte: {0} Abweichung(en)": "✗ Case file: {0} discrepancy(ies)",
-  "Das Prüfergebnis ist im Log des Falls festgehalten.": "The result is recorded in the case log."
+  "Das Prüfergebnis ist im Log des Falls festgehalten.": "The result is recorded in the case log.",
+  "Vollständigkeit": "Completeness",
+  "Integrität": "Integrity",
+  "Kennzahlen": "Key figures"
 }

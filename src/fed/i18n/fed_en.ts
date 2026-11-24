@@ -1457,6 +1457,18 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Note</translation>
     </message>
     <message>
+        <source>Vollständigkeit</source>
+        <translation>Completeness</translation>
+    </message>
+    <message>
+        <source>Integrität</source>
+        <translation>Integrity</translation>
+    </message>
+    <message>
+        <source>Kennzahlen</source>
+        <translation>Key figures</translation>
+    </message>
+    <message>
         <source>Abschluss fehlgeschlagen</source>
         <translation>Finishing failed</translation>
     </message>

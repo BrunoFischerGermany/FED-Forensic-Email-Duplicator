@@ -247,5 +247,10 @@
   "settings_changes": "Einstellungen nach der Fallanlage geändert",
   "settings_step_attempt": "bei Sicherungsversuch",
   "settings_step_finalize": "beim Abschluss",
-  "log_settings_changed": "Einstellungen gegenüber dem Stand des Falls geändert: {summary}"
+  "log_settings_changed": "Einstellungen gegenüber dem Stand des Falls geändert: {summary}",
+  "assessment": "Gesamtbewertung",
+  "completeness": "Vollständigkeit",
+  "integrity": "Integrität",
+  "figures": "Kennzahlen",
+  "completeness_note": "„Vollständig“ heißt: so viele Mails gesichert, wie der Server zum Sicherungszeitpunkt gemeldet hat. Eine Teilsicherung (abgewählte Ordner, Zeitraum, Suchkriterien) ist bewusst eingeschränkt und kein Mangel."
 }

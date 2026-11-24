@@ -138,6 +138,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "system": _q(case, "SELECT * FROM system_check ORDER BY id LIMIT 1"),  # bei Fallanlage
         "system_checks": _q(case, "SELECT user, hostname, ntp_offset_s, ts_utc FROM system_check ORDER BY id"),
         "hosts": case.host_history(),
+        "assessment": _assess(case, account_id),
         "settings_changes": case.settings_changes(),
         "device": case.device_owner_history(),
         "based_on": _based_on(case),
@@ -176,6 +177,25 @@ def _based_on(case: Case) -> dict | None:
     return d if isinstance(d, dict) else None
 
 
+def _assess(case: Case, account_id: int | None):
+    from fed.core.assessment import assess
+
+    return assess(case, account_id)
+
+
+def _assessment_items(a, L: dict) -> list[tuple[str, str]]:
+    """Gesamtbewertung: Vollständigkeit und Integrität mit Begründung, Kennzahlen, Lesehinweis."""
+    from fed.core.assessment import figures_text, label
+
+    def block(state: str, reasons: list[str]) -> str:
+        return "\n".join([label(state), *("– " + r for r in reasons)])
+
+    return [(L["completeness"], block(a.completeness, a.completeness_reasons)),
+            (L["integrity"], block(a.integrity, a.integrity_reasons)),
+            (L["figures"], figures_text(a, _fmt_bytes, fmt_duration)),
+            ("", L["completeness_note"])]
+
+
 def account_subset(d: dict, account_id: int, case: Case) -> dict:
     """Berichtsdaten eines Kontos aus den bereits gesammelten Gesamtdaten ``d`` (``collect(case, None)``)
     ableiten – ohne die schweren Abfragen (v. a. ``message_rows`` über alle Mails) erneut auszuführen.
@@ -188,6 +208,7 @@ def account_subset(d: dict, account_id: int, case: Case) -> dict:
         "JOIN folder f ON f.id = m.folder_id WHERE f.account_id = ? AND m.dkim_domain IS NOT NULL", (account_id,))}
     sub = dict(d)  # flache Kopie; globale, nach Konto-ID geschlüsselte Werte (dkim_counts etc.) bleiben geteilt
     sub["account_id"] = account_id
+    sub["assessment"] = _assess(case, account_id)
     sub["accounts"] = [a for a in d["accounts"] if a["id"] == account_id]
     sub["overview"] = [o for o in d["overview"] if o["id"] == account_id]
     sub["attempts"] = [a for a in d["attempts"] if a["account_id"] == account_id]
@@ -343,7 +364,8 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
     if d.get("based_on"):
         b = d["based_on"]
         case_items.append((L["based_on"], f"{b.get('from_case_number') or '?'} ({b.get('from_case_path') or '?'})"))
-    secs = [(L["case"], case_items)]
+    secs = [(L["assessment"], _assessment_items(d["assessment"], L))] if d.get("assessment") else []
+    secs.append((L["case"], case_items))
     device = _device_text(d.get("device") or [], L)
     if not d["system"] and d.get("device"):
         case_items.append((L["device"], device))
