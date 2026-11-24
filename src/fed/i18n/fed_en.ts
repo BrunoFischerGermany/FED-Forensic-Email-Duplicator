@@ -1596,6 +1596,34 @@ Open and continue this case?</translation>
 <context>
     <name>FolderPage</name>
     <message>
+        <source>Gesendet</source>
+        <translation>Sent</translation>
+    </message>
+    <message>
+        <source>Entwürfe</source>
+        <translation>Drafts</translation>
+    </message>
+    <message>
+        <source>Papierkorb</source>
+        <translation>Trash</translation>
+    </message>
+    <message>
+        <source>Spam</source>
+        <translation>Spam</translation>
+    </message>
+    <message>
+        <source>Archiv</source>
+        <translation>Archive</translation>
+    </message>
+    <message>
+        <source>Alle Nachrichten</source>
+        <translation>All mail</translation>
+    </message>
+    <message>
+        <source>Markiert</source>
+        <translation>Flagged</translation>
+    </message>
+    <message>
         <source>Ordner wählen</source>
         <translation>Select folders</translation>
     </message>
@@ -1624,16 +1652,16 @@ Open and continue this case?</translation>
         <translation>All label folders (with duplicates)</translation>
     </message>
     <message>
-        <source>Ordner</source>
-        <translation>Folder</translation>
-    </message>
-    <message>
-        <source>Mails</source>
-        <translation>Messages</translation>
+        <source>Ordner (Mails)</source>
+        <translation>Folder (messages)</translation>
     </message>
     <message>
         <source>Größe</source>
         <translation>Size</translation>
+    </message>
+    <message>
+        <source>inkl. Unterordner</source>
+        <translation>incl. subfolders</translation>
     </message>
     <message>
         <source>Zeitraum (optional)</source>
@@ -1720,8 +1748,20 @@ Open and continue this case?</translation>
         <translation>Scan failed: </translation>
     </message>
     <message>
+        <source>Zwischenebene – auf dem Server kein eigener Ordner</source>
+        <translation>Intermediate level – not a folder of its own on the server</translation>
+    </message>
+    <message>
+        <source>Posteingang</source>
+        <translation>Inbox</translation>
+    </message>
+    <message>
         <source>Ordner ist nicht auswählbar (\Noselect)</source>
         <translation>Folder cannot be selected (\Noselect)</translation>
+    </message>
+    <message>
+        <source>Mails und Größe dieses Ordners einschließlich aller Unterordner</source>
+        <translation>Messages and size of this folder including all subfolders</translation>
     </message>
     <message>
         <source>Scan abgeschlossen um {0} UTC ({1}) · {2} Ordner · {3} Mails · {4} laut Server</source>
@@ -1732,8 +1772,8 @@ Open and continue this case?</translation>
         <translation>Selected</translation>
     </message>
     <message>
-        <source>{0} Mails · {1}</source>
-        <translation>{0} messages · {1}</translation>
+        <source>{0} Ordner · {1} Mails · {2}</source>
+        <translation>{0} folders · {1} messages · {2}</translation>
     </message>
     <message>
         <source>Nicht ausgewählt</source>
@@ -1742,6 +1782,30 @@ Open and continue this case?</translation>
     <message>
         <source>{0} Ordner · {1} Mails</source>
         <translation>{0} folders · {1} messages</translation>
+    </message>
+    <message>
+        <source>{0} Ordner abgewählt</source>
+        <translation>{0} folders deselected</translation>
+    </message>
+    <message>
+        <source>Zeitraum</source>
+        <translation>date range</translation>
+    </message>
+    <message>
+        <source>Suchkriterien</source>
+        <translation>search criteria</translation>
+    </message>
+    <message>
+        <source>Umfang</source>
+        <translation>Scope</translation>
+    </message>
+    <message>
+        <source>Teilsicherung – {0}</source>
+        <translation>Partial acquisition – {0}</translation>
+    </message>
+    <message>
+        <source>alle Ordner, ohne Filter</source>
+        <translation>all folders, no filter</translation>
     </message>
     <message>
         <source>Freier Speicher am Ziel</source>

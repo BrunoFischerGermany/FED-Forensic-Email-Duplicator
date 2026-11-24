@@ -32,6 +32,7 @@ from fed.gui.help import show_help
 from fed.gui.richedit import RichNoteEdit
 from fed.gui.widgets import (AutoHideLabel, Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
                             run_async, vbox)
+from fed.core.assessment import num
 from fed.core.msg import describe
 
 
@@ -52,6 +53,15 @@ def linkify(text: str) -> str:
 
 
 UROLE = Qt.ItemDataRole.UserRole
+CNT_ROLE, SIZE_ROLE = int(UROLE) + 1, int(UROLE) + 2  # Ordnerbaum: Mails und Bytes laut Server
+# SPECIAL-USE-Kennungen (RFC 6154) -> verständlicher Name im Ordnerbaum (die Kennung ist sprachunabhängig)
+SPECIAL_USE = {"\\Sent": QT_TRANSLATE_NOOP("FolderPage", "Gesendet"),
+               "\\Drafts": QT_TRANSLATE_NOOP("FolderPage", "Entwürfe"),
+               "\\Trash": QT_TRANSLATE_NOOP("FolderPage", "Papierkorb"),
+               "\\Junk": QT_TRANSLATE_NOOP("FolderPage", "Spam"),
+               "\\Archive": QT_TRANSLATE_NOOP("FolderPage", "Archiv"),
+               "\\All": QT_TRANSLATE_NOOP("FolderPage", "Alle Nachrichten"),
+               "\\Flagged": QT_TRANSLATE_NOOP("FolderPage", "Markiert")}
 CHECKED, UNCHECKED = Qt.CheckState.Checked, Qt.CheckState.Unchecked
 RIGHT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 
@@ -1496,13 +1506,20 @@ class FolderPage(QWidget):
         cols = QHBoxLayout()
         cols.setSpacing(24)
         self.tree = QTreeWidget()
-        self.tree.setHeaderLabels([self.tr("Ordner"), self.tr("Mails"), self.tr("Größe")])
+        self.tree.setHeaderLabels([self.tr("Ordner (Mails)"), self.tr("Größe"), self.tr("inkl. Unterordner")])
         self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.tree.header().setStretchLastSection(False)
+        for col in (1, 2):
+            self.tree.header().setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         self.tree.setMinimumHeight(260)
         self.tree.itemChanged.connect(self._update_summary)
         cols.addWidget(self.tree, 3)
         right = QVBoxLayout()
         right.setSpacing(24)
+        s_card = Card(self.tr("Zusammenfassung"))  # oben: Umfang und Platzbedarf sofort sichtbar
+        self.summary = KeyValues()
+        s_card.add(self.summary)
+        right.addWidget(s_card)
         c = Card(self.tr("Zeitraum (optional)"))
         self.use_from = QCheckBox(self.tr("Von"))
         self.use_to = QCheckBox(self.tr("Bis einschließlich"))
@@ -1536,10 +1553,10 @@ class FolderPage(QWidget):
                              "der Server aus. Mit Inhaltsfilter gilt die Sicherung als Teilsicherung; die Kriterien "
                              "stehen im Bericht."), "Hint", wrap=True))
         right.addWidget(cf)
-        s = Card(self.tr("Zusammenfassung"))
-        self.summary = KeyValues()
-        s.add(self.summary)
-        right.addWidget(s)
+        for x in (self.use_from, self.use_to):
+            x.toggled.connect(self._update_summary)
+        for e in self.flt.values():
+            e.textChanged.connect(self._update_summary)
         right.addStretch(1)
         cols.addLayout(right, 2)
         lay.addLayout(cols, 1)
@@ -1622,6 +1639,8 @@ class FolderPage(QWidget):
                                                    restyle(self.sub, "Error")), parent=self)
 
     def _show(self, rows) -> None:
+        """IMAP-Struktur als Baum: je Ordner „Name (Mails)“, Größe und – bei Ordnern mit Unterordnern – die
+        Summe inklusive Unterordnern. Fehlende Zwischenebenen werden als nicht wählbare Knoten ergänzt."""
         self._set_title()
         self.tree.blockSignals(True)
         self.tree.clear()
@@ -1630,13 +1649,52 @@ class FolderPage(QWidget):
             "WHERE account_id = ? ORDER BY id", (self.st.account_id,))
         items: dict[str, QTreeWidgetItem] = {}
         total_m = total_b = 0
+
+        def ensure(path: str, delim: str) -> QTreeWidgetItem | None:
+            """Elternknoten zu ``path`` (ggf. als Zwischenebene ohne eigenen Ordner anlegen)."""
+            if not path:
+                return None
+            if path in items:
+                return items[path]
+            parent_path, _, leaf = path.rpartition(delim)
+            parent = ensure(parent_path, delim)
+            it = QTreeWidgetItem([leaf, "", ""])
+            it.setFlags(Qt.ItemFlag.ItemIsEnabled)
+            it.setData(0, UROLE, None)
+            it.setData(0, CNT_ROLE, 0)
+            it.setData(0, SIZE_ROLE, 0)
+            f = it.font(0)
+            f.setItalic(True)
+            it.setFont(0, f)
+            it.setToolTip(0, self.tr("Zwischenebene – auf dem Server kein eigener Ordner"))
+            (parent.addChild(it) if parent else self.tree.addTopLevelItem(it))
+            items[path] = it
+            return it
+
         for name, delim, cnt, size, sel, flags in sorted(cur.fetchall(), key=lambda r: (r[0] != "INBOX", r[0].lower())):
-            parent_name, _, leaf = name.rpartition(delim) if delim and delim in name else ("", "", name)
-            parent = items.get(parent_name)
-            it = QTreeWidgetItem([leaf, f"{cnt or 0:,}".replace(",", "."), _fmt_bytes(size or 0)])
+            cnt, size = cnt or 0, size or 0
+            parent_path, _, leaf = name.rpartition(delim) if delim and delim in name else ("", "", name)
+            parent = ensure(parent_path, delim) if parent_path else None
+            special = [QCoreApplication.translate("FolderPage", v) for k, v in SPECIAL_USE.items()
+                       if k in (flags or "").split()]
+            if name.upper() == "INBOX":
+                special = [self.tr("Posteingang")]
+            text = f"{leaf}  ({num(cnt)})" + (f"  · {special[0]}" if special and special[0] != leaf else "")
+            it = items.get(name)
+            if it is None:
+                it = QTreeWidgetItem([text, _fmt_bytes(size), ""])
+                (parent.addChild(it) if parent else self.tree.addTopLevelItem(it))
+            else:  # war als Zwischenebene angelegt – jetzt echter Ordner
+                it.setText(0, text)
+                it.setText(1, _fmt_bytes(size))
+                f = it.font(0)
+                f.setItalic(False)
+                it.setFont(0, f)
+                it.setToolTip(0, "")
+            it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable | Qt.ItemFlag.ItemIsSelectable)
             it.setData(0, UROLE, name)
-            it.setData(1, UROLE, cnt or 0)
-            it.setData(2, UROLE, size or 0)
+            it.setData(0, CNT_ROLE, cnt)
+            it.setData(0, SIZE_ROLE, size)
             it.setCheckState(0, CHECKED if sel else UNCHECKED)
             if "\\Noselect" in (flags or ""):
                 it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsUserCheckable)
@@ -1644,14 +1702,29 @@ class FolderPage(QWidget):
                 it.setToolTip(0, self.tr("Ordner ist nicht auswählbar (\\Noselect)"))
             it.setTextAlignment(1, RIGHT)
             it.setTextAlignment(2, RIGHT)
-            (parent.addChild(it) if parent else self.tree.addTopLevelItem(it))
             items[name] = it
-            total_m += cnt or 0
-            total_b += size or 0
+            total_m += cnt
+            total_b += size
+
+        def subtotal(it: QTreeWidgetItem) -> tuple[int, int]:
+            m, b = it.data(0, CNT_ROLE) or 0, it.data(0, SIZE_ROLE) or 0
+            for i in range(it.childCount()):
+                cm, cb = subtotal(it.child(i))
+                m, b = m + cm, b + cb
+            if it.childCount():
+                it.setText(2, f"{num(m)} · {_fmt_bytes(b)}")
+                it.setTextAlignment(2, RIGHT)
+                it.setToolTip(2, self.tr("Mails und Größe dieses Ordners einschließlich aller Unterordner"))
+            return m, b
+
+        for i in range(self.tree.topLevelItemCount()):
+            subtotal(self.tree.topLevelItem(i))
         self.tree.expandAll()
         self.tree.blockSignals(False)
+        real = sum(1 for it in items.values() if it.data(0, UROLE) is not None)
         self.sub.setText(self.tr("Scan abgeschlossen um {0} UTC ({1}) · {2} Ordner · {3} Mails · {4} laut Server").format(
-            datetime.now(UTC).strftime("%H:%M:%S"), tf.local_str(datetime.now(UTC), with_date=False), len(items), f"{total_m:,}".replace(",", "."), _fmt_bytes(total_b)))
+            datetime.now(UTC).strftime("%H:%M:%S"), tf.local_str(datetime.now(UTC), with_date=False), real, num(total_m),
+            _fmt_bytes(total_b)))
         restyle(self.sub, "Muted")
         self.gmail_box.setVisible(acq.is_gmail_account(self.st.case, self.st.account_id))
         row = self.st.case.conn.execute("SELECT filters FROM account WHERE id = ?", (self.st.account_id,)).fetchone()
@@ -1686,13 +1759,25 @@ class FolderPage(QWidget):
         self._update_summary()
 
     def _update_summary(self, *_) -> None:
-        sel = [it for it in self._iter() if it.checkState(0) == CHECKED]
-        m = sum(it.data(1, UROLE) for it in sel)
-        b = sum(it.data(2, UROLE) for it in sel)
-        not_sel = [it for it in self._iter() if it.checkState(0) != CHECKED]
-        self.summary.set(self.tr("Ausgewählt"), self.tr("{0} Mails · {1}").format(f"{m:,}".replace(",", "."), _fmt_bytes(b)))
+        folders = [it for it in self._iter() if it.data(0, UROLE) is not None]  # ohne Zwischenebenen
+        sel = [it for it in folders if it.checkState(0) == CHECKED]
+        not_sel = [it for it in folders if it.checkState(0) != CHECKED
+                   and it.flags() & Qt.ItemFlag.ItemIsUserCheckable]  # \\Noselect zählt nicht als abgewählt
+        m = sum(it.data(0, CNT_ROLE) or 0 for it in sel)
+        b = sum(it.data(0, SIZE_ROLE) or 0 for it in sel)
+        self.summary.set(self.tr("Ausgewählt"), self.tr("{0} Ordner · {1} Mails · {2}").format(len(sel), num(m), _fmt_bytes(b)))
         self.summary.set(self.tr("Nicht ausgewählt"), self.tr("{0} Ordner · {1} Mails").format(
-            len(not_sel), f"{sum(it.data(1, UROLE) for it in not_sel):,}".replace(",", ".")))
+            len(not_sel), num(sum(it.data(0, CNT_ROLE) or 0 for it in not_sel))))
+        # Umfang wie in der Gesamtbewertung: bewusst eingeschränkt = Teilsicherung (kein Mangel)
+        limits = []
+        if not_sel:
+            limits.append(self.tr("{0} Ordner abgewählt").format(len(not_sel)))
+        if self.use_from.isChecked() or self.use_to.isChecked():
+            limits.append(self.tr("Zeitraum"))
+        if any(e.text().strip() for e in self.flt.values()):
+            limits.append(self.tr("Suchkriterien"))
+        self.summary.set(self.tr("Umfang"), self.tr("Teilsicherung – {0}").format(", ".join(limits)) if limits
+                         else self.tr("alle Ordner, ohne Filter"), None if limits else "ok")
         free = self.st.system.free_bytes if self.st.system else None
         if free is not None:
             ok = free > b * 1.2
