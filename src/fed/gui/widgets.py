@@ -40,6 +40,14 @@ def svg_icon(svg: str, size: int = 20) -> QIcon:
     return QIcon(pm)
 
 
+class AutoHideLabel(QLabel):
+    """Label, das sich ohne Text ausblendet – leere Meldungszeilen nehmen keinen Platz weg."""
+
+    def setText(self, text: str) -> None:
+        super().setText(text)
+        self.setVisible(bool(text))
+
+
 def label(text: str = "", name: str | None = None, wrap: bool = False, selectable: bool = False) -> QLabel:
     lab = QLabel(text)
     if name:

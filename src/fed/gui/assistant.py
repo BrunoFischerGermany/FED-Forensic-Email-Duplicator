@@ -30,7 +30,7 @@ from fed.gui.accounts import AccountsRail, AccountsTable, incomplete, state_text
 from fed.core.report import _fmt_bytes
 from fed.gui.help import show_help
 from fed.gui.richedit import RichNoteEdit
-from fed.gui.widgets import (Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
+from fed.gui.widgets import (AutoHideLabel, Card, ElidedLabel, KeyValues, PasswordField, Segmented, label, mark_invalid, restyle,
                             run_async, vbox)
 from fed.core.msg import describe
 
@@ -568,11 +568,8 @@ class AccountPage(QWidget):
         self.accounts.allow_remove = True  # „✕“ bei noch nicht gesicherten Konten
         self.accounts_card.setVisible(False)
         lay.addWidget(self.accounts_card)
-        cols = QHBoxLayout()
-        cols.setSpacing(24)
-        left = QVBoxLayout()
-        left.setSpacing(24)
-        c1 = Card()
+        # ① Konto – Adresse und Asservat
+        c1 = Card(self.tr("① Konto"))
         g = QGridLayout()
         g.setVerticalSpacing(6)
         g.setHorizontalSpacing(16)
@@ -584,12 +581,31 @@ class AccountPage(QWidget):
         g.addWidget(label(self.tr("Asservatennummer *"), "H2"), 0, 1)
         g.addWidget(self.email, 1, 0)
         g.addWidget(self.evidence, 1, 1)
+        g.setColumnStretch(0, 3)
+        g.setColumnStretch(1, 2)
         c1.add(g)
         self.evidence_hint = label("", "Hint", wrap=True)
         self.evidence_hint.setVisible(False)
         c1.add(self.evidence_hint)
+        lay.addWidget(c1)
+
+        # ② Verbindung – eine Zusammenfassungszeile; Server/Anmeldeart erst bei „Ändern …“ bzw. ohne Fund
+        c2 = Card(self.tr("② Verbindung"))
+        srow = QHBoxLayout()
+        self.conn_summary = label("", "H2", wrap=True)
+        self.edit_conn_btn = QPushButton(self.tr("Ändern …"))
+        self.edit_conn_btn.setToolTip(self.tr("Server, Port, Verschlüsselung, Benutzername und Anmeldeart von Hand "
+                                              "festlegen"))
+        self.edit_conn_btn.setCheckable(True)
+        self.edit_conn_btn.toggled.connect(lambda _: self._update_conn_view())
+        srow.addWidget(self.conn_summary, 1)
+        srow.addWidget(self.edit_conn_btn, 0, Qt.AlignmentFlag.AlignTop)
+        c2.add(srow)
         self.discover_info = label(self.tr("Einstellungen werden nach Eingabe der Adresse gesucht."), "Muted", wrap=True)
-        c1.add(self.discover_info)
+        c2.add(self.discover_info)
+        self.conn_details = QWidget()
+        dl = QVBoxLayout(self.conn_details)
+        dl.setContentsMargins(0, 6, 0, 6)
         mf = QFormLayout()
         self.server = QLineEdit()
         self.port = QSpinBox()
@@ -603,18 +619,23 @@ class AccountPage(QWidget):
         mf.addRow(self.tr("Port"), self.port)
         mf.addRow(self.tr("Sicherheit"), self.security)
         mf.addRow(self.tr("Benutzername"), self.user)
-        c1.add(mf)
-        self.email.editingFinished.connect(self._discover)
-        self.email.editingFinished.connect(self._check_known)
-        self.server.textChanged.connect(lambda _t: self._update_pw_hint())
-        left.addWidget(c1)
-
-        c2 = Card(self.tr("Anmeldung"))
+        dl.addLayout(mf)
+        dl.addWidget(label(self.tr("Anmeldeart"), "H2"))
         self.method = Segmented([("password", self.tr("Passwort")), ("google_app", self.tr("Google (App-Passwort)")),
                                  ("google", "Google (OAuth)"), ("microsoft", "Microsoft 365 (OAuth)")])
         self.method.changed.connect(self._method_changed)
+        dl.addWidget(self.method)
+        c2.add(self.conn_details)
         self._sync_google_oauth()
-        c2.add(self.method)
+        self.email.editingFinished.connect(self._discover)
+        self.email.editingFinished.connect(self._check_known)
+        self.server.textChanged.connect(lambda _t: self._update_pw_hint())
+        for w_ in (self.server, self.user):
+            w_.textChanged.connect(lambda *_: self._update_conn_view())
+        self.port.valueChanged.connect(lambda *_: self._update_conn_view())
+        self.security.currentTextChanged.connect(lambda *_: self._update_conn_view())
+
+        # Anmeldung – nur das, was zur gewählten Anmeldeart gehört
         self.pw_label = label(self.tr("Passwort"), "H2")
         self.password = PasswordField()
         self.keychain_btn = QPushButton(self.tr("Aus macOS-Schlüsselbund holen"))
@@ -627,9 +648,6 @@ class AccountPage(QWidget):
         self.oauth_hint = label("", "Hint", wrap=True)
         for lab in (self.pw_hint, self.oauth_hint):  # Link „Anleitung öffnen“ -> Hilfe-Fenster
             lab.linkActivated.connect(self._open_link)
-        self.device = QCheckBox(self.tr("Anmeldung per Gerätecode (anderes Gerät)"))
-        self.login_as = QLineEdit()
-        self.login_as.setPlaceholderText(self.tr("anmelden als (nur bei geteiltem Postfach)"))
         # Anmeldedaten aus dieser Sitzung (nur im Arbeitsspeicher) – Hinweis und „Vergessen“
         self.vault_row = QWidget()
         vr = QHBoxLayout(self.vault_row)
@@ -643,26 +661,67 @@ class AccountPage(QWidget):
         self.vault_row.setVisible(False)
         self._recalled: str | None = None
         self.password.textEdited.connect(lambda *_: self._recall_off())
-        for x in (self.pw_label, self.password, self.keychain_btn, self.vault_row, self.pw_hint, self.oauth_hint,
-                  self.device, self.login_as):
+        # Erweitert (nur OAuth): Gerätecode, anmelden als
+        self.advanced_btn = QPushButton(self.tr("▸ Erweitert"))
+        self.advanced_btn.setObjectName("Link")
+        self.advanced_btn.setFlat(True)
+        self.advanced_btn.setCheckable(True)
+        self.advanced_btn.toggled.connect(self._toggle_advanced)
+        self.advanced = QWidget()
+        al = QVBoxLayout(self.advanced)
+        al.setContentsMargins(16, 0, 0, 0)
+        self.device = QCheckBox(self.tr("Anmeldung per Gerätecode (anderes Gerät)"))
+        self.login_as = QLineEdit()
+        self.login_as.setPlaceholderText(self.tr("anmelden als (nur bei geteiltem Postfach)"))
+        al.addWidget(self.device)
+        al.addWidget(self.login_as)
+        self.advanced.setVisible(False)
+        for x in (self.pw_label, self.password, self.keychain_btn, self.vault_row, self.pw_hint, self.oauth_hint):
             c2.add(x)
-        left.addWidget(c2)
-        cn = Card(self.tr("Notiz zum Konto"))
+        c2.lay.addWidget(self.advanced_btn, 0, Qt.AlignmentFlag.AlignLeft)
+        c2.add(self.advanced)
+        # Ergebnis des Verbindungstests direkt unter der Anmeldung
+        self.error = AutoHideLabel()
+        self.error.setObjectName("Error")
+        self.error.setWordWrap(True)
+        self.error.setText("")
+        c2.add(self.error)
+        # umbrechen: lange Hinweise (Browser-Anmeldung, Gerätecode) dürfen die Karte nicht verbreitern
+        self.test_state = AutoHideLabel()
+        self.test_state.setObjectName("Muted")
+        self.test_state.setWordWrap(True)
+        self.test_state.setText("")
+        self.test_state.linkActivated.connect(self._open_link)
+        c2.add(self.test_state)
+        self.test = KeyValues()
+        c2.add(self.test)
+        lay.addWidget(c2)
+
+        # ③ Notiz – eingeklappt, solange leer
+        cn = Card(self.tr("③ Notiz zum Konto"))
+        self.notes_btn = QPushButton(self.tr("✎ Notiz hinzufügen (erscheint im Bericht)"))
+        self.notes_btn.setObjectName("Link")
+        self.notes_btn.setFlat(True)
+        self.notes_btn.clicked.connect(lambda: self._show_notes(True, focus=True))
+        cn.lay.addWidget(self.notes_btn, 0, Qt.AlignmentFlag.AlignLeft)
         self.acc_notes = RichNoteEdit()
         self.acc_notes.setPlaceholderText(self.tr("z. B. Herkunft der Zugangsdaten, Kontoinhaber, Einwilligung/Beschluss, "
                                                   "Besonderheiten – erscheint im Bericht"))
         self.acc_notes.setFixedHeight(120)
+        self.acc_notes.textChanged.connect(lambda: self._show_notes(bool(self.acc_notes.toPlainText().strip())
+                                                                    or not self.acc_notes.isHidden()))
         cn.add(self.acc_notes)
-        left.addWidget(cn)
-        cols.addLayout(left, 3)
+        lay.addWidget(cn)
+        lay.addStretch(1)
 
-        # Aktionen oben im Verbindungstest – ohne Scrollen erreichbar, Ergebnis und Fehler direkt darunter
-        self.test_btn = QPushButton(self.tr("Verbindung testen"))
+        self.test_btn = QPushButton(self.tr("Nur Verbindung testen"))
+        self.test_btn.setToolTip(self.tr("Anmeldung prüfen, ohne das Postfach zu lesen"))
         self.test_btn.clicked.connect(self._test)
-        self.go = QPushButton(self.tr("Postfach scannen"))
+        self.go = QPushButton(self.tr("Weiter: Postfach scannen"))
         self.go.setObjectName("Primary")
         self.go.setToolTip(self.tr("Testet die Verbindung, falls noch nicht geschehen, und liest dann die Ordner"))
         self._ok = False  # Verbindungstest mit den aktuellen Eingaben erfolgreich
+        self._testing = False
         self._go_after_test = False
         self.go.clicked.connect(self._go_clicked)
         # Tastenkürzel: Strg+T testen, Strg+P scannen (auf macOS bildet Qt „Ctrl“ automatisch auf Cmd ab).
@@ -675,23 +734,6 @@ class AccountPage(QWidget):
             sc.activated.connect(lambda b=btn: b.isEnabled() and b.animateClick())
             btn.setToolTip((btn.toolTip() + "  ·  " if btn.toolTip() else "")
                            + QKeySequence(seq).toString(QKeySequence.SequenceFormat.NativeText))
-        c3 = Card(self.tr("Verbindungstest"))
-        actions = QHBoxLayout()
-        actions.addWidget(self.test_btn)
-        actions.addWidget(self.go, 1)
-        c3.add(actions)
-        self.error = label("", "Error", wrap=True)
-        c3.add(self.error)
-        # umbrechen: lange Hinweise (Browser-Anmeldung, Gerätecode) dürfen die Karte nicht verbreitern
-        self.test_state = label(self.tr("noch nicht getestet"), "Muted", wrap=True)
-        c3.add(self.test_state)
-        self.test_state.linkActivated.connect(self._open_link)
-        self.test = KeyValues()
-        c3.add(self.test)
-        c3.lay.addStretch(1)
-        cols.addWidget(c3, 2, Qt.AlignmentFlag.AlignTop)
-        lay.addLayout(cols)
-        lay.addStretch(1)
         back = QPushButton(self.tr("Zurück"))
         back.clicked.connect(self.back.emit)
         # ohne neues Konto direkt zum Abschluss (z. B. nach einem Neustart von FED)
@@ -703,15 +745,23 @@ class AccountPage(QWidget):
         self.new_btn.setToolTip(self.tr("Formular leeren und ein weiteres Konto zu diesem Fall hinzufügen"))
         self.new_btn.clicked.connect(self.new_account.emit)
         self.new_btn.setVisible(False)
-        # Leiste unten bleibt beim Scrollen sichtbar
+        # Leiste unten bleibt beim Scrollen sichtbar: Stand der Eingaben und genau ein Hauptknopf
         footer = QWidget()
         footer.setObjectName("Page")
-        b = QHBoxLayout(footer)
-        b.setContentsMargins(40, 10, 40, 16)
+        fl = QVBoxLayout(footer)
+        fl.setContentsMargins(40, 8, 40, 16)
+        fl.setSpacing(6)
+        self.status_line = label("", "Muted")
+        self.status_line.setTextFormat(Qt.TextFormat.RichText)
+        fl.addWidget(self.status_line)
+        b = QHBoxLayout()
         b.addWidget(back)
         b.addWidget(self.new_btn)
         b.addWidget(self.finish_btn)
         b.addStretch(1)
+        b.addWidget(self.test_btn)
+        b.addWidget(self.go)
+        fl.addLayout(b)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -720,10 +770,68 @@ class AccountPage(QWidget):
         self._method_changed("password")
         for x in (self.server, self.user, self.password, self.email):
             x.textChanged.connect(lambda *_: self._untested())
+        for x in (self.email, self.evidence, self.server, self.password):
+            x.textChanged.connect(lambda *_: self._update_status())
+        self._show_notes(False)
+        self._update_conn_view()
+
+    # ------------------------------------------------------------ Darstellung
+
+    def _update_conn_view(self) -> None:
+        """Zusammenfassung „Server · Port · Sicherheit · Anmeldeart“; Einzelfelder nur bei „Ändern …“ oder
+        wenn noch kein Server bekannt ist."""
+        host = self.server.text().strip()
+        if host:
+            parts = [host, str(self.port.value()), self.security.currentText().upper(),
+                     self.method.buttons[self.method.value()].text()]
+            user = self.user.text().strip()
+            if user:
+                parts.append(self.tr("Benutzer {0}").format(user))
+            self.conn_summary.setText(" · ".join(parts))
+        else:
+            self.conn_summary.setText(self.tr("Server noch nicht bekannt"))
+        open_ = self.edit_conn_btn.isChecked() or (not host and self._discover_done())
+        self.conn_details.setVisible(open_)
+        self.edit_conn_btn.setText(self.tr("Fertig") if self.edit_conn_btn.isChecked() else self.tr("Ändern …"))
+        self._update_status()
+
+    def _discover_done(self) -> bool:
+        """Autoerkennung lief (gefunden oder nicht) bzw. es wurde nichts gesucht, weil keine Adresse da ist."""
+        return getattr(self, "_discovered", False)
+
+    def _toggle_advanced(self, on: bool) -> None:
+        self.advanced.setVisible(on)
+        self.advanced_btn.setText(self.tr("▾ Erweitert") if on else self.tr("▸ Erweitert"))
+
+    def _show_notes(self, on: bool, focus: bool = False) -> None:
+        self.acc_notes.setVisible(on)
+        self.notes_btn.setVisible(not on)
+        if on and focus:
+            self.acc_notes.setFocus()
+
+    def _update_status(self) -> None:
+        """Statuszeile unten: was ist erledigt, was fehlt – statt Meldungen an mehreren Stellen."""
+        if not hasattr(self, "status_line"):
+            return
+        email_ok = "@" in self.email.text() and bool(self.evidence.text().strip())
+        server_ok = bool(self.server.text().strip())
+        if self._testing:
+            login = ("…", self.tr("Anmeldung läuft"))
+        elif self._ok:
+            login = ("✓", self.tr("Anmeldung"))
+        elif self._recalled:
+            login = ("✓", self.tr("Anmeldung aus dieser Sitzung"))
+        else:
+            login = ("○", self.tr("Anmeldung"))
+        items = [("✓" if email_ok else "○", self.tr("Adresse")), ("✓" if server_ok else "○", self.tr("Server")),
+                 login, ("○", self.tr("Postfach"))]
+        self.status_line.setText(self.tr("Stand:") + "&nbsp;&nbsp;" + "&nbsp;&nbsp;&nbsp;".join(
+            f"{sym}&nbsp;{html.escape(text)}" for sym, text in items))
 
     def _untested(self) -> None:
         """Eingaben geändert: der letzte Verbindungstest gilt nicht mehr."""
         self._ok = False
+        self._update_status()
 
     def _go_clicked(self) -> None:
         """„Postfach scannen“: ohne gültigen Test erst testen, bei Erfolg automatisch weiter."""
@@ -746,13 +854,19 @@ class AccountPage(QWidget):
         self.method.set_value("password")
         self._method_changed("password")
         self.found = None
+        self._discovered = False
         self._recall_off()
         self._untested()
         self.test.clear()
-        self.test_state.setText(self.tr("noch nicht getestet"))
+        self.test_state.setText("")
         restyle(self.test_state, "Muted")
         self.discover_info.setText(self.tr("Einstellungen werden nach Eingabe der Adresse gesucht."))
+        restyle(self.discover_info, "Muted")
         self.error.setText("")
+        self.edit_conn_btn.setChecked(False)
+        self.advanced_btn.setChecked(False)
+        self._show_notes(False)
+        self._update_conn_view()
 
     def prepare(self) -> None:
         """Vor dem Einrichten eines (weiteren) Kontos: Übersicht zeigen, Evidence-Nummer vorschlagen."""
@@ -863,6 +977,7 @@ class AccountPage(QWidget):
         """Formular aus den Eckdaten eines Kontos füllen (email, evidence, server, port, security, user, method)."""
         email, evidence, server, port, security, username, auth_method, notes, notes_html = a
         self.email.setText(email)
+        self._set_source(self.tr("Eckdaten aus früherem Fall übernommen"))
         if evidence and not self.evidence.text().strip():
             self.evidence.setText(evidence)
         self.acc_notes.set_value(notes or "", notes_html)
@@ -905,6 +1020,7 @@ class AccountPage(QWidget):
             self._check_known()
             self.password.setFocus()
             return
+        self._set_source(self.tr("Einstellungen aus diesem Fall übernommen"))
         self.server.setText(row[0])
         self.port.setValue(row[1])
         self.security.setCurrentText(row[2])
@@ -918,6 +1034,13 @@ class AccountPage(QWidget):
         self.acc_notes.set_value(o.get("notes", ""), o.get("notes_html"))
         self._check_known()
         self.password.setFocus()
+
+    def _set_source(self, text: str) -> None:
+        """Herkunft der Verbindungsdaten (statt „werden gesucht“) – kein erneutes Suchen nötig."""
+        self._discovered = True
+        self.discover_info.setText(text)
+        restyle(self.discover_info, "Muted")
+        self._update_conn_view()
 
     def _known(self, email: str) -> dict | None:
         return next((o for o in self.accounts.rows if o["email"].casefold() == email.casefold()), None)
@@ -956,10 +1079,12 @@ class AccountPage(QWidget):
         self.vault_lbl.setText(self.tr("✓ Anmeldedaten aus dieser Sitzung übernommen (zuletzt erfolgreich um {0}) – "
                                        "nur im Arbeitsspeicher, bis FED beendet wird.").format(entry.when))
         self.vault_row.setVisible(True)
+        self._update_status()
 
     def _recall_off(self) -> None:
         self._recalled = None
         self.vault_row.setVisible(False)
+        self._update_status()
 
     def _forget(self) -> None:
         email = self._recalled or normalize_email(self.email.text())
@@ -971,7 +1096,7 @@ class AccountPage(QWidget):
             self.st.oauth_session = None
         self._recall_off()
         self._untested()
-        self.test_state.setText(self.tr("noch nicht getestet"))
+        self.test_state.setText("")
         restyle(self.test_state, "Muted")
 
     def _sync_google_oauth(self, keep: bool = False) -> None:
@@ -994,8 +1119,10 @@ class AccountPage(QWidget):
         self.pw_label.setText(self.tr("App-Passwort") if m == "google_app" else self.tr("Passwort"))
         self.pw_hint.setWordWrap(True)
         self._update_pw_hint()
-        for x in (self.oauth_hint, self.login_as):
-            x.setVisible(not pw)
+        self.oauth_hint.setVisible(not pw)
+        self.advanced_btn.setVisible(not pw)  # Gerätecode / „anmelden als“ nur bei OAuth, eingeklappt
+        if pw:
+            self.advanced_btn.setChecked(False)
         self.device.setVisible(m == "microsoft")
         cid = {"google": self.st.cfg.oauth_google.client_id, "microsoft": self.st.cfg.oauth_microsoft.effective_client_id}.get(m)
         text = (self.tr("Beim Test öffnet sich der Browser zur Anmeldung. Das Passwort sieht FED nicht.")
@@ -1004,6 +1131,8 @@ class AccountPage(QWidget):
         self.oauth_hint.setText(self._with_help_link(text, "microsoft" if m == "microsoft" else "google"))
         restyle(self.oauth_hint, "Hint" if cid else "Warn")
         self._untested()
+        if hasattr(self, "conn_summary"):
+            self._update_conn_view()
 
     def _ms_password_text(self) -> str:
         return self.tr("Microsoft (Outlook.com, Hotmail, Live, Microsoft 365) nimmt für IMAP weder das "
@@ -1059,6 +1188,7 @@ class AccountPage(QWidget):
         def done(res):
             s, log = res
             self.found = s
+            self._discovered = True
             if s:
                 self.server.setText(s.host)
                 self.port.setValue(s.port)
@@ -1083,8 +1213,14 @@ class AccountPage(QWidget):
             else:
                 self.discover_info.setText(self.tr("Nichts gefunden – bitte Server manuell eintragen."))
                 restyle(self.discover_info, "Warn")
+            self._update_conn_view()
 
-        run_async(work, done, lambda e, tb: self.discover_info.setText(e), parent=self)
+        def failed(e, tb):
+            self._discovered = True
+            self.discover_info.setText(e)
+            self._update_conn_view()
+
+        run_async(work, done, failed, parent=self)
 
     def _connector(self):
         m = self.method.value()
@@ -1129,6 +1265,8 @@ class AccountPage(QWidget):
         m = self.method.value()
         self.test_btn.setEnabled(False)
         self.go.setEnabled(False)
+        self._testing = True
+        self._update_status()
         self.test_state.setText(self.tr("teste …"))
         restyle(self.test_state, "Muted")
         cfg = self.st.cfg
@@ -1206,6 +1344,7 @@ class AccountPage(QWidget):
     def _test_ok(self, res) -> None:
         tls, info, nfolders = res
         self.test_btn.setEnabled(True)
+        self._testing = False
         self.test_state.setText(self.tr("✓ erfolgreich"))
         restyle(self.test_state, "Ok")
         t = self.test
@@ -1224,6 +1363,7 @@ class AccountPage(QWidget):
               + tf.local_str(now, with_date=False), "ok")
         t.set(self.tr("Ordner"), self.tr("{0} gefunden").format(nfolders))
         self._ok = True
+        self._update_status()
         self.go.setEnabled(True)
         tested = getattr(self, "_tested", None)
         if self.st.vault is not None and tested and tested[0] == normalize_email(self.email.text()):
@@ -1258,6 +1398,7 @@ class AccountPage(QWidget):
 
     def _test_failed(self, err: str, tb: str) -> None:
         self.test_btn.setEnabled(True)
+        self._testing = False
         # Unerwartete interne Fehler (Programmierfehler): Fehlerstelle aus dem Traceback mitzeigen,
         # damit sich das ohne Terminal diagnostizieren lässt.
         if any(err.startswith(k) or f"{k}:" in (tb.strip().splitlines() or [""])[-1]

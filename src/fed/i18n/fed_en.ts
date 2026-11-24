@@ -35,12 +35,28 @@
         <translation>Click an account to resume it; for a new account enter the address below.</translation>
     </message>
     <message>
+        <source>① Konto</source>
+        <translation>① Account</translation>
+    </message>
+    <message>
         <source>E-Mail-Adresse *</source>
         <translation>Email address *</translation>
     </message>
     <message>
         <source>Asservatennummer *</source>
         <translation>Evidence number *</translation>
+    </message>
+    <message>
+        <source>② Verbindung</source>
+        <translation>② Connection</translation>
+    </message>
+    <message>
+        <source>Ändern …</source>
+        <translation>Change …</translation>
+    </message>
+    <message>
+        <source>Server, Port, Verschlüsselung, Benutzername und Anmeldeart von Hand festlegen</source>
+        <translation>Set server, port, encryption, user name and sign-in method manually</translation>
     </message>
     <message>
         <source>Einstellungen werden nach Eingabe der Adresse gesucht.</source>
@@ -67,8 +83,8 @@
         <translation>User name</translation>
     </message>
     <message>
-        <source>Anmeldung</source>
-        <translation>Authentication</translation>
+        <source>Anmeldeart</source>
+        <translation>Sign-in method</translation>
     </message>
     <message>
         <source>Passwort</source>
@@ -91,14 +107,6 @@
         <translation>Only in memory – never stored or logged.</translation>
     </message>
     <message>
-        <source>Anmeldung per Gerätecode (anderes Gerät)</source>
-        <translation>Sign in with device code (other device)</translation>
-    </message>
-    <message>
-        <source>anmelden als (nur bei geteiltem Postfach)</source>
-        <translation>sign in as (shared mailbox only)</translation>
-    </message>
-    <message>
         <source>Vergessen</source>
         <translation>Forget</translation>
     </message>
@@ -107,32 +115,44 @@
         <translation>Remove this account's stored sign-in data from memory now</translation>
     </message>
     <message>
-        <source>Notiz zum Konto</source>
-        <translation>Account note</translation>
+        <source>▸ Erweitert</source>
+        <translation>▸ Advanced</translation>
+    </message>
+    <message>
+        <source>Anmeldung per Gerätecode (anderes Gerät)</source>
+        <translation>Sign in with device code (other device)</translation>
+    </message>
+    <message>
+        <source>anmelden als (nur bei geteiltem Postfach)</source>
+        <translation>sign in as (shared mailbox only)</translation>
+    </message>
+    <message>
+        <source>③ Notiz zum Konto</source>
+        <translation>③ Account note</translation>
+    </message>
+    <message>
+        <source>✎ Notiz hinzufügen (erscheint im Bericht)</source>
+        <translation>✎ Add note (appears in the report)</translation>
     </message>
     <message>
         <source>z. B. Herkunft der Zugangsdaten, Kontoinhaber, Einwilligung/Beschluss, Besonderheiten – erscheint im Bericht</source>
         <translation>e.g. origin of the credentials, account holder, consent/court order, particularities – appears in the report</translation>
     </message>
     <message>
-        <source>Verbindung testen</source>
-        <translation>Test connection</translation>
+        <source>Nur Verbindung testen</source>
+        <translation>Test connection only</translation>
     </message>
     <message>
-        <source>Postfach scannen</source>
-        <translation>Scan mailbox</translation>
+        <source>Anmeldung prüfen, ohne das Postfach zu lesen</source>
+        <translation>Check sign-in without reading the mailbox</translation>
+    </message>
+    <message>
+        <source>Weiter: Postfach scannen</source>
+        <translation>Next: scan mailbox</translation>
     </message>
     <message>
         <source>Testet die Verbindung, falls noch nicht geschehen, und liest dann die Ordner</source>
         <translation>Tests the connection if not done yet, then reads the folders</translation>
-    </message>
-    <message>
-        <source>Verbindungstest</source>
-        <translation>Connection test</translation>
-    </message>
-    <message>
-        <source>noch nicht getestet</source>
-        <translation>not tested yet</translation>
     </message>
     <message>
         <source>Zurück</source>
@@ -153,6 +173,46 @@
     <message>
         <source>Formular leeren und ein weiteres Konto zu diesem Fall hinzufügen</source>
         <translation>Clear the form and add another account to this case</translation>
+    </message>
+    <message>
+        <source>Benutzer {0}</source>
+        <translation>user {0}</translation>
+    </message>
+    <message>
+        <source>Server noch nicht bekannt</source>
+        <translation>Server not known yet</translation>
+    </message>
+    <message>
+        <source>Fertig</source>
+        <translation>Done</translation>
+    </message>
+    <message>
+        <source>▾ Erweitert</source>
+        <translation>▾ Advanced</translation>
+    </message>
+    <message>
+        <source>Anmeldung läuft</source>
+        <translation>Signing in</translation>
+    </message>
+    <message>
+        <source>Anmeldung</source>
+        <translation>Authentication</translation>
+    </message>
+    <message>
+        <source>Anmeldung aus dieser Sitzung</source>
+        <translation>Sign-in from this session</translation>
+    </message>
+    <message>
+        <source>Adresse</source>
+        <translation>Address</translation>
+    </message>
+    <message>
+        <source>Postfach</source>
+        <translation>Mailbox</translation>
+    </message>
+    <message>
+        <source>Stand:</source>
+        <translation>Status:</translation>
     </message>
     <message>
         <source>Asservatennummer vorgeschlagen (nach {0}) – bitte prüfen.</source>
@@ -189,6 +249,14 @@
     <message>
         <source>Nur die Eckdaten (Server, Anmeldeart, Asservatennummer) werden übernommen – die Mails werden frisch erfasst. Asservatennummer anschließend prüfen.</source>
         <translation>Only the details (server, login method, evidence number) are copied – the messages are acquired fresh. Check the evidence number afterwards.</translation>
+    </message>
+    <message>
+        <source>Eckdaten aus früherem Fall übernommen</source>
+        <translation>Key data taken over from an earlier case</translation>
+    </message>
+    <message>
+        <source>Einstellungen aus diesem Fall übernommen</source>
+        <translation>Settings taken over from this case</translation>
     </message>
     <message>
         <source>Dieses Konto ist schon im Fall ({0}, {1} {2}) – es wird fortgesetzt, die Asservatennummer bleibt {0}.</source>
