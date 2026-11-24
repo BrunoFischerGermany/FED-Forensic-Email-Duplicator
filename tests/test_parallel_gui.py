@@ -539,6 +539,7 @@ def test_oauth_shows_browser_hint_instead_of_testing(monkeypatch):
         time.sleep(0.02)
     assert opened == [url] and hints[0] == ("Microsoft", url)
     assert "Browserfenster" in hints[1] and f'href="{url}"' in hints[1].replace("&amp;", "&")
+    assert p.test_state.wordWrap() and p.test_state.minimumSizeHint().width() < 400  # Karte bleibt schmal
     t0 = time.time()
     while not p.test_btn.isEnabled() and time.time() - t0 < 10:  # Fehler kommt danach an
         app.processEvents()

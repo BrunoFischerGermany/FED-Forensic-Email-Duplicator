@@ -681,7 +681,8 @@ class AccountPage(QWidget):
         c3.add(actions)
         self.error = label("", "Error", wrap=True)
         c3.add(self.error)
-        self.test_state = label(self.tr("noch nicht getestet"), "Muted")
+        # umbrechen: lange Hinweise (Browser-Anmeldung, Gerätecode) dürfen die Karte nicht verbreitern
+        self.test_state = label(self.tr("noch nicht getestet"), "Muted", wrap=True)
         c3.add(self.test_state)
         self.test_state.linkActivated.connect(self._open_link)
         self.test = KeyValues()
