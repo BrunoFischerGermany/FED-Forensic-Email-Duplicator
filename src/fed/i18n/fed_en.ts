@@ -1763,6 +1763,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Export CSV</translation>
     </message>
     <message>
+        <source>Chain of Custody …</source>
+        <translation>Chain of custody …</translation>
+    </message>
+    <message>
         <source>Nur lesend aus case.sqlite · jede Prüfung wird selbst protokolliert</source>
         <translation>Read-only from case.sqlite · every check is itself logged</translation>
     </message>
@@ -1847,6 +1851,24 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Bitte zuerst eine oder mehrere Mails markieren.</source>
         <translation>Please select one or more messages first.</translation>
+    </message>
+    <message>
+        <source>Chain of Custody speichern</source>
+        <translation>Save chain of custody</translation>
+    </message>
+    <message>
+        <source>✓ Chain of Custody: {0} Einträge</source>
+        <translation>✓ Chain of custody: {0} entries</translation>
+    </message>
+    <message>
+        <source>{0}
+Letzter Eintrag: {1}
+SHA-256 der Datei: {2}
+Prüfanleitung: {3}</source>
+        <translation>{0}
+Last entry: {1}
+SHA-256 of the file: {2}
+Verification guide: {3}</translation>
     </message>
     <message>
         <source>Ansicht als CSV speichern</source>

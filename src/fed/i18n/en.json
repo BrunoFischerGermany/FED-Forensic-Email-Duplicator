@@ -705,5 +705,9 @@
   "Unter diesem Aktenzeichen gibt es im Zielordner schon einen Fall – bitte Aktenzeichen oder Zielordner anpassen.": "A case with this case number already exists in the target folder – please adjust the case number or target folder.",
   "Manifest (Prüfanker für Dateien und Log) wird erstellt": "Creating manifest (verification anchor for files and log)",
   "Manifest (Prüfanker)": "Manifest (verification anchor)",
-  "Zeitstempel Manifest": "Manifest timestamp"
+  "Zeitstempel Manifest": "Manifest timestamp",
+  "Chain of Custody …": "Chain of custody …",
+  "Chain of Custody speichern": "Save chain of custody",
+  "✓ Chain of Custody: {0} Einträge": "✓ Chain of custody: {0} entries",
+  "{0}\nLetzter Eintrag: {1}\nSHA-256 der Datei: {2}\nPrüfanleitung: {3}": "{0}\nLast entry: {1}\nSHA-256 of the file: {2}\nVerification guide: {3}"
 }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from pathlib import Path
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QSortFilterProxyModel, Qt, QTimer
 from PySide6.QtGui import QStandardItem, QStandardItemModel
@@ -158,7 +159,7 @@ class HistoryTab(QWidget):
         self.chain = label("", "Ok")
         head.addWidget(self.chain)
         for text, fn in ((self.tr("Hash-Kette prüfen"), self.verify_chain), (self.tr("Dateien nachhashen"), self.rehash),
-                         (self.tr("Export CSV"), self.export)):
+                         (self.tr("Export CSV"), self.export), (self.tr("Chain of Custody …"), self.export_custody)):
             b = QPushButton(text)
             b.clicked.connect(fn)
             head.addWidget(b)
@@ -335,6 +336,32 @@ class HistoryTab(QWidget):
             export_pdf(self, case, ids, name)
         finally:
             self.timer.start(3000)
+
+    def export_custody(self) -> None:
+        """Ganzes Fall-Log als eigenständiges Chain-of-Custody-Protokoll (CSV + Prüfanleitung) speichern."""
+        case = self.get_case()
+        if case is None:
+            return
+        from fed.core.naming import file_name
+
+        default = file_name(f"{case.info()['case_number']}_chain_of_custody", True) + ".csv"
+        path, _ = QFileDialog.getSaveFileName(self, self.tr("Chain of Custody speichern"), default, "CSV (*.csv)")
+        if not path:
+            return
+        self.write_custody(case, Path(path))
+
+    def write_custody(self, case: Case, path: Path) -> dict:
+        from fed.core import custody
+
+        state = custody.write(case, path)
+        sha = hash_file(path)["sha256"]
+        case.log("INFO", "chain_of_custody_exported", {"file": str(path), "sha256": sha, **state})
+        self.chain.setText(self.tr("✓ Chain of Custody: {0} Einträge").format(state["entries"]) if state["chain_ok"]
+                           else self.tr("✗ Log-Kette gebrochen ab Eintrag {0}").format(state["first_bad"]))
+        restyle(self.chain, "Ok" if state["chain_ok"] else "Error")
+        self.chain.setToolTip(self.tr("{0}\nLetzter Eintrag: {1}\nSHA-256 der Datei: {2}\nPrüfanleitung: {3}").format(
+            path, state["last_entry_hash"], sha, path.with_name(custody.README_NAME)))
+        return state
 
     def export(self) -> None:
         t = self.tabs.currentWidget()

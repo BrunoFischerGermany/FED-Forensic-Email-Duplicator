@@ -1004,3 +1004,23 @@ def test_check_icon_is_packaged_resource_not_temp(app, tmp_path, monkeypatch):
     css = theme.stylesheet(theme.DARK)
     assert 'image: url("' in css and "fed-check.svg" in css
     assert list(fake_tmp.iterdir()) == []           # Stylesheet-Bau schreibt nichts ins Temp
+
+
+def test_history_exports_chain_of_custody(app, tmp_path):
+    """Historie: „Chain of Custody …“ schreibt CSV + Prüfanleitung, nachrechenbar, Export protokolliert."""
+    from fed.core import custody
+    from fed.core.case import Case, CaseInfo
+    from fed.gui.history import HistoryTab
+
+    case = Case.create(tmp_path, CaseInfo("AZ-C", "Tester"))
+    tab = HistoryTab(lambda: case)
+    out = tmp_path / "export" / "coc.csv"
+    out.parent.mkdir()
+    state = tab.write_custody(case, out)
+    assert state["chain_ok"] and state["entries"] >= 1
+    assert custody.verify_csv(out)[0] and (out.parent / custody.README_NAME).exists()
+    assert "Chain of Custody" in tab.chain.text() and state["last_entry_hash"] in tab.chain.toolTip()
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'chain_of_custody_exported'").fetchone()[0] == 1
+    tab.deleteLater()
+    app.processEvents()
+    case.close()

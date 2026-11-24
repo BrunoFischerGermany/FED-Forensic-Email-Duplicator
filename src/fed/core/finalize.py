@@ -607,6 +607,13 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
         _phase("encrypt")
         encrypted = encrypted_copy(case, [z.path for z in zips], encrypt_password, cfg)
     _phase("manifest")
+    from fed.core import custody
+
+    coc = case.root / custody.COC_NAME  # Chain of Custody: ganzes Log als eigenständige, nachrechenbare Datei
+    state = custody.write(case, coc, report_language)
+    coc_hashes = record_output(case, coc, cfg)
+    record_output(case, coc.with_name(custody.README_NAME), cfg)
+    case.log("INFO", "chain_of_custody_written", {"file": coc.name, "sha256": coc_hashes["sha256"], **state})
     manifest, manifest_hashes = write_manifest(case, cfg)
     if skip:
         case.log("WARNING", "timestamp_skipped", {"zip": manifest.name})
