@@ -1265,6 +1265,10 @@ Open and continue this case?</translation>
         <translation>Close case</translation>
     </message>
     <message>
+        <source>Dateien und Hashwerte</source>
+        <translation>Files and hash values</translation>
+    </message>
+    <message>
         <source>Bericht</source>
         <translation>Report</translation>
     </message>
@@ -1521,40 +1525,16 @@ Open and continue this case?</translation>
         <translation>unchanged ✓</translation>
     </message>
     <message>
-        <source>{0} Ordner geändert</source>
-        <translation>{0} folders changed</translation>
+        <source>{0} Ordner während der Sicherung geändert</source>
+        <translation>{0} folders changed during acquisition</translation>
     </message>
     <message>
-        <source>ZIP gepackt</source>
-        <translation>ZIP created</translation>
+        <source>gelöscht – Mails nur noch im geprüften ZIP</source>
+        <translation>deleted – messages only in the verified ZIP</translation>
     </message>
     <message>
-        <source>ZIP verifiziert</source>
-        <translation>ZIP verified</translation>
-    </message>
-    <message>
-        <source>{0} .eml erneut gehasht, alle identisch</source>
-        <translation>{0} .eml re-hashed, all identical</translation>
-    </message>
-    <message>
-        <source>gelöscht (Mails nur noch im geprüften ZIP)</source>
-        <translation>deleted (messages only in the verified ZIP)</translation>
-    </message>
-    <message>
-        <source>behalten</source>
-        <translation>kept</translation>
-    </message>
-    <message>
-        <source>Zeitstempel (RFC 3161)</source>
-        <translation>Timestamp (RFC 3161)</translation>
-    </message>
-    <message>
-        <source>{0} UTC · Seriennr. {1}</source>
-        <translation>{0} UTC · serial {1}</translation>
-    </message>
-    <message>
-        <source>fehlgeschlagen: {0}</source>
-        <translation>failed: {0}</translation>
+        <source>behalten (work/)</source>
+        <translation>kept (work/)</translation>
     </message>
     <message>
         <source> · {0} Einzelberichte je Konto</source>
@@ -1577,14 +1557,6 @@ Open and continue this case?</translation>
         <translation>Password (visible only now)</translation>
     </message>
     <message>
-        <source>Manifest (Prüfanker)</source>
-        <translation>Manifest (verification anchor)</translation>
-    </message>
-    <message>
-        <source>Zeitstempel Manifest</source>
-        <translation>Manifest timestamp</translation>
-    </message>
-    <message>
         <source>Hinweis</source>
         <translation>Note</translation>
     </message>
@@ -1599,6 +1571,34 @@ Open and continue this case?</translation>
     <message>
         <source>Kennzahlen</source>
         <translation>Key figures</translation>
+    </message>
+    <message>
+        <source>✓ {0} .eml erneut gehasht, alle identisch</source>
+        <translation>✓ {0} .eml re-hashed, all identical</translation>
+    </message>
+    <message>
+        <source>✓ Zeitstempel {0} UTC · Seriennr. {1}</source>
+        <translation>✓ Timestamp {0} UTC · serial {1}</translation>
+    </message>
+    <message>
+        <source>Zeitstempel fehlgeschlagen: {0}</source>
+        <translation>Timestamp failed: {0}</translation>
+    </message>
+    <message>
+        <source>Prüfanker: Hashes aller Ausgabedateien und Stand der Log-Kette</source>
+        <translation>Verification anchor: hashes of all output files and state of the log chain</translation>
+    </message>
+    <message>
+        <source>Kopieren</source>
+        <translation>Copy</translation>
+    </message>
+    <message>
+        <source>{0} von {1} in die Zwischenablage</source>
+        <translation>{0} of {1} to the clipboard</translation>
+    </message>
+    <message>
+        <source>Kopiert ✓</source>
+        <translation>Copied ✓</translation>
     </message>
     <message>
         <source>Abschluss fehlgeschlagen</source>

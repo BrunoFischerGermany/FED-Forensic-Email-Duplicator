@@ -802,5 +802,14 @@
   "✓ Berichte und ZIP erstellt": "✓ Reports and ZIP created",
   "{0} von {1} Konten fertig": "{0} of {1} accounts done",
   "noch kein Konto": "no account yet",
-  "✓ Grunddaten · Prüfung": "✓ Base data · check"
+  "✓ Grunddaten · Prüfung": "✓ Base data · check",
+  "Dateien und Hashwerte": "Files and hash values",
+  "{0} Ordner während der Sicherung geändert": "{0} folders changed during acquisition",
+  "gelöscht – Mails nur noch im geprüften ZIP": "deleted – messages only in the verified ZIP",
+  "behalten (work/)": "kept (work/)",
+  "✓ {0} .eml erneut gehasht, alle identisch": "✓ {0} .eml re-hashed, all identical",
+  "✓ Zeitstempel {0} UTC · Seriennr. {1}": "✓ Timestamp {0} UTC · serial {1}",
+  "Zeitstempel fehlgeschlagen: {0}": "Timestamp failed: {0}",
+  "Prüfanker: Hashes aller Ausgabedateien und Stand der Log-Kette": "Verification anchor: hashes of all output files and state of the log chain",
+  "{0} von {1} in die Zwischenablage": "{0} of {1} to the clipboard"
 }
