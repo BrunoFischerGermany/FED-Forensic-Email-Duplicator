@@ -216,6 +216,25 @@ def _free_port(host: str) -> int:
         return s.getsockname()[1]
 
 
+class _LoopbackServer(http.server.ThreadingHTTPServer):
+    """Rückleitungs-Server: jede Verbindung in eigenem Thread.
+
+    Browser (v. a. Chrome/Edge unter Windows) öffnen oft eine Vorab-Verbindung, über die nie eine Anfrage
+    kommt. Ein Server, der Verbindungen nacheinander abarbeitet, bliebe daran hängen und die eigentliche
+    Rückleitung käme nie an. ``server_bind`` ohne ``getfqdn`` – das kann unter Windows Sekunden dauern."""
+    daemon_threads = True
+
+    def server_bind(self) -> None:
+        import socketserver
+
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "localhost", self.server_address[1]
+
+
+class _LoopbackServer6(_LoopbackServer):
+    address_family = socket.AF_INET6
+
+
 # ---------------------------------------------------------------- Loopback-Ablauf
 _PAGE = """<!doctype html><html lang="{lang}"><meta charset="utf-8"><title>FED</title>
 <body style="font-family:system-ui;margin:4em;color:#16181D"><h1>{title}</h1><p>{text}</p></body></html>"""
@@ -272,8 +291,16 @@ def authorize(
         def log_message(self, *args):  # Konsole sauber halten
             pass
 
-    server = http.server.HTTPServer(("127.0.0.1", port), Handler)
-    server.timeout = 0.5
+    Handler.timeout = 15  # leere Vorab-Verbindungen nach kurzer Zeit verwerfen
+    servers: list[http.server.HTTPServer] = [_LoopbackServer(("127.0.0.1", port), Handler)]
+    if provider.redirect_host == "localhost":
+        # „localhost" kann im Browser auf IPv6 (::1) auflösen (häufig unter Windows) – dort ebenfalls lauschen
+        try:
+            servers.append(_LoopbackServer6(("::1", port), Handler))
+        except OSError:
+            pass  # kein IPv6 oder Port dort belegt – IPv4 reicht dann
+    for srv in servers:
+        threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.2}, daemon=True).start()
     params = {
         "response_type": "code",
         "client_id": client_id,
@@ -287,17 +314,33 @@ def authorize(
     if login_hint:
         params["login_hint"] = login_hint
     url = f"{provider.auth_url}?{urllib.parse.urlencode(params)}"
+
+    def _open() -> None:
+        # Fehler beim Öffnen nicht still verschlucken (unter Windows z. B. os.startfile) – sonst wartet man
+        # bis zur Zeitüberschreitung, ohne dass sich je ein Browser geöffnet hat
+        try:
+            if open_browser(url) is False:
+                result["browser"] = t("kein Browser gefunden")
+        except Exception as e:
+            result["browser"] = str(e) or type(e).__name__
+        if "browser" in result:
+            done.set()
+
     try:
-        threading.Thread(target=open_browser, args=(url,), daemon=True).start()
+        threading.Thread(target=_open, daemon=True).start()
         deadline = time.monotonic() + timeout_s
-        while not done.is_set():
+        while not done.wait(0.2):
             if cancel.is_cancelled:
                 raise Cancelled()
             if time.monotonic() > deadline:
                 raise OAuthError(t("Zeitüberschreitung bei der Anmeldung im Browser"))
-            server.handle_request()
     finally:
-        server.server_close()
+        for srv in servers:
+            srv.shutdown()
+            srv.server_close()
+    if "browser" in result and "code" not in result and "error" not in result:
+        raise OAuthError(t("Der Browser für die Anmeldung konnte nicht geöffnet werden ({error}). "
+                           "Alternativ „Anmeldung per Gerätecode“ verwenden.", error=result["browser"]))
     if "error" in result:
         raise OAuthError(result["error"])
     data = {"grant_type": "authorization_code", "code": result["code"], "redirect_uri": redirect_uri,
