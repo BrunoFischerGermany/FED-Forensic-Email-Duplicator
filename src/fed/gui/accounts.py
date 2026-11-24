@@ -240,8 +240,9 @@ class _RailItem(QFrame):
 
     clicked = Signal()
     remove = Signal()
+    mails = Signal()
 
-    def __init__(self, text: str, name: str, removable: bool = False) -> None:
+    def __init__(self, text: str, name: str, removable: bool = False, has_mails: bool = False) -> None:
         super().__init__()
         self.setObjectName("RailItem")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -258,10 +259,19 @@ class _RailItem(QFrame):
             "AccountsTable", "Konto aus dem Fall entfernen – nur solange noch nichts gesichert wurde"))
         self.remove_btn.clicked.connect(self.remove.emit)
         self.remove_btn.setVisible(removable)
+        self.mails_btn = QToolButton()
+        self.mails_btn.setText("✉")
+        self.mails_btn.setAutoRaise(True)
+        self.mails_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.mails_btn.setToolTip(QCoreApplication.translate(
+            "AccountsTable", "Mails ansehen – gesicherte Mails dieses Kontos in der Historie"))
+        self.mails_btn.clicked.connect(self.mails.emit)
+        self.mails_btn.setVisible(has_mails)
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(2)
         row.addWidget(self.label, 1)
+        row.addWidget(self.mails_btn)
         row.addWidget(self.remove_btn)
         self.bar = QProgressBar()
         self.bar.setFixedHeight(6)
@@ -310,6 +320,7 @@ class AccountsRail(QWidget):
     picked = Signal(dict)
     add_account = Signal()
     remove_requested = Signal(dict)
+    mails_requested = Signal(dict)  # „✉“: gesicherte Mails des Kontos in der Historie ansehen
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -354,7 +365,8 @@ class AccountsRail(QWidget):
         self.add_btn.setVisible(case is not None and not case.closed)
         jobs = self.jobs
         live = {j.account_id for j in jobs.running()} if jobs else set()
-        key = [(o["email"], o["state"], o["saved"], o["attempts"], o["id"] in live, o.get("removable")) for o in rows]
+        key = [(o["email"], o["state"], o["saved"], o["attempts"], o["id"] in live, o.get("removable"))
+               for o in rows] + [bool(case and case.closed)]
         if key == self._last:
             self.update_progress()
             return
@@ -369,9 +381,11 @@ class AccountsRail(QWidget):
             if running:
                 sym, text, style = "⟳", _tr("Sicherung läuft"), "Accent"
             item = _RailItem(f"{sym}  {o['evidence']} · {o['email']}", style,
-                             removable=bool(o.get("removable")) and not running)
+                             removable=bool(o.get("removable")) and not running, has_mails=o["saved"] > 0)
             item.remove.connect(lambda o=o: self.remove_requested.emit(o))
+            item.mails.connect(lambda o=o: self.mails_requested.emit(o))
             hint = (QCoreApplication.translate("AccountsTable", "Klicken: Fortschritt ansehen") if running else
+                    QCoreApplication.translate("AccountsTable", "Klicken: Mails ansehen") if case.closed else
                     QCoreApplication.translate("AccountsTable", "Klicken: Konto übernehmen"))
             item.setToolTip(f"{o['email']}\n{o['evidence']} · {text}\n"
                             + QCoreApplication.translate("AccountsTable", "{0} von {1} Mails · {2} Versuche").format(

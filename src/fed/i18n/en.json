@@ -811,5 +811,7 @@
   "✓ Zeitstempel {0} UTC · Seriennr. {1}": "✓ Timestamp {0} UTC · serial {1}",
   "Zeitstempel fehlgeschlagen: {0}": "Timestamp failed: {0}",
   "Prüfanker: Hashes aller Ausgabedateien und Stand der Log-Kette": "Verification anchor: hashes of all output files and state of the log chain",
-  "{0} von {1} in die Zwischenablage": "{0} of {1} to the clipboard"
+  "{0} von {1} in die Zwischenablage": "{0} of {1} to the clipboard",
+  "Mails ansehen – gesicherte Mails dieses Kontos in der Historie": "View messages – acquired messages of this account in the history",
+  "Klicken: Mails ansehen": "Click: view messages"
 }

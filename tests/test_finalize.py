@@ -893,3 +893,34 @@ def test_remove_account_only_before_first_attempt(tmp_path, imap_server, acquire
     assert not accounts_overview(done)[0]["removable"] and not can_remove_account(done, acc_id)
     with pytest.raises(ValueError, match="Sicherungsversuch"):
         remove_account(done, acc_id)
+
+
+def test_view_mails_of_account_from_rail(tmp_path, imap_server, test_mails):
+    """„✉“ in der linken Leiste öffnet die Historie, auf das Konto gefiltert; Auswahl „alle Konten“ zeigt alle."""
+    from PySide6.QtWidgets import QApplication
+
+    from fed.gui.main_window import MainWindow
+
+    qapp = QApplication.instance() or QApplication([])
+    case = _two_accounts(tmp_path, imap_server)
+    cfg = Config()
+    cfg.programm.ntp = False
+    w = MainWindow(cfg, tmp_path)
+    w.show()
+    a = w.assistant
+    a.st.case = case
+    a.refresh_accounts()
+    ids = [r[0] for r in case.conn.execute("SELECT id FROM account ORDER BY id")]
+    item = a.rail_accounts.by_id[ids[1]]
+    assert item.mails_btn.isVisibleTo(item)
+    item.mails_btn.click()
+    h = w.history
+    assert w.stack.currentIndex() == 1 and h.tabs.currentWidget() is h.mails
+    assert h.account_filter.currentData() == ids[1]
+    assert h.mails.model.rowCount() == len(test_mails)
+    h.account_filter.setCurrentIndex(0)  # alle Konten
+    assert h.mails.model.rowCount() == 2 * len(test_mails)
+    w.close()
+    w.deleteLater()
+    qapp.processEvents()
+    case.close()

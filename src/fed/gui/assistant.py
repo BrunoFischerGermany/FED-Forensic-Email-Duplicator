@@ -2814,6 +2814,7 @@ ACCOUNT_STEPS = [QT_TRANSLATE_NOOP("Assistant", "Verbinden"), QT_TRANSLATE_NOOP(
 class Assistant(QWidget):
     case_changed = Signal()
     open_settings = Signal()  # z. B. „Einstellungen ändern …“ auf der Prüfseite vor dem Abschluss
+    show_mails = Signal(int)  # „Mails ansehen“: Historie auf dieses Konto gefiltert
 
     def __init__(self, cfg: Config) -> None:
         super().__init__()
@@ -2895,6 +2896,7 @@ class Assistant(QWidget):
         self.p_acc.new_account.connect(self._another)
         self.rail_accounts.add_account.connect(self._rail_add)
         self.rail_accounts.remove_requested.connect(self._remove_account)
+        self.rail_accounts.mails_requested.connect(lambda o: self.show_mails.emit(o["id"]))
         self.p_acc.accounts.remove_requested.connect(self._remove_account)
         self.case_changed.connect(self._update_rail)
         self._show(0, 0)
@@ -2994,8 +2996,12 @@ class Assistant(QWidget):
         self.p_fold.scan()
 
     def _rail_pick(self, o: dict) -> None:
-        """Klick auf ein Konto in der linken Leiste: laufende Sicherung ansehen, sonst Konto übernehmen."""
-        if self.st.case is None or self.st.case.closed:
+        """Klick auf ein Konto in der linken Leiste: laufende Sicherung ansehen, sonst Konto übernehmen;
+        im abgeschlossenen Fall (nichts mehr fortzusetzen) seine Mails in der Historie zeigen."""
+        if self.st.case is None:
+            return
+        if self.st.case.closed:
+            self.show_mails.emit(o["id"])
             return
         job = self.jobs.get(o["id"])
         if job is not None and job.running:
