@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QSortFilterProxyModel, Qt, QTimer
 from PySide6.QtGui import QStandardItem, QStandardItemModel
-from PySide6.QtWidgets import (QFileDialog, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox, QPushButton,
+from PySide6.QtWidgets import (QComboBox, QFileDialog, QHBoxLayout, QHeaderView, QLineEdit, QMessageBox, QPushButton,
                                QTableView, QTabWidget, QVBoxLayout, QWidget)
 
 from fed.core import timefmt as tf
@@ -180,11 +180,21 @@ class HistoryTab(QWidget):
         self.mail_pdf.setToolTip(self.tr("Alle markierten Mails in ein PDF/A (je Mail eine neue Seite, Original-Mails eingebettet)"))
         self.mail_pdf.clicked.connect(self.export_pdf)
         self.mails.layout().addWidget(self.mail_pdf, 0, Qt.AlignmentFlag.AlignRight)
+        # Konto-Filter über der Mail-Tabelle („Mails ansehen“ aus der linken Leiste setzt ihn)
+        frow = QHBoxLayout()
+        frow.addWidget(label(self.tr("Konto"), "Muted"))
+        self.account_filter = QComboBox()
+        self.account_filter.addItem(self.tr("alle Konten"), None)
+        self.account_filter.currentIndexChanged.connect(lambda _: self._filter_changed())
+        frow.addWidget(self.account_filter, 1)
+        self.mails.layout().insertLayout(0, frow)
+        self._mail_key = None  # zuletzt geladener Filter – bei Wechsel Tabelle neu füllen
         self.log = Table(LOG_COLS)
         self.folders = Table(FOLDER_COLS, search=False)
         from fed.gui.accounts import AccountsTable
 
         self.accounts = AccountsTable()
+        self.accounts.picked.connect(lambda o: self.show_account(o["id"]))  # Klick auf Konto: seine Mails
         acc_page = QWidget()
         al = QVBoxLayout(acc_page)
         al.addWidget(self.accounts)
@@ -199,6 +209,38 @@ class HistoryTab(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(3000)
+
+    def _fill_account_filter(self, case: Case) -> None:
+        """Konten des Falls in die Auswahl übernehmen (Auswahl bleibt erhalten)."""
+        rows = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY evidence_number, id").fetchall()
+        have = [self.account_filter.itemData(i) for i in range(1, self.account_filter.count())]
+        if have == [r[0] for r in rows]:
+            return
+        cur = self.account_filter.currentData()
+        self.account_filter.blockSignals(True)
+        while self.account_filter.count() > 1:
+            self.account_filter.removeItem(1)
+        for aid, ev, email in rows:
+            self.account_filter.addItem(f"{ev} · {email}" if ev else email, aid)
+        i = self.account_filter.findData(cur)
+        self.account_filter.setCurrentIndex(i if i >= 0 else 0)
+        self.account_filter.blockSignals(False)
+
+    def _filter_changed(self) -> None:
+        self._mail_key = None
+        self.refresh()
+
+    def show_account(self, account_id: int | None) -> None:
+        """„Mails ansehen“: Mail-Tabelle auf ein Konto filtern und anzeigen."""
+        case = self.get_case()
+        if case is None:
+            return
+        self._fill_account_filter(case)
+        self.tabs.setCurrentWidget(self.mails)
+        i = self.account_filter.findData(account_id)
+        self.account_filter.setCurrentIndex(i if i >= 0 else 0)
+        self._mail_key = None
+        self.refresh()
 
     def open_mail(self, index) -> None:
         case = self.get_case()
@@ -244,12 +286,17 @@ class HistoryTab(QWidget):
             "FROM attempt t JOIN account a ON a.id = t.account_id ORDER BY t.id")])
         if self.tabs.currentIndex() == 0:
             self.accounts.refresh(case)
-        if self.tabs.currentWidget() is self.mails or not self.mails.model.rowCount():
+        self._fill_account_filter(case)
+        acc = self.account_filter.currentData()
+        key = (str(case.root), acc)
+        if self.tabs.currentWidget() is self.mails or not self.mails.model.rowCount() or key != self._mail_key:
+            self._mail_key = key
+            where, args = ("WHERE f.account_id = ? ", (acc,)) if acc is not None else ("", ())
             mrows = c.execute(
                 "SELECT f.display_name, m.internaldate, m.msg_from, m.msg_to, m.msg_cc, m.msg_bcc, m.recipient_note, "
                 "m.delivered_to, m.attachment_count, m.inline_count, m.subject, m.zip_path, m.sha256, t.nr, m.status, m.id "
                 "FROM message m JOIN folder f ON f.id = m.folder_id JOIN attempt t ON t.id = m.attempt_id "
-                "ORDER BY m.internaldate DESC").fetchall()
+                + where + "ORDER BY m.internaldate DESC", args).fetchall()
             self.mails.fill([[r[0], tf.utc_str(r[1])[:19], tf.local_str(r[1]), ", ".join(json.loads(r[2] or "[]")),
                               _recipient(*r[3:8]), str(r[8]) + (f" +{r[9]} inline" if r[9] else ""), r[10], r[11].split("/")[-1],
                               r[12], r[13], r[14]] for r in mrows], ids=[r[15] for r in mrows])

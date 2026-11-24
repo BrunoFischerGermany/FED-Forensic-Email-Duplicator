@@ -486,6 +486,10 @@
         <translation>{0} accounts · {1} completely acquired · {2} open · {3} messages · {4}</translation>
     </message>
     <message>
+        <source>Mails ansehen – gesicherte Mails dieses Kontos in der Historie</source>
+        <translation>View messages – acquired messages of this account in the history</translation>
+    </message>
+    <message>
         <source>wird abgebrochen …</source>
         <translation>cancelling …</translation>
     </message>
@@ -516,6 +520,10 @@
     <message>
         <source>Klicken: Fortschritt ansehen</source>
         <translation>Click: view progress</translation>
+    </message>
+    <message>
+        <source>Klicken: Mails ansehen</source>
+        <translation>Click: view messages</translation>
     </message>
     <message>
         <source>Klicken: Konto übernehmen</source>
@@ -1993,6 +2001,10 @@ Open and continue this case?</translation>
     <message>
         <source>Alle markierten Mails in ein PDF/A (je Mail eine neue Seite, Original-Mails eingebettet)</source>
         <translation>All selected messages in one PDF/A (each message on a new page, original messages embedded)</translation>
+    </message>
+    <message>
+        <source>alle Konten</source>
+        <translation>all accounts</translation>
     </message>
     <message>
         <source>Konten</source>

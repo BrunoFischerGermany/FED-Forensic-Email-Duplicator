@@ -89,6 +89,7 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.connection)
         self.assistant.case_changed.connect(self._case_changed)
         self.assistant.open_settings.connect(lambda: self.nav.button(self._SETTINGS_IDX).click())
+        self.assistant.show_mails.connect(self.show_mails)
         self.settings.saved.connect(self._settings_saved)
         self.settings.theme_preview.connect(lambda m: self.apply_theme(theme.is_dark(m)))
         self.apply_theme(self.dark)
@@ -110,6 +111,12 @@ class MainWindow(QMainWindow):
             else:
                 self.settings.load()  # verwerfen: Eingaben auf gespeicherten Stand zurücksetzen
         self.stack.setCurrentIndex(idx)
+
+    def show_mails(self, account_id: int) -> None:
+        """Historie öffnen, Mail-Tabelle auf das Konto gefiltert."""
+        self.nav.button(1).click()
+        if self.stack.currentIndex() == 1:  # nicht, wenn das Verlassen der Einstellungen abgebrochen wurde
+            self.history.show_account(account_id)
 
     def apply_theme(self, dark: bool) -> None:
         self.dark = dark
