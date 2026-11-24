@@ -546,3 +546,45 @@ def test_oauth_shows_browser_hint_instead_of_testing(monkeypatch):
         time.sleep(0.02)
     p.deleteLater()
     app.processEvents()
+
+
+def test_account_page_compact_layout():
+    """Konto-Seite: Verbindung als Zusammenfassung (Felder erst bei „Ändern …“ oder ohne Fund), Erweitert nur
+    bei OAuth, Notiz eingeklappt solange leer, Statuszeile statt verstreuter Meldungen."""
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core.config import Config
+    from fed.gui.assistant import AccountPage, State
+
+    p = AccountPage(State(Config()))
+    p.show()
+    assert p.conn_details.isHidden() and "noch nicht bekannt" in p.conn_summary.text()
+    assert p.test_state.isHidden() and p.error.isHidden()  # keine leeren Meldungszeilen
+    assert p.acc_notes.isHidden() and not p.notes_btn.isHidden()
+    p.email.setText("max@outlook.com")
+    p.evidence.setText("DF001")
+    p.server.setText("outlook.office365.com")
+    p._discovered = True
+    p.method.set_value("microsoft")
+    p._method_changed("microsoft")
+    assert p.conn_details.isHidden()
+    assert p.conn_summary.text() == "outlook.office365.com · 993 · SSL · Microsoft 365 (OAuth)"
+    assert not p.advanced_btn.isHidden() and p.advanced.isHidden()
+    p.advanced_btn.click()
+    assert not p.advanced.isHidden() and not p.device.isHidden()
+    p.edit_conn_btn.click()
+    assert not p.conn_details.isHidden() and p.edit_conn_btn.text() == "Fertig"
+    p.method.set_value("password")
+    p._method_changed("password")
+    assert p.advanced_btn.isHidden() and p.advanced.isHidden()
+    assert "✓&nbsp;Adresse" in p.status_line.text() and "○&nbsp;Anmeldung" in p.status_line.text()
+    p.reset()
+    assert p.conn_details.isHidden() and p.acc_notes.isHidden()
+    p.server.clear()
+    p._discovered = True  # nichts gefunden -> Felder offen
+    p._update_conn_view()
+    assert not p.conn_details.isHidden()
+    p.acc_notes.set_value("Beschluss AG Musterstadt", None)
+    assert not p.acc_notes.isHidden()
+    p.hide()
+    p.deleteLater()
+    app.processEvents()
