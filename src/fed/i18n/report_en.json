@@ -225,5 +225,7 @@
   "thousands_sep": ",",
   "domain_dns_csv": "Domain DNS snapshot – stored as CSV. Full table in dns_snapshot.csv (in the case folder, with SHA-256).",
   "dns_keys_csv": "{n} retained DKIM keys – stored as CSV. Full list in dns_keys.csv (in the case folder, with SHA-256).",
-  "ts_qualified": "Qualified timestamp (RFC 3161)"
+  "ts_qualified": "Qualified timestamp (RFC 3161)",
+  "log_case_base_data_taken_over": "Base data taken over from case {from_case_number} ({from_case_path})",
+  "based_on": "Base data taken over from case"
 }

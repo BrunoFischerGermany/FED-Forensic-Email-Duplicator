@@ -162,10 +162,12 @@ class CasePage(QWidget):
     next = Signal()
     imported = Signal()  # nach einem Offline-Import (Apple Mail): Historie/Status aktualisieren
     new_case = Signal()  # „Neuer Fall“: aktuellen (auch abgeschlossenen) Fall verlassen und frisch beginnen
+    reuse_case = Signal(dict)  # „Grunddaten übernehmen“: neuer Fall, vorbelegt mit den Daten des geladenen Falls
 
     def __init__(self, st: State) -> None:
         super().__init__()
         self.st = st
+        self._reused_from: dict | None = None  # Herkunft übernommener Grunddaten (wird im neuen Fall protokolliert)
         w, lay = page(self.tr("Fall anlegen"),
                       self.tr("Ohne Fall startet keine Sicherung. Prüfer und Agentur kommen aus der config.toml."))
         cols = QHBoxLayout()
@@ -234,8 +236,14 @@ class CasePage(QWidget):
         self.new_case_btn.setToolTip(self.tr("Diesen Fall verlassen und einen neuen anlegen"))
         self.new_case_btn.clicked.connect(self.new_case.emit)
         self.new_case_btn.setVisible(False)
+        self.reuse_btn = QPushButton(self.tr("Grunddaten übernehmen"))
+        self.reuse_btn.setToolTip(self.tr("Neuen Fall beginnen – Aktenzeichen, Prüfer, Anmerkungen und Zielordner "
+                                          "werden aus diesem Fall übernommen und können angepasst werden"))
+        self.reuse_btn.clicked.connect(self._reuse_clicked)
+        self.reuse_btn.setVisible(False)
         btns = QHBoxLayout()
         btns.addStretch(1)
+        btns.addWidget(self.reuse_btn)
         btns.addWidget(self.new_case_btn)
         btns.addWidget(self.import_btn)
         btns.addWidget(open_btn)
@@ -345,6 +353,38 @@ class CasePage(QWidget):
         self.open_btn.setVisible(not is_open)
         self.import_btn.setVisible(is_open and not closed)
         self.new_case_btn.setVisible(is_open)  # geladenen (auch abgeschlossenen) Fall verlassen und neu beginnen
+        self.reuse_btn.setVisible(closed)  # abgeschlossen: Grunddaten in einen neuen Fall übernehmen
+
+    def base_data(self) -> dict | None:
+        """Grunddaten des geladenen Falls für „Grunddaten übernehmen“."""
+        case = self.st.case
+        if case is None:
+            return None
+        info = case.info()
+        return {"case_number": info.get("case_number") or "", "examiner": info.get("examiner") or "",
+                "notes": info.get("notes") or "", "notes_html": info.get("notes_html"),
+                "target": str(case.root.parent), "source": str(case.root)}
+
+    def _reuse_clicked(self) -> None:
+        data = self.base_data()
+        if data is not None:
+            self.reuse_case.emit(data)
+
+    def prefill(self, data: dict) -> None:
+        """Formular für einen neuen Fall mit übernommenen Grunddaten füllen (nach „Neuer Fall“)."""
+        self.case_no.setText(data["case_number"])
+        self.examiner.setText(data["examiner"])
+        self.notes.set_value(data["notes"], data.get("notes_html"))
+        self.target.setText(data["target"])
+        self._reused_from = data
+        hint = self.tr("Grunddaten aus Fall „{0}“ übernommen.").format(data["case_number"])
+        if self._existing_folder() is not None:
+            hint += " " + self.tr("Unter diesem Aktenzeichen gibt es im Zielordner schon einen Fall – bitte "
+                                  "Aktenzeichen oder Zielordner anpassen.")
+        self.error.setText(hint)
+        self.case_no.setFocus()
+        self.case_no.selectAll()
+        self.check_system()
 
     def _import_applemail(self) -> None:
         from fed.gui.applemail_dialog import AppleMailImportDialog
@@ -410,6 +450,11 @@ class CasePage(QWidget):
             case.store_config_snapshot(self.st.cfg.raw_text, self.st.cfg.logo_path())
         except ValueError as e:
             case.log("WARNING", "logo_rejected", str(e))
+        if self._reused_from:  # nachvollziehbar: Grunddaten stammen aus einem früheren (abgeschlossenen) Fall
+            src = self._reused_from
+            case.log("INFO", "case_base_data_taken_over", {"from_case_number": src["case_number"],
+                                                           "from_case_path": src["source"]})
+            self._reused_from = None
         self._record_device(case, owner)
         if self.st.system:
             case.record_system_check(self.st.system.as_dict())
@@ -2316,6 +2361,7 @@ class Assistant(QWidget):
             self.stack.addWidget(p)
         self.p_case.next.connect(self._after_case)
         self.p_case.new_case.connect(self._new_case)
+        self.p_case.reuse_case.connect(self._reuse_case)
         self.p_case.imported.connect(self.refresh_accounts)
         self.p_case.imported.connect(self.case_changed.emit)
         self.p_acc.imported.connect(self.refresh_accounts)
@@ -2416,7 +2462,8 @@ class Assistant(QWidget):
         if self.st.case.closed:
             QMessageBox.information(self, self.tr("Fall abgeschlossen"),
                                     self.tr("Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. "
-                                            "Für eine neue Sicherung unten „Neuer Fall“ wählen."))
+                                            "Für eine neue Sicherung unten „Neuer Fall“ wählen – oder „Grunddaten übernehmen“, "
+                                            "um Aktenzeichen, Prüfer und Anmerkungen weiterzuverwenden."))
             self._show(0, 0)  # Seite synchronisieren: Fall schreibgeschützt anzeigen, „Neuer Fall“ einblenden
             return
         self._show(1, 2)
@@ -2442,6 +2489,12 @@ class Assistant(QWidget):
         self.jobs.clear()
         self.p_case.case_no.setText(self.p_case._suggest())
         self.p_case.notes.clear()
+        self.p_case._reused_from = None
         self._another()
         self._show(0, 0)
         self.case_changed.emit()
+
+    def _reuse_case(self, data: dict) -> None:
+        """„Grunddaten übernehmen“: Fall verlassen und neuen Fall mit dessen Grunddaten vorbelegen."""
+        self._new_case()
+        self.p_case.prefill(data)

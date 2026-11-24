@@ -854,8 +854,8 @@ After closing, the case cannot be extended. Close anyway?</translation>
         <translation>Case closed</translation>
     </message>
     <message>
-        <source>Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. Für eine neue Sicherung unten „Neuer Fall“ wählen.</source>
-        <translation>This case is closed and can only be viewed in the history. For a new acquisition, choose “New case” below.</translation>
+        <source>Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. Für eine neue Sicherung unten „Neuer Fall“ wählen – oder „Grunddaten übernehmen“, um Aktenzeichen, Prüfer und Anmerkungen weiterzuverwenden.</source>
+        <translation>This case is closed and can only be viewed in the history. For a new acquisition, choose “New case” below – or “Take over base data” to reuse case number, examiner and notes.</translation>
     </message>
 </context>
 <context>
@@ -963,6 +963,14 @@ The answer is documented in the log and in the report.</translation>
         <translation>Leave this case and start a new one</translation>
     </message>
     <message>
+        <source>Grunddaten übernehmen</source>
+        <translation>Take over base data</translation>
+    </message>
+    <message>
+        <source>Neuen Fall beginnen – Aktenzeichen, Prüfer, Anmerkungen und Zielordner werden aus diesem Fall übernommen und können angepasst werden</source>
+        <translation>Start a new case – case number, examiner, notes and target folder are taken over from this case and can be adjusted</translation>
+    </message>
+    <message>
         <source>Zielordner wählen</source>
         <translation>Choose target folder</translation>
     </message>
@@ -1049,6 +1057,14 @@ The answer is documented in the log and in the report.</translation>
     <message>
         <source>Weiter</source>
         <translation>Next</translation>
+    </message>
+    <message>
+        <source>Grunddaten aus Fall „{0}“ übernommen.</source>
+        <translation>Base data taken over from case “{0}”.</translation>
+    </message>
+    <message>
+        <source>Unter diesem Aktenzeichen gibt es im Zielordner schon einen Fall – bitte Aktenzeichen oder Zielordner anpassen.</source>
+        <translation>A case with this case number already exists in the target folder – please adjust the case number or target folder.</translation>
     </message>
     <message>
         <source>Fall existiert bereits</source>
