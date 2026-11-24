@@ -546,6 +546,7 @@ def _tail_sections(d: dict, L: dict, ts_qualified: bool = False) -> list[tuple[s
     secs.append((L["logchain"], [
         (L["status"], L["ok"] if lg["ok"] else f"{L['broken']} (#{lg['bad']})"),
         (L["entries"], str(lg["count"])), (L["head"], lg["head"] or "–"),
+        (L["anchor"], L["anchor_text"]),
     ]))
     return secs
 

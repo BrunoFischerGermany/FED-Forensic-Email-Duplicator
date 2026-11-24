@@ -129,6 +129,9 @@ def test_finish_with_rfc3161_timestamp(acquired):
         res = finish_case(case, cfg, language="en")
     assert res.timestamp and not res.timestamp_error
     assert res.timestamp.hashed_message == res.zip.hashes["sha256"]
+    mts, merr = res.manifest_timestamp  # zweiter Zeitstempel über das Manifest (Anker für die Log-Kette)
+    assert mts is not None and not merr and mts.hashed_message == res.manifest_hashes["sha256"]
+    assert res.manifest.with_name("manifest.json.tsr").exists()
     tsr = res.zip.path.with_name(res.zip.path.name + ".tsr")
     assert tsr.exists()
     outputs = {r[0] for r in case.conn.execute("SELECT file_name FROM output")}
@@ -145,6 +148,8 @@ def test_finish_continues_when_timestamp_fails(acquired):
     res = finish_case(case, cfg)
     assert res.zip.verified and res.timestamp is None and "nicht erreichbar" in res.timestamp_error
     assert case.closed
+    assert res.manifest.exists() and res.manifest_timestamp[0] is None  # Dienst nicht erneut abwarten
+    assert "übersprungen" in res.manifest_timestamp[1]
     assert "fehlgeschlagen" in res.report_txt.read_text(encoding="utf-8")
 
 
@@ -404,6 +409,12 @@ def test_one_zip_per_account(tmp_path, imap_server, test_mails):
     assert "ein ZIP je Konto" in txt and names[0] in txt and names[1] in txt
     one = (case.root / "report_A-02.txt").read_text(encoding="utf-8")
     assert names[1] in one and names[0] not in one  # Einzelbericht nennt nur das eigene ZIP
+    import json as _json
+
+    manifest = _json.loads(res.manifest.read_text(encoding="utf-8"))
+    by_name = {f["file"]: f for f in manifest["files"]}
+    assert {"report_A-01.pdf", "report_A-02.txt", names[0], names[1]} <= set(by_name)
+    assert by_name["report_A-02.txt"]["account"] == testmailbox.UMLAUT_USER
     if available():
         assert txt.count("Zeitstempel (RFC 3161) –") == 2 and one.count("Zeitstempel (RFC 3161)") == 1
     case.close()
@@ -619,3 +630,34 @@ def test_dns_keys_list_csv_or_table_and_exported(acquired, tmp_path):
     out = tmp_path / "dns_keys.csv"
     assert write_dns_keys_csv(case, out) == n                      # Export enthält alle Schlüssel
     assert out.read_text(encoding="utf-8").count("_domainkey") >= 5
+
+
+def test_manifest_anchors_outputs_and_log(acquired):
+    """manifest.json: alle Ausgabedateien mit Hash und der Stand der Log-Kette; selbst gehasht und
+    protokolliert, sodass die Kette danach an das Manifest anschließt."""
+    import json as _json
+
+    from fed.core.hashing import hash_file
+
+    case = acquired
+    res = finish_case(case, Config())
+    m = res.manifest
+    assert m.name == "manifest.json" and res.manifest_timestamp == (None, "")  # kein TSA eingerichtet
+    data = _json.loads(m.read_text(encoding="utf-8"))
+    assert data["format"] == "FED-Manifest/1" and data["case_number"] == case.info()["case_number"]
+    files = {f["file"]: f for f in data["files"]}
+    assert {res.zip.path.name, "report.pdf", "report.txt"} <= set(files)
+    for name, f in files.items():
+        assert hash_file(case.root / name)["sha256"] == f["sha256"], name
+    sha = hash_file(m)["sha256"]
+    assert res.manifest_hashes["sha256"] == sha
+    assert m.with_name("manifest.json.sha256").read_text().split()[0] == sha
+    # Log-Stand im Manifest = Eintrag direkt vor „manifest_created“
+    lg = data["log"]
+    assert lg["chain_ok"] and lg["entries"] > 0
+    row = case.conn.execute("SELECT entry_hash FROM log WHERE id = ?", (lg["last_id"],)).fetchone()
+    assert row[0] == lg["last_entry_hash"]
+    nxt = case.conn.execute("SELECT event, details FROM log WHERE id = ?", (lg["last_id"] + 1,)).fetchone()
+    assert nxt[0] == "manifest_created" and sha in nxt[1]
+    assert sha in {r[0] for r in case.conn.execute("SELECT sha256 FROM output WHERE file_name = 'manifest.json'")}
+    assert "manifest.json" in res.report_txt.read_text(encoding="utf-8")  # Prüfanker im Bericht genannt

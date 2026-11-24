@@ -702,5 +702,8 @@
   "Grunddaten aus Fall „{0}“ übernommen.": "Base data taken over from case “{0}”.",
   "Grunddaten übernehmen": "Take over base data",
   "Neuen Fall beginnen – Aktenzeichen, Prüfer, Anmerkungen und Zielordner werden aus diesem Fall übernommen und können angepasst werden": "Start a new case – case number, examiner, notes and target folder are taken over from this case and can be adjusted",
-  "Unter diesem Aktenzeichen gibt es im Zielordner schon einen Fall – bitte Aktenzeichen oder Zielordner anpassen.": "A case with this case number already exists in the target folder – please adjust the case number or target folder."
+  "Unter diesem Aktenzeichen gibt es im Zielordner schon einen Fall – bitte Aktenzeichen oder Zielordner anpassen.": "A case with this case number already exists in the target folder – please adjust the case number or target folder.",
+  "Manifest (Prüfanker für Dateien und Log) wird erstellt": "Creating manifest (verification anchor for files and log)",
+  "Manifest (Prüfanker)": "Manifest (verification anchor)",
+  "Zeitstempel Manifest": "Manifest timestamp"
 }

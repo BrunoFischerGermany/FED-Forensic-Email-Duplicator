@@ -352,6 +352,9 @@ class FinishResult:
     account_reports: list = field(default_factory=list)  # report_<Evidence>.txt/.pdf bei mehreren Konten
     zip_mode: str = "gesamt"
     encrypted: dict | None = None  # verschlüsselte Weitergabe-Kopie (ohne Passwort)
+    manifest: Path | None = None  # manifest.json – Prüfanker für Ausgabedateien und Log-Kette
+    manifest_hashes: dict = field(default_factory=dict)
+    manifest_timestamp: tuple = (None, "")  # (TimestampInfo | None, Fehlertext)
 
     @property
     def zip(self) -> ZipResult:
@@ -373,14 +376,19 @@ def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult, account_id: in
     Ein Fehler bricht den Abschluss nicht ab: er wird als Warnung protokolliert und
     im Bericht genannt. Rückgabe ``(TimestampInfo | None, Fehlertext)``.
     """
+    return add_file_timestamp(case, cfg, zip_result.path, zip_result.hashes["sha256"], account_id)
+
+
+def add_file_timestamp(case: Case, cfg: Config, path: Path, sha256: str, account_id: int | None = None):
+    """RFC-3161-Zeitstempel für den SHA-256 einer Datei (ZIP oder Manifest); ``<Datei>.tsr``/``.tsq``."""
     from fed.core import timestamp as tsmod
 
     if not cfg.tsa_url:
         return None, ""
     import threading
 
-    tsr = zip_result.path.parent / (zip_result.path.name + ".tsr")
-    case.log("INFO", "timestamp_requested", {"tsa": cfg.tsa_url, "sha256": zip_result.hashes["sha256"]})
+    tsr = path.parent / (path.name + ".tsr")
+    case.log("INFO", "timestamp_requested", {"tsa": cfg.tsa_url, "sha256": sha256, "file": path.name})
     # Harte Gesamtfrist: urllibs timeout gilt je Socket-Operation, nicht als Gesamtzeit. Ein TSA, der die
     # Verbindung annimmt aber stockt (oder gefilterte Pakete beim Connect), würde den Abschluss sonst
     # minutenlang blockieren. Der Zeitstempel ist optional – nach der Frist geht es ohne ihn weiter.
@@ -389,7 +397,7 @@ def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult, account_id: in
 
     def _worker() -> None:
         try:
-            box["info"] = tsmod.request_timestamp(zip_result.hashes["sha256"], cfg.tsa_url, tsr, cfg.proxy_url, timeout)
+            box["info"] = tsmod.request_timestamp(sha256, cfg.tsa_url, tsr, cfg.proxy_url, timeout)
         except BaseException as e:   # im Thread gefangen, unten ausgewertet
             box["err"] = e
 
@@ -398,12 +406,12 @@ def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult, account_id: in
     th.join(timeout + 2)
     if th.is_alive():
         msg = _t("Zeitstempeldienst hat nicht innerhalb von {s}s geantwortet", s=int(timeout + 2))
-        case.log("WARNING", "timestamp_timeout", {"tsa": cfg.tsa_url, "zip": zip_result.path.name,
+        case.log("WARNING", "timestamp_timeout", {"tsa": cfg.tsa_url, "zip": path.name,
                                                   "account_id": account_id})
         return None, msg
     err = box.get("err")
     if isinstance(err, tsmod.TimestampError):
-        case.log("WARNING", "timestamp_failed", {"tsa": cfg.tsa_url, "error": str(err), "zip": zip_result.path.name,
+        case.log("WARNING", "timestamp_failed", {"tsa": cfg.tsa_url, "error": str(err), "zip": path.name,
                                                   "account_id": account_id})
         return None, str(err)
     if err is not None:
@@ -418,6 +426,68 @@ def add_timestamp(case: Case, cfg: Config, zip_result: ZipResult, account_id: in
     record_output(case, tsr, cfg, account_id)
     record_output(case, tsr.with_suffix(".tsq"), cfg, account_id)
     return info, ""
+
+
+MANIFEST_NAME = "manifest.json"
+MANIFEST_FORMAT = "FED-Manifest/1"
+
+
+def manifest_data(case: Case) -> dict:
+    """Inhalt des Manifests: Fall, Stand der Log-Kette und alle Ausgabedateien mit Hash.
+
+    Das Manifest ist der Prüfanker für Dateien **und** Log: Der Hash des letzten Log-Eintrags
+    (``log.last_entry_hash``) legt die Kette bis dahin fest. Mit einem RFC-3161-Zeitstempel über das
+    Manifest lässt sich die Kette danach nicht mehr unbemerkt neu berechnen.
+    """
+    from fed import APP_NAME, __version__
+
+    info = case.info()
+    ok, bad = case.verify_log()
+    count = case.conn.execute("SELECT COUNT(*) FROM log").fetchone()[0]
+    last = case.conn.execute("SELECT id, ts_utc, entry_hash FROM log ORDER BY id DESC LIMIT 1").fetchone()
+    emails = dict(case.conn.execute("SELECT id, email FROM account"))
+    files, seen = [], set()
+    for name, sha, md5, sha512, size, created, acc in case.conn.execute(
+            "SELECT file_name, sha256, md5, sha512, size, created_utc, account_id FROM output ORDER BY id"):
+        if name in seen or name == MANIFEST_NAME:
+            continue
+        seen.add(name)
+        entry = {"file": name, "sha256": sha, "size": size, "created_utc": created}
+        if md5:
+            entry["md5"] = md5
+        if sha512:
+            entry["sha512"] = sha512
+        if acc is not None:
+            entry["account"] = emails.get(acc, "")
+        files.append(entry)
+    return {
+        "format": MANIFEST_FORMAT,
+        "case_number": info["case_number"],
+        "examiner": info["examiner"],
+        "case_created_utc": info["created_utc"],
+        "case_closed_utc": info["closed_utc"],
+        "tool": f"{APP_NAME} {__version__}",
+        "tool_sha256": info.get("tool_sha256") or "",
+        "manifest_utc": utc_now(),
+        "log": {"entries": count, "last_id": last[0] if last else None, "last_ts_utc": last[1] if last else None,
+                "last_entry_hash": last[2] if last else None, "chain_ok": ok, "first_bad": bad},
+        "files": files,
+    }
+
+
+def write_manifest(case: Case, cfg: Config | None = None) -> tuple[Path, dict[str, str]]:
+    """``manifest.json`` (+ ``.sha256``) im Fallordner schreiben, hashen und protokollieren."""
+    cfg = cfg or Config()
+    data = manifest_data(case)
+    path = case.root / MANIFEST_NAME
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    hashes = hash_file(path, cfg.programm.hash_extra)
+    path.with_name(path.name + ".sha256").write_text(f"{hashes['sha256']}  {path.name}\n", encoding="utf-8")
+    _record_output(case, path, hashes)
+    case.log("INFO", "manifest_created", {"file": path.name, "sha256": hashes["sha256"], "files": len(data["files"]),
+                                          "log_entries": data["log"]["entries"],
+                                          "last_entry_hash": data["log"]["last_entry_hash"]})
+    return path, hashes
 
 
 def delete_work_dir(case: Case, zip_result: ZipResult | list[ZipResult]) -> dict:
@@ -523,13 +593,28 @@ def finish_case(case: Case, cfg: Config | None = None, language: str | None = No
                              ts_qualified=cfg.tsa_qualifiziert)
     record_output(case, txt, cfg)
     record_output(case, pdf, cfg)
-    from fed.core.report import account_reports
+    from fed.core.report import account_report_name, account_reports
 
+    accounts = case.conn.execute("SELECT id, evidence_number, email FROM account ORDER BY id").fetchall()
+    if len(accounts) > 1:  # Einzelberichte je Konto ebenfalls hashen (kommen ins Manifest)
+        for acc_id, evidence, email in accounts:
+            for suffix in (".txt", ".pdf"):
+                p = case.root / account_report_name(evidence, email, suffix, case.replace_spaces)
+                if p.exists():
+                    record_output(case, p, cfg, acc_id)
     encrypted = None
     if encrypt_password is not None:
         _phase("encrypt")
         encrypted = encrypted_copy(case, [z.path for z in zips], encrypt_password, cfg)
-    return FinishResult(zips, txt, pdf, timestamps, account_reports(case), mode, encrypted)
+    _phase("manifest")
+    manifest, manifest_hashes = write_manifest(case, cfg)
+    if skip:
+        case.log("WARNING", "timestamp_skipped", {"zip": manifest.name})
+        manifest_ts = (None, _t("Zeitstempel übersprungen – Dienst zuvor nicht erreichbar"))
+    else:
+        manifest_ts = add_file_timestamp(case, cfg, manifest, manifest_hashes["sha256"])
+    return FinishResult(zips, txt, pdf, timestamps, account_reports(case), mode, encrypted,
+                        manifest, manifest_hashes, manifest_ts)
 
 
 def encrypted_copy(case: Case, zip_paths: list[Path], password: str, cfg: Config | None = None) -> dict:

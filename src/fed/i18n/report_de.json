@@ -238,5 +238,8 @@
   "host_step_finalize": "Abschluss",
   "host_attempts": "Versuche",
   "host_tz": "Zeitzone",
-  "log_finalize_started": "Abschluss gestartet"
+  "log_finalize_started": "Abschluss gestartet",
+  "anchor": "Prüfanker",
+  "anchor_text": "manifest.json – wird nach diesem Bericht erstellt und enthält die SHA-256 aller Ausgabedateien (auch dieses Berichts) sowie Anzahl und Hash des letzten Log-Eintrags; mit eingerichtetem Zeitstempeldienst zusätzlich RFC-3161-Zeitstempel manifest.json.tsr.",
+  "log_manifest_created": "Manifest {file} erstellt ({files} Dateien, Log-Stand {log_entries} Einträge, SHA-256 {sha256})"
 }

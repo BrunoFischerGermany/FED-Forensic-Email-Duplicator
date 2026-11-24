@@ -1317,6 +1317,10 @@ All messages will then only be contained in the verified ZIP; this saves the dup
         <translation>Creating and verifying encrypted hand-over copy</translation>
     </message>
     <message>
+        <source>Manifest (Prüfanker für Dateien und Log) wird erstellt</source>
+        <translation>Creating manifest (verification anchor for files and log)</translation>
+    </message>
+    <message>
         <source>alle Konten</source>
         <translation>all accounts</translation>
     </message>
@@ -1431,6 +1435,14 @@ All messages will then only be contained in the verified ZIP; this saves the dup
     <message>
         <source>Passwort (nur jetzt sichtbar)</source>
         <translation>Password (visible only now)</translation>
+    </message>
+    <message>
+        <source>Manifest (Prüfanker)</source>
+        <translation>Manifest (verification anchor)</translation>
+    </message>
+    <message>
+        <source>Zeitstempel Manifest</source>
+        <translation>Manifest timestamp</translation>
     </message>
     <message>
         <source>Hinweis</source>
