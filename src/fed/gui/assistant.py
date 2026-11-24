@@ -168,6 +168,7 @@ class CasePage(QWidget):
         super().__init__()
         self.st = st
         self._reused_from: dict | None = None  # Herkunft übernommener Grunddaten (wird im neuen Fall protokolliert)
+        self._check_for: Case | None = None  # fortgesetzter Fall: nächste Systemprüfung dort protokollieren
         w, lay = page(self.tr("Fall anlegen"),
                       self.tr("Ohne Fall startet keine Sicherung. Prüfer und Agentur kommen aus der config.toml."))
         cols = QHBoxLayout()
@@ -295,6 +296,11 @@ class CasePage(QWidget):
 
     def _show_system(self, info: syscheck.SystemInfo) -> None:
         self.st.system = info
+        case = self._check_for
+        if case is not None and case is self.st.case and not case.closed \
+                and Path(info.target_path) == case.root.parent.resolve():
+            case.record_system_check(info.as_dict())  # Fortsetzung (evtl. anderer Rechner): Systemstand festhalten
+            self._check_for = None
         s = self.sys
         s.clear()
         if self.st.device_owner:
@@ -512,6 +518,9 @@ class CasePage(QWidget):
                     self._quit()
                 return
             self._record_device(case, owner)
+            self._check_for = case
+            self.target.setText(str(case.root.parent))
+            QTimer.singleShot(0, self.check_system)  # Systemprüfung dieses Rechners im Fall protokollieren
         self.st.case = case
         self.next.emit()
 

@@ -17,6 +17,8 @@ def test_finish_creates_verified_zip_and_reports(acquired, test_mails):
     res = finish_case(case, Config())
     z = res.zip
     assert z.verified and z.files == len(test_mails) and not z.problems
+    steps = [h["step"] for h in case.host_history()]
+    assert steps[0] == "create" and "attempt" in steps and steps[-1] == "finalize"
     side = z.path.with_name(z.path.name + ".sha256").read_text()
     assert side.split()[0] == hashlib.sha256(z.path.read_bytes()).hexdigest() == z.hashes["sha256"]
     assert {"md5", "sha512"} <= set(z.hashes)

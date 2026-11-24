@@ -25,6 +25,7 @@ from pathlib import Path
 from fed import __version__
 from fed.core import logo
 from fed.core.naming import file_name
+from fed.core.syscheck import host_snapshot
 from fed.core.msg import t
 
 SCHEMA_VERSION = "1"
@@ -115,7 +116,8 @@ class Case:
             case.conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES ('name_spaces', ?)",
                               ("underscore" if replace_spaces else "keep",))
         case.log("INFO", "case_created", {"case_number": info.case_number, "path": str(root),
-                                          "name_spaces": "underscore" if replace_spaces else "keep"})
+                                          "name_spaces": "underscore" if replace_spaces else "keep",
+                                          "host": host_snapshot()})
         return case
 
     @classmethod
@@ -125,7 +127,7 @@ class Case:
             raise FileNotFoundError(db)
         case = cls(root, _connect(db))
         _migrate(case)
-        case.log("INFO", "case_opened", {"tool_version": __version__})
+        case.log("INFO", "case_opened", {"tool_version": __version__, "host": host_snapshot()})
         case.recover_interrupted()
         return case
 
@@ -189,6 +191,29 @@ class Case:
         for ts, details in rows:
             d = json.loads(details) if details else {}
             out.append({"ts_utc": ts, "device_owner": d.get("device_owner"), "hostname": d.get("hostname", "")})
+        return out
+
+    def host_history(self) -> list[dict]:
+        """Rechner/Benutzer je Arbeitsschritt (Fallanlage, Öffnen, Sicherungsversuch, Abschluss) aus dem
+        Log – so ist nachvollziehbar, wenn z. B. vor Ort gesichert und im Amt abgeschlossen wurde."""
+        steps = {"case_created": "create", "case_opened": "open", "attempt_started": "attempt",
+                 "finalize_started": "finalize"}
+        rows = self.conn.execute(
+            "SELECT l.ts_utc, l.event, l.details, a.nr, acc.email FROM log l "
+            "LEFT JOIN attempt a ON a.id = l.attempt_id LEFT JOIN account acc ON acc.id = a.account_id "
+            f"WHERE l.event IN ({', '.join('?' * len(steps))}) ORDER BY l.id", list(steps))
+        out = []
+        for ts, event, details, nr, email in rows:
+            try:
+                d = json.loads(details) if details else {}
+            except ValueError:
+                continue
+            host = d.get("host") if isinstance(d, dict) else None
+            if not isinstance(host, dict):
+                continue  # ältere Fälle: Schritt ohne Rechnerangabe
+            out.append({"ts_utc": ts, "step": steps[event], "user": host.get("user") or "",
+                        "hostname": host.get("hostname") or "", "os": host.get("os") or "",
+                        "tz": host.get("tz") or "", "nr": nr, "email": email})
         return out
 
     def set_closing_note(self, text: str = "", html_value: str | None = None) -> bool:

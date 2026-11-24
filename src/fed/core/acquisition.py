@@ -27,6 +27,7 @@ from enum import StrEnum
 from imaplib import IMAP4
 from pathlib import Path
 
+from fed.core.syscheck import host_snapshot
 from fed.core import mailmeta
 from fed.core.cancel import Cancelled, CancelToken, Progress, ProgressCallback
 from fed.core.case import LIVE_LOCK, Case, utc_now
@@ -277,7 +278,8 @@ def run_attempt(
                 (account_id, nr, mode.value, reason, utc_now(), "running", "start"),
             ).lastrowid
         case.mark_live(attempt_id)
-    case.log("INFO", "attempt_started", {"nr": nr, "mode": mode.value, "reason": reason}, attempt_id)
+    case.log("INFO", "attempt_started", {"nr": nr, "mode": mode.value, "reason": reason,
+                                          "host": host_snapshot()}, attempt_id)
     result = AttemptResult(attempt_id, nr, "running")
     prog = Progress(phase="download")
 

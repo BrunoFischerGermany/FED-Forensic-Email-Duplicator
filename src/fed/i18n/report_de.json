@@ -227,5 +227,16 @@
   "dns_keys_csv": "{n} aufbewahrte DKIM-Schlüssel – als CSV abgelegt. Vollständige Liste in dns_keys.csv (im Fallordner, mit SHA-256).",
   "ts_qualified": "Qualifizierter Zeitstempel (RFC 3161)",
   "log_case_base_data_taken_over": "Grunddaten übernommen aus Fall {from_case_number} ({from_case_path})",
-  "based_on": "Grunddaten übernommen aus Fall"
+  "based_on": "Grunddaten übernommen aus Fall",
+  "hosts": "Bearbeitende Rechner",
+  "hosts_note": "Hinweis",
+  "hosts_differ": "Der Fall wurde an {n} verschiedenen Rechnern bzw. mit verschiedenen Benutzerkonten bearbeitet (Angaben je Arbeitsschritt aus dem Log).",
+  "hosts_finalize_other": "Der Abschluss erfolgte auf einem anderen Rechner als die Sicherung.",
+  "host_step_create": "Fallanlage",
+  "host_step_open": "Fall geöffnet",
+  "host_step_attempt": "Sicherungsversuch",
+  "host_step_finalize": "Abschluss",
+  "host_attempts": "Versuche",
+  "host_tz": "Zeitzone",
+  "log_finalize_started": "Abschluss gestartet"
 }
