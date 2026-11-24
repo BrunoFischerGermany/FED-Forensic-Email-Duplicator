@@ -252,5 +252,6 @@
   "completeness": "Vollständigkeit",
   "integrity": "Integrität",
   "figures": "Kennzahlen",
-  "completeness_note": "„Vollständig“ heißt: so viele Mails gesichert, wie der Server zum Sicherungszeitpunkt gemeldet hat. Eine Teilsicherung (abgewählte Ordner, Zeitraum, Suchkriterien) ist bewusst eingeschränkt und kein Mangel."
+  "completeness_note": "„Vollständig“ heißt: so viele Mails gesichert, wie der Server zum Sicherungszeitpunkt gemeldet hat. Eine Teilsicherung (abgewählte Ordner, Zeitraum, Suchkriterien) ist bewusst eingeschränkt und kein Mangel.",
+  "log_account_removed": "Konto {email} ({evidence}) aus dem Fall entfernt – es war noch nichts gesichert ({folders} Ordner aus der Ordnerliste)"
 }

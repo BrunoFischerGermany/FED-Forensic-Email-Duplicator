@@ -772,6 +772,38 @@ def auth_check(case: Case, account_id: int, attempt_id: int | None = None, cance
     return counts
 
 
+def can_remove_account(case: Case, account_id: int) -> bool:
+    """Konto darf aus dem Fall entfernt werden, solange der Fall offen ist und es noch keinen
+    Sicherungsversuch gab (dann gibt es weder Mails noch Versuchsdaten zu diesem Konto)."""
+    if case.closed:
+        return False
+    return case.conn.execute("SELECT COUNT(*) FROM attempt WHERE account_id = ?", (account_id,)).fetchone()[0] == 0
+
+
+def remove_account(case: Case, account_id: int) -> dict:
+    """Noch nicht gesichertes Konto aus dem Fall entfernen (Ordnerliste, DNS-Angaben, Konto).
+
+    Das Log bleibt vollständig: Anlage (``account_registered``) und Entfernung (``account_removed``)
+    stehen beide darin. Rückgabe: die protokollierten Angaben."""
+    row = case.conn.execute("SELECT email, evidence_number, server FROM account WHERE id = ?",
+                            (account_id,)).fetchone()
+    if row is None:
+        raise ValueError(_t("Konto {id} unbekannt", id=account_id))
+    if case.closed:
+        raise ValueError(_t("Fall ist abgeschlossen"))
+    if not can_remove_account(case, account_id):
+        raise ValueError(_t("Für {email} gab es schon einen Sicherungsversuch – das Konto bleibt im Fall.",
+                            email=row[0]))
+    folders = case.conn.execute("SELECT COUNT(*) FROM folder WHERE account_id = ?", (account_id,)).fetchone()[0]
+    with case.conn:
+        case.conn.execute("DELETE FROM domain_dns WHERE account_id = ?", (account_id,))
+        case.conn.execute("DELETE FROM folder WHERE account_id = ?", (account_id,))
+        case.conn.execute("DELETE FROM account WHERE id = ?", (account_id,))
+    info = {"account_id": account_id, "email": row[0], "evidence": row[1], "server": row[2], "folders": folders}
+    case.log("INFO", "account_removed", info)
+    return info
+
+
 def accounts_overview(case: Case) -> list[dict]:
     """Je Konto im Case: Stand der Sicherung für die Übersicht.
 
@@ -802,10 +834,12 @@ def accounts_overview(case: Case) -> list[dict]:
                     "attempts": len(attempts), "state": state, "saved": saved, "expected": expected,
                     "bytes": size, "folders_selected": sel, "folders_total": total,
                     "date_filter": bool(dfrom or dto or filters), "last_utc": (last[3] or last[2]) if last else None,
-                    "notes": notes or "", "notes_html": notes_html or ""})
+                    "notes": notes or "", "notes_html": notes_html or "",
+                    "removable": not attempts and not case.closed})  # noch nie gesichert -> entfernbar
     return out
 
 
-__all__ = ["AccountSpec", "AttemptResult", "Mode", "ResumeNotPossible", "accounts_overview", "register_account",
-           "run_attempt", "scan", "set_account_notes", "set_selection", "summary"]
+__all__ = ["AccountSpec", "AttemptResult", "Mode", "ResumeNotPossible", "accounts_overview", "can_remove_account",
+           "register_account", "remove_account", "run_attempt", "scan", "set_account_notes", "set_selection",
+           "summary"]
 

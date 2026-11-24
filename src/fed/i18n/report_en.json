@@ -252,5 +252,6 @@
   "completeness": "Completeness",
   "integrity": "Integrity",
   "figures": "Key figures",
-  "completeness_note": "“Complete” means: as many messages acquired as the server reported at the time of acquisition. A partial acquisition (deselected folders, date range, search criteria) is a deliberate restriction, not a defect."
+  "completeness_note": "“Complete” means: as many messages acquired as the server reported at the time of acquisition. A partial acquisition (deselected folders, date range, search criteria) is a deliberate restriction, not a defect.",
+  "log_account_removed": "Account {email} ({evidence}) removed from the case – nothing had been acquired yet ({folders} folders from the folder list)"
 }

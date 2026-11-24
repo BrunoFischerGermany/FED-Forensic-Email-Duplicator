@@ -565,6 +565,7 @@ class AccountPage(QWidget):
                                              "Konto unten die Adresse eingeben."), "Hint", wrap=True))
         self.accounts.picked.connect(self._pick)
         self.accounts.notes_changed.connect(self._notes_changed)
+        self.accounts.allow_remove = True  # „✕“ bei noch nicht gesicherten Konten
         self.accounts_card.setVisible(False)
         lay.addWidget(self.accounts_card)
         cols = QHBoxLayout()
@@ -2446,6 +2447,8 @@ class Assistant(QWidget):
         self.p_acc.finish.connect(self._finish)
         self.p_acc.new_account.connect(self._another)
         self.rail_accounts.add_account.connect(self._rail_add)
+        self.rail_accounts.remove_requested.connect(self._remove_account)
+        self.p_acc.accounts.remove_requested.connect(self._remove_account)
         self._show(0, 0)
 
     def _show(self, page_index: int, step: int) -> None:
@@ -2490,6 +2493,36 @@ class Assistant(QWidget):
         self.p_acc.prepare()
         self.p_acc._pick(o)
         self._show(1, 2)
+
+    def _remove_account(self, o: dict) -> bool:
+        """„✕“: noch nicht gesichertes Konto nach Rückfrage aus dem Fall entfernen (wird protokolliert)."""
+        from fed.core.acquisition import remove_account
+
+        case = self.st.case
+        if case is None or case.closed:
+            return False
+        job = self.jobs.get(o["id"])
+        if job is not None and job.running:
+            return False
+        if QMessageBox.question(
+                self, self.tr("Konto entfernen"),
+                self.tr("{0} ({1}) aus dem Fall entfernen?\n\nFür dieses Konto wurde noch nichts gesichert. Anlage und "
+                        "Entfernung bleiben im Log des Falls festgehalten.").format(o["email"], o["evidence"])
+        ) != QMessageBox.StandardButton.Yes:
+            return False
+        try:
+            remove_account(case, o["id"])
+        except ValueError as e:
+            QMessageBox.warning(self, self.tr("Konto entfernen"), str(e))
+            return False
+        current = self.st.account_id == o["id"] or normalize_email(self.p_acc.email.text()) == o["email"]
+        if current:
+            self._another()  # Formular zeigte dieses Konto: leeren, zurück zur Konto-Seite
+        else:
+            self.p_acc.prepare()
+        self.refresh_accounts()
+        self.case_changed.emit()
+        return True
 
     def _rail_add(self) -> None:
         """„+ Weiteres Konto“ in der linken Leiste."""
