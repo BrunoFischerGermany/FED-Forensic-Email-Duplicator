@@ -428,9 +428,10 @@ def test_zip_mode_defaults(tmp_path, imap_server):
 
     case = _two_accounts(tmp_path, imap_server)
     cfg = Config()
+    assert zip_mode_for(case, cfg) == "je_konto"  # Standard: ein ZIP je Konto
+    cfg.programm.zip_aufteilung = "fragen"
     assert zip_mode_for(case, cfg) == "gesamt"  # „fragen“ ohne Antwort -> ein ZIP
     cfg.programm.zip_aufteilung = "je_konto"
-    assert zip_mode_for(case, cfg) == "je_konto"
     case.set_zip_mode("gesamt")
     assert zip_mode_for(case, cfg) == "gesamt"  # Entscheidung im Case hat Vorrang
     with pytest.raises(ValueError):

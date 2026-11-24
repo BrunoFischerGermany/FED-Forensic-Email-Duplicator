@@ -88,6 +88,7 @@ class MainWindow(QMainWindow):
         self.connection = ConnectionStatus(self)
         self.statusBar().addPermanentWidget(self.connection)
         self.assistant.case_changed.connect(self._case_changed)
+        self.assistant.open_settings.connect(lambda: self.nav.button(self._SETTINGS_IDX).click())
         self.settings.saved.connect(self._settings_saved)
         self.settings.theme_preview.connect(lambda m: self.apply_theme(theme.is_dark(m)))
         self.apply_theme(self.dark)

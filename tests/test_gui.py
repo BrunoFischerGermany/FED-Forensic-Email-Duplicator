@@ -36,14 +36,6 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     monkeypatch.setattr(ga, "make_connector", lambda *a, **k: orig(*a, cafile=str(imap_server.cafile), **k))
     monkeypatch.setattr(QtWidgets.QMessageBox, "warning", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
     monkeypatch.setattr(QtWidgets.QMessageBox, "question", staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
-    from fed.gui import encrypt_dialog
-
-    def enc_exec(dlg):  # Abschluss: verschlüsselte Kopie mit erzeugtem Passwort (Checkbox ist standardmäßig aus)
-        dlg.enable.setChecked(True)
-        dlg._accept()
-        return 1
-
-    monkeypatch.setattr(encrypt_dialog.EncryptDialog, "exec", enc_exec)
     cfg = cfgmod.Config()
     cfg.examiner_name = "Max Mustermann"
     cfg.programm.zielpfad = str(tmp_path)
@@ -71,10 +63,23 @@ def test_full_gui_walkthrough(app, imap_server, tmp_path, monkeypatch, test_mail
     a.p_fold._go()
     _pump(app, a.p_acq.finish_btn.isVisible, 60)
     a.p_acq.finish.emit()
+    # Prüfseite: alles auf einer Seite statt Rückfragen
+    f = a.p_fin
+    assert a.stack.currentWidget() is f and f.review.isVisibleTo(f) and not f.result.isVisibleTo(f)
+    assert f.start_btn.isEnabled() and not f.encrypt.enable.isChecked() and not f.delete_work.isChecked()
+    assert f.review_kv.values["Vollständigkeit"].text().startswith("Vollständig")
+    f.delete_work.setChecked(True)
+    f.encrypt.enable.setChecked(True)  # verschlüsselte Kopie mit erzeugtem Passwort
+    f.closing.set_html("<p>Übergabe an KHK Muster</p>")
+    f.start_btn.click()
+    assert not f.review.isVisibleTo(f) and f.result.isVisibleTo(f)
     _pump(app, a.p_fin.open_pdf.isEnabled, 60)
     res = a.st.finish
     assert res.zip.verified and res.zip.files == len(test_mails)
-    assert not a.st.case.work_dir.exists()  # Frage „Arbeitsordner löschen?“ mit Ja beantwortet
+    assert a.st.case.info()["closing_note"] == "Übergabe an KHK Muster"
+    opts = a.st.case.conn.execute("SELECT details FROM log WHERE event = 'finalize_options'").fetchone()[0]
+    assert '"delete_work": true' in opts and '"encrypted_copy": true' in opts
+    assert not a.st.case.work_dir.exists()  # auf der Prüfseite „work/ löschen“ angehakt
     assert res.encrypted and res.encrypted["verified"]  # verschlüsselte Kopie mit erzeugtem Passwort
     shown = a.p_fin.check_kv.values["Passwort (nur jetzt sichtbar)"].text()
     assert len(shown) == 29 and a.p_fin._password is None
@@ -325,11 +330,15 @@ def test_accounts_overview_and_evidence_suggestion(app, imap_server, tmp_path, m
     # Abschlussseite hat „FED beenden“
     assert a.p_fin.quit_btn.text() == "FED beenden"
 
-    asked = []
-    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
-                        staticmethod(lambda *a, **k: asked.append(a[2]) or QtWidgets.QMessageBox.StandardButton.No))
+    # nicht alle Konten gesichert: Prüfseite nennt sie, „Fall abschließen“ erst nach ausdrücklicher Bestätigung
     a._finish()
-    assert asked and testmailbox.UMLAUT_USER in asked[0] and a.stack.currentWidget() is not a.p_fin
+    f = a.p_fin
+    assert a.stack.currentWidget() is f and testmailbox.UMLAUT_USER in f.open_lbl.text()
+    assert f.confirm_open.isVisibleTo(f) and not f.start_btn.isEnabled()
+    f.confirm_open.setChecked(True)
+    assert f.start_btn.isEnabled()
+    f.back_btn.click()
+    assert a.stack.currentWidget() is not f and not a.st.case.closed
     w.close()
     w.deleteLater()
     app.processEvents()
@@ -656,16 +665,23 @@ def test_reopened_case_records_system_check(app, tmp_path, monkeypatch):
     app.processEvents()
 
 
-def test_encrypt_dialog_defaults_to_no_copy(app):
-    """Der Abschluss-Dialog erscheint, ist aber standardmäßig OHNE verschlüsselte Kopie (kein Passwort)."""
-    from fed.gui.encrypt_dialog import EncryptDialog
+def test_encrypt_options_default_to_no_copy(app):
+    """Prüfseite: standardmäßig OHNE verschlüsselte Kopie; eigenes Passwort muss gültig und gleich sein."""
+    from fed.gui.encrypt_dialog import EncryptOptions
 
-    dlg = EncryptDialog()
-    assert not dlg.enable.isChecked()  # Checkbox standardmäßig aus
-    assert not dlg.options.isVisible()  # Passwort-Optionen ausgeblendet
-    dlg._accept()
-    assert dlg.password is None  # OK ohne Haken -> keine verschlüsselte Kopie
-    dlg.deleteLater()
+    w = EncryptOptions()
+    assert not w.enable.isChecked() and w.options.isHidden()  # Checkbox aus, Passwort-Optionen ausgeblendet
+    assert w.valid() and w.password() is None
+    w.enable.setChecked(True)
+    assert w.valid() and len(w.password()) == 29  # erzeugtes Passwort
+    w.own.setChecked(True)
+    assert not w.valid()
+    w.pw1.setText("Korrekt-Pferd-Batterie-42")
+    w.pw2.setText("Korrekt-Pferd-Batterie-42")
+    assert w.valid() and w.password() == "Korrekt-Pferd-Batterie-42"
+    w.reset()
+    assert w.password() is None
+    w.deleteLater()
 
 
 def test_settings_dirty_detection(app, tmp_path):
@@ -811,7 +827,7 @@ def test_translocation_dialog_copies_command(app, tmp_path, monkeypatch):
 
 
 def test_finish_page_no_report_after_abort_or_failure(app):
-    """Ohne erzeugten Bericht (Abbruch der Rückfrage oder Fehler) ist „Bericht öffnen" gesperrt."""
+    """Ohne erzeugten Bericht (Fehler beim Abschluss) ist „Bericht öffnen" gesperrt."""
     from fed.core.config import Config
     from fed.gui.assistant import FinishPage, State
 
@@ -819,11 +835,6 @@ def test_finish_page_no_report_after_abort_or_failure(app):
     assert not p.open_pdf.isEnabled()                 # frische Seite: noch kein Bericht
 
     p.open_pdf.setEnabled(True)                       # z. B. Rest eines früheren Laufs
-    p._aborted()
-    assert not p.open_pdf.isEnabled()
-    assert p.title.text() == "Abschluss abgebrochen"
-
-    p.open_pdf.setEnabled(True)
     p._failed("kaputt", "")
     assert not p.open_pdf.isEnabled()
 

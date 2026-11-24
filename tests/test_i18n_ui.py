@@ -104,7 +104,6 @@ def test_english_ui_shows_no_german(english_app, imap_server, tmp_path, monkeypa
     from fed.core import auth
     from fed.core import config as cfgmod
     from fed.gui import assistant as ga
-    from fed.gui import encrypt_dialog
     from fed.gui.main_window import MainWindow
 
     orig = auth.make_connector
@@ -116,12 +115,6 @@ def test_english_ui_shows_no_german(english_app, imap_server, tmp_path, monkeypa
     data = {imap_server.user, imap_server.host, str(tmp_path), "Max Mustermann", "A-01", "Muster Forensik GmbH"}
     data |= {m.folder for m in test_mails} | {p for m in test_mails for p in m.folder.split("/")}
 
-    def enc_exec(dlg):
-        seen.update(_texts(dlg))
-        dlg._accept()
-        return 1
-
-    monkeypatch.setattr(encrypt_dialog.EncryptDialog, "exec", enc_exec)
     cfg = cfgmod.Config()
     cfg.examiner_name = "Max Mustermann"
     cfg.programm.sprache = "en"
@@ -152,6 +145,10 @@ def test_english_ui_shows_no_german(english_app, imap_server, tmp_path, monkeypa
     _pump(app, a.p_acq.finish_btn.isVisible)
     seen |= _texts(w)
     a.p_acq.finish.emit()
+    a.p_fin.encrypt.enable.setChecked(True)  # Prüfseite mit allen Optionen sichtbar
+    seen |= _texts(w)
+    a.p_fin.encrypt.enable.setChecked(False)
+    a.p_fin.start_btn.click()
     _pump(app, a.p_fin.open_pdf.isEnabled)
     seen |= _texts(w)
     case = a.st.case
