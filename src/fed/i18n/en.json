@@ -813,5 +813,9 @@
   "Prüfanker: Hashes aller Ausgabedateien und Stand der Log-Kette": "Verification anchor: hashes of all output files and state of the log chain",
   "{0} von {1} in die Zwischenablage": "{0} of {1} to the clipboard",
   "Mails ansehen – gesicherte Mails dieses Kontos in der Historie": "View messages – acquired messages of this account in the history",
-  "Klicken: Mails ansehen": "Click: view messages"
+  "Klicken: Mails ansehen": "Click: view messages",
+  "● Ungespeicherte Änderungen": "● Unsaved changes",
+  "✓ Gespeichert um {0}": "✓ Saved at {0}",
+  "Alle Einstellungen gespeichert": "All settings saved",
+  "Änderungen verworfen": "Changes discarded"
 }

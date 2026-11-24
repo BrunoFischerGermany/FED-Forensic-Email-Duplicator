@@ -3217,6 +3217,22 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Google guide</translation>
     </message>
     <message>
+        <source>● Ungespeicherte Änderungen</source>
+        <translation>● Unsaved changes</translation>
+    </message>
+    <message>
+        <source>✓ Gespeichert um {0}</source>
+        <translation>✓ Saved at {0}</translation>
+    </message>
+    <message>
+        <source>Alle Einstellungen gespeichert</source>
+        <translation>All settings saved</translation>
+    </message>
+    <message>
+        <source>Änderungen verworfen</source>
+        <translation>Changes discarded</translation>
+    </message>
+    <message>
         <source>Platzhalter: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}</source>
         <translation>Placeholders: {aktenzeichen} · {asservat} · {email} · {datum} · {zeit} · {uhrzeit} · {jahr}</translation>
     </message>
