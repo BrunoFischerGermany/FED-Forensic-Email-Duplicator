@@ -789,5 +789,18 @@
   "Suchkriterien": "search criteria",
   "Umfang": "Scope",
   "Teilsicherung – {0}": "Partial acquisition – {0}",
-  "alle Ordner, ohne Filter": "all folders, no filter"
+  "alle Ordner, ohne Filter": "all folders, no filter",
+  "KONTEN": "ACCOUNTS",
+  "+ Konto hinzufügen": "+ Add account",
+  "Verbinden": "Connect",
+  "Sichern": "Acquire",
+  "FALL": "CASE",
+  "ABSCHLUSS": "CLOSING",
+  "✓ abgeschlossen": "✓ closed",
+  "✓ Grunddaten · Systemprüfung": "✓ Base data · system check",
+  "neues Konto": "new account",
+  "✓ Berichte und ZIP erstellt": "✓ Reports and ZIP created",
+  "{0} von {1} Konten fertig": "{0} of {1} accounts done",
+  "noch kein Konto": "no account yet",
+  "✓ Grunddaten · Prüfung": "✓ Base data · check"
 }

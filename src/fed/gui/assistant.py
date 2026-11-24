@@ -2726,10 +2726,9 @@ def zip_mode_text(mode: str | None) -> str:
 
 
 # ====================================================================== Assistent
-STEPS = [QT_TRANSLATE_NOOP("Assistant", "Fall anlegen"), QT_TRANSLATE_NOOP("Assistant", "Systemprüfung"),
-         QT_TRANSLATE_NOOP("Assistant", "Konto"), QT_TRANSLATE_NOOP("Assistant", "Postfach scannen"),
-         QT_TRANSLATE_NOOP("Assistant", "Ordner wählen"), QT_TRANSLATE_NOOP("Assistant", "Sicherung"),
-         QT_TRANSLATE_NOOP("Assistant", "Abschluss")]
+# Schritte je Konto in der linken Leiste (Seite 1 = Verbinden, 2 = Ordner, 3 = Sichern)
+ACCOUNT_STEPS = [QT_TRANSLATE_NOOP("Assistant", "Verbinden"), QT_TRANSLATE_NOOP("Assistant", "Ordner"),
+                 QT_TRANSLATE_NOOP("Assistant", "Sichern")]
 
 
 class Assistant(QWidget):
@@ -2756,16 +2755,14 @@ class Assistant(QWidget):
         rl = QVBoxLayout(rail)
         rl.setContentsMargins(16, 24, 16, 16)
         rl.setSpacing(2)
-        rl.addWidget(label(self.tr("ABLAUF"), "RailTitle"))
-        self.step_btns = []
-        for i, s in enumerate(STEPS):
-            b = QPushButton(f"  {i + 1}   {self.tr(s)}")
-            b.setObjectName("Step")
-            b.setCheckable(True)
-            b.setEnabled(False)
-            rl.addWidget(b)
-            self.step_btns.append(b)
-        rl.addSpacing(20)
+        # Linke Leiste: der Fall als Zentrale – Fall · Konten (je Konto Verbinden › Ordner › Sichern) · Abschluss
+        rl.addWidget(label(self.tr("FALL"), "RailTitle"))
+        self.case_btn = QPushButton()
+        self.case_btn.setObjectName("Step")
+        self.case_btn.setCheckable(True)
+        self.case_btn.clicked.connect(lambda: self._show(0, 0))
+        rl.addWidget(self.case_btn)
+        rl.addSpacing(16)
         self.rail_accounts = AccountsRail()
         self.rail_accounts.jobs = self.jobs
         self.rail_accounts.picked.connect(self._rail_pick)
@@ -2774,8 +2771,17 @@ class Assistant(QWidget):
         self.jobs.changed.connect(self.case_changed.emit)
         self.rail_accounts.setVisible(False)
         rl.addWidget(self.rail_accounts)
+        rl.addSpacing(16)
+        self.finish_title = label(self.tr("ABSCHLUSS"), "RailTitle")
+        rl.addWidget(self.finish_title)
+        self.finish_step = QPushButton()
+        self.finish_step.setObjectName("Step")
+        self.finish_step.setCheckable(True)
+        self.finish_step.clicked.connect(self._rail_finish)
+        rl.addWidget(self.finish_step)
         rl.addStretch(1)
         lay.addWidget(rail)
+        self._page = 0
         self._rail_timer = QTimer(self)
         self._rail_timer.timeout.connect(self.refresh_accounts)
         self._rail_timer.start(3000)
@@ -2810,19 +2816,86 @@ class Assistant(QWidget):
         self.rail_accounts.add_account.connect(self._rail_add)
         self.rail_accounts.remove_requested.connect(self._remove_account)
         self.p_acc.accounts.remove_requested.connect(self._remove_account)
+        self.case_changed.connect(self._update_rail)
         self._show(0, 0)
 
-    def _show(self, page_index: int, step: int) -> None:
+    def _show(self, page_index: int, step: int = 0) -> None:
+        """Seite zeigen (0 Fall · 1 Konto · 2 Ordner · 3 Sicherung · 4 Abschluss) und die Leiste nachziehen."""
         if page_index == 0:
             self.p_case.sync()
+        self._page = page_index
         self.stack.setCurrentIndex(page_index)
-        for i, b in enumerate(self.step_btns):
-            b.setChecked(i == step)
-            b.setText(f"  {'✓' if i < step else i + 1}   {self.tr(STEPS[i])}")
+        self._update_rail()
+
+    def _update_rail(self) -> None:
+        """Linke Leiste: Fall (Stand), Konten mit den Schritten des aktuellen Kontos, Abschluss (Stand)."""
+        case, page = self.st.case, self._page
+        if case is None:
+            self.case_btn.setText(self.tr("Fall anlegen"))
+        else:
+            info = case.info()
+            self.case_btn.setText(f"{info.get('case_number') or ''}\n"
+                                  + (self.tr("✓ abgeschlossen") if case.closed else
+                                     self.tr("✓ Grunddaten · Prüfung")))
+        self.case_btn.setChecked(page == 0)
+        # Schritte des gerade bearbeiteten Kontos
+        steps = self.rail_accounts.steps
+        if case is not None and page in (1, 2, 3):
+            if page == 3 and self.p_acq.job is not None:
+                who, aid = f"{self.p_acq.job.evidence} · {self.p_acq.job.email}", self.p_acq.job.account_id
+            else:
+                sp = self.st.spec if page > 1 else None
+                email = (sp.email if sp else "") or self.st.email or normalize_email(self.p_acc.email.text())
+                who = (f"{sp.evidence_number} · {email}" if sp and sp.evidence_number else email) or self.tr("neues Konto")
+                aid = self.st.account_id
+            parts = []
+            for i, name in enumerate(ACCOUNT_STEPS, start=1):
+                text = html.escape(self.tr(name))
+                parts.append(f"<b>{text}</b>" if i == page else (f"✓ {text}" if i < page else text))
+            # neues Konto (noch nicht in der Liste): wer, sonst ist der Eintrag darüber hervorgehoben
+            known = aid is not None and aid in self.rail_accounts.by_id
+            steps.setText(("" if known else html.escape(who) + "<br>") + " › ".join(parts))
+            steps.setToolTip(who)
+            steps.setVisible(True)
+            self.rail_accounts.set_current(aid)
+        else:
+            steps.setVisible(False)
+            self.rail_accounts.set_current(None)
+        # Abschluss
+        show = case is not None
+        self.finish_title.setVisible(show)
+        self.finish_step.setVisible(show)
+        if show:
+            if case.closed:
+                self.finish_step.setText(self.tr("Fall abgeschlossen") + "\n" + self.tr("✓ Berichte und ZIP erstellt"))
+            else:
+                from fed.core.acquisition import accounts_overview
+
+                rows = accounts_overview(case)
+                done = sum(1 for o in rows if o["state"] == "done")
+                self.finish_step.setText(self.tr("Fall abschließen") + "\n"
+                                         + (self.tr("{0} von {1} Konten fertig").format(done, len(rows)) if rows
+                                            else self.tr("noch kein Konto")))
+            # abgeschlossen: nur das Ergebnis dieser Sitzung zeigen (ein geladener alter Fall hat keins)
+            self.finish_step.setEnabled(self.st.finish is not None if case.closed else bool(case.conn.execute(
+                "SELECT 1 FROM account LIMIT 1").fetchone()))
+        self.finish_step.setChecked(page == 4)
+
+    def _rail_finish(self) -> None:
+        """„Abschluss“ in der Leiste: Prüfseite (offener Fall) bzw. Ergebnis (abgeschlossener Fall)."""
+        case = self.st.case
+        if case is None:
+            return
+        if case.closed:
+            self._show(4, 6)
+            return
+        self._finish()
+        self._update_rail()
 
     def refresh_accounts(self) -> None:
         try:
             self.rail_accounts.refresh(self.st.case)
+            self._update_rail()
         except Exception:  # Anzeige darf eine laufende Sicherung nie stören
             pass
 

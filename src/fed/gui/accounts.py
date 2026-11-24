@@ -316,14 +316,21 @@ class AccountsRail(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(2)
-        self.title = QLabel(QCoreApplication.translate("AccountsTable", "KONTEN IM FALL"))
+        self.title = QLabel(QCoreApplication.translate("AccountsTable", "KONTEN"))
         self.title.setObjectName("RailTitle")
         outer.addWidget(self.title)
         self.lay = QVBoxLayout()  # Einträge der Konten
         self.lay.setContentsMargins(0, 0, 0, 0)
         self.lay.setSpacing(2)
         outer.addLayout(self.lay)
-        self.add_btn = QPushButton(QCoreApplication.translate("AccountsTable", "+ Weiteres Konto"))
+        # Schritte des gerade bearbeiteten Kontos (Verbinden › Ordner › Sichern), vom Assistenten gesetzt
+        self.steps = QLabel()
+        self.steps.setObjectName("Hint")
+        self.steps.setTextFormat(Qt.TextFormat.RichText)
+        self.steps.setContentsMargins(12, 2, 4, 6)
+        self.steps.setVisible(False)
+        outer.addWidget(self.steps)
+        self.add_btn = QPushButton(QCoreApplication.translate("AccountsTable", "+ Konto hinzufügen"))
         self.add_btn.setObjectName("Step")
         self.add_btn.setToolTip(QCoreApplication.translate("AccountsTable",
                                                            "Ein weiteres Konto zu diesem Fall hinzufügen"))
@@ -333,6 +340,14 @@ class AccountsRail(QWidget):
         self.by_id: dict[int, _RailItem] = {}
         self._last: list | None = None
         self.jobs = None  # JobManager
+        self.current: int | None = None  # gerade bearbeitetes Konto (hervorgehoben)
+
+    def set_current(self, account_id: int | None) -> None:
+        self.current = account_id
+        for aid, item in self.by_id.items():
+            item.setObjectName("RailItemCurrent" if aid == account_id else "RailItem")
+            item.style().unpolish(item)
+            item.style().polish(item)
 
     def refresh(self, case: Case | None) -> None:
         rows = by_evidence(accounts_overview(case)) if case else []
@@ -347,7 +362,7 @@ class AccountsRail(QWidget):
         for it in self.items:
             it.deleteLater()
         self.items, self.by_id = [], {}
-        self.setVisible(bool(rows))
+        self.setVisible(case is not None)  # sobald ein Fall offen ist – auch ohne Konto („+ Konto hinzufügen“)
         for o in rows:
             running = o["id"] in live
             sym, text, style = state_text(o)
@@ -366,6 +381,7 @@ class AccountsRail(QWidget):
             self.lay.addWidget(item)
             self.items.append(item)
             self.by_id[o["id"]] = item
+        self.set_current(self.current)
         self.update_progress()
 
     def update_progress(self, job=None) -> None:
