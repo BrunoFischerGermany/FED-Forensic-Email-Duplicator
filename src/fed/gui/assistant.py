@@ -2167,12 +2167,27 @@ class FinishPage(QWidget):
         self.sub = w.subtitle
         cols = QHBoxLayout()
         cols.setSpacing(24)
+        # Ergebnis auf einen Blick: Vollständigkeit · Integrität mit Begründung und Kennzahlen
+        self.verdict = Card()
+        self.verdict_lbl = label("", "Big")
+        self.verdict_lbl.setTextFormat(Qt.TextFormat.RichText)
+        self.verdict_why = label("", "Muted", wrap=True)
+        self.verdict_figures = label("", None, wrap=True)
+        for x in (self.verdict_lbl, self.verdict_why, self.verdict_figures):
+            self.verdict.add(x)
+        self.verdict.setVisible(False)
         self.checks = Card()
         self.check_kv = KeyValues()
+        self.check_kv.align = Qt.AlignmentFlag.AlignLeft  # Ablauf/Ergebnis liest sich linksbündig
         self.checks.add(self.check_kv)
-        self.hashes = Card()
-        self.hash_kv = KeyValues()
-        self.hashes.add(self.hash_kv)
+        self.hashes = Card(self.tr("Dateien und Hashwerte"))
+        self.files_box = QWidget()
+        self.files_lay = QVBoxLayout(self.files_box)
+        self.files_lay.setContentsMargins(0, 0, 0, 0)
+        self.files_lay.setSpacing(14)
+        self.hashes.add(self.files_box)
+        self.hashes.setVisible(False)
+        self.hash_labels: dict = {}  # Hashwert-Label je „SHA-256 · DF001“ usw.
         # Laufende Aktivitätsanzeige: Spinner läuft weiter, auch wenn ein Schritt länger ohne neue Meldung arbeitet
         self._step_text = ""
         self._spin = 0
@@ -2182,7 +2197,7 @@ class FinishPage(QWidget):
         self._spin_timer.timeout.connect(self._tick_spin)
         self.review = self._build_review()
         lay.addWidget(self.review)
-        left = vbox(self.checks, self.hashes, spacing=24)
+        left = vbox(self.verdict, self.checks, self.hashes, spacing=24)
         cols.addLayout(left, 3)
         rep = Card(self.tr("Bericht"))
         self.report_lbl = ElidedLabel("", "Muted")
@@ -2454,6 +2469,8 @@ class FinishPage(QWidget):
         self.open_pdf.setEnabled(False)
         self.report_lbl.setText("")
         self._clear_account_reports()
+        self.verdict.setVisible(False)
+        self.hashes.setVisible(False)
         self.check_kv.clear()
         self.check_kv.set(self.tr("Postfach"), self.tr("wird vorbereitet …"))  # zuerst: steht über dem Schritt
         self.check_kv.set(self.tr("Bericht-Einstellungen"), self._report_settings_text(st.cfg))
@@ -2586,30 +2603,18 @@ class FinishPage(QWidget):
         total = sum(r for (r,) in self.st.case.conn.execute("SELECT COUNT(*) FROM message WHERE status='valid'"))
         self.title.setText(self.tr("Fall abgeschlossen"))
         self.sub.setText(self.tr("{0} Mails gesichert und verifiziert · ab jetzt nur noch lesend").format(total))
+        self._show_verdict()
         k = self.check_kv
         k.clear()
-        self._show_assessment(k)
         changed = self.st.case.conn.execute(
             "SELECT COUNT(*) FROM folder WHERE selected = 1 AND status_before IS NOT NULL AND status_before != status_after"
         ).fetchone()[0]
         k.set(self.tr("Vorher/Nachher-Vergleich"), self.tr("unverändert ✓") if not changed
-              else self.tr("{0} Ordner geändert").format(changed), "ok" if not changed else "warn")
-        tags = self._zip_tags(res)  # je ZIP eine Kennung (Asservat), damit keine Zeile die andere überschreibt
-        for z, tag in zip(res.zips, tags, strict=True):
-            k.set(self.tr("ZIP gepackt") + tag, f"{z.path.name} · {_fmt_bytes(z.size)}", "ok", tip=str(z.path))
-            k.set(self.tr("ZIP verifiziert") + tag, self.tr("{0} .eml erneut gehasht, alle identisch").format(z.files)
-                  if z.verified else "; ".join(describe(p) for p in z.problems), "ok" if z.verified else "error")
+              else self.tr("{0} Ordner während der Sicherung geändert").format(changed), "ok" if not changed else "warn")
         deleted = not self.st.case.work_dir.exists()
-        k.set(self.tr("Arbeitsordner"), self.tr("gelöscht (Mails nur noch im geprüften ZIP)") if deleted
-              else self.tr("behalten"), "ok" if deleted else None)
-        ts_tags = tags if len(res.timestamps) == len(tags) else [""] * len(res.timestamps)
-        for (ts, err), tag in zip(res.timestamps, ts_tags, strict=True):
-            if ts is not None:
-                k.set(self.tr("Zeitstempel (RFC 3161)") + tag, self.tr("{0} UTC · Seriennr. {1}").format(
-                    ts.gen_time.replace("T", " ").rstrip("Z"), ts.serial), "ok")
-            elif err:
-                k.set(self.tr("Zeitstempel (RFC 3161)") + tag, self.tr("fehlgeschlagen: {0}").format(err), "warn")
-        reports = "report.pdf · report.txt · log.csv"
+        k.set(self.tr("Arbeitsordner"), self.tr("gelöscht – Mails nur noch im geprüften ZIP") if deleted
+              else self.tr("behalten (work/)"), "ok" if deleted else None)
+        reports = "report.pdf · report.txt · log.csv · chain_of_custody.csv"
         if res.account_reports:
             reports += self.tr(" · {0} Einzelberichte je Konto").format(len(res.account_reports) // 2)
         k.set(self.tr("Berichte erzeugt"), reports, "ok")
@@ -2618,29 +2623,10 @@ class FinishPage(QWidget):
                   + self.tr("geprüft"), "ok")
             k.set(self.tr("Passwort (nur jetzt sichtbar)"), getattr(self, "_password", "") or "", mono=True)
         self._password = None
-        if res.manifest is not None:
-            sha = res.manifest_hashes.get("sha256", "")
-            k.set(self.tr("Manifest (Prüfanker)"), f"{res.manifest.name} · SHA-256 {sha[:16]}…", "ok",
-                  tip=f"{res.manifest}\nSHA-256: {sha}")
-            ts, err = res.manifest_timestamp
-            if ts is not None:
-                k.set(self.tr("Zeitstempel Manifest"), self.tr("{0} UTC · Seriennr. {1}").format(
-                    ts.gen_time.replace("T", " ").rstrip("Z"), ts.serial), "ok")
-            elif err:
-                k.set(self.tr("Zeitstempel Manifest"), self.tr("fehlgeschlagen: {0}").format(err), "warn")
         for z in res.zips:
             for p in z.problems:
                 k.set(self.tr("Hinweis"), describe(p), "warn")
-        h = self.hash_kv
-        h.clear()
-        for z, tag in zip(res.zips, tags, strict=True):
-            for name in ("sha256", "md5", "sha512"):
-                if name in z.hashes:
-                    v = z.hashes[name]
-                    key = name.upper().replace("SHA", "SHA-") + tag
-                    # in 32er-Blöcken umbrechen, damit nichts abgeschnitten wird; voller Wert im Tooltip
-                    h.set(key, "\n".join(v[i:i + 32] for i in range(0, len(v), 32)), mono=True,
-                          tip=f"{z.path.name}\n{key}: {v}")
+        self._show_files(res)
         self.report_lbl.setText(str(res.report_pdf))
         self.open_pdf.setEnabled(True)
         self._show_account_reports()
@@ -2662,6 +2648,100 @@ class FinishPage(QWidget):
         k.set(self.tr("Integrität"), text(a.integrity, a.integrity_reasons), tone[a.integrity])
         k.set(self.tr("Kennzahlen"), figures_text(a, _fmt_bytes, fmt_duration))
         self.assessment = a
+
+    def _show_verdict(self) -> None:
+        """Großes Ergebnis oben: „✓ Vollständig · ✓ Verifiziert“ (Farbe je Urteil), Begründung, Kennzahlen."""
+        from fed.core.assessment import assess, figures_text, label as state_label
+        from fed.core.report import fmt_duration
+        from fed.gui import theme
+
+        a = assess(self.st.case)
+        self.assessment = a
+        t = theme.tokens()
+        color = {"complete": t["ok"], "verified": t["ok"], "partial": t["text"], "pending": t["muted"],
+                 "incomplete": t["warn"], "none": t["warn"], "failed": t["danger"]}
+        sym = {"complete": "✓", "verified": "✓", "partial": "◐", "pending": "○", "incomplete": "!", "none": "!",
+               "failed": "✗"}
+        self.verdict_lbl.setText("&nbsp;&nbsp;·&nbsp;&nbsp;".join(
+            f'<span style="color:{color[st]}">{sym[st]} {html.escape(state_label(st))}</span>'
+            for st in (a.completeness, a.integrity)))
+        why = [*a.completeness_reasons, *a.integrity_reasons]
+        self.verdict_why.setText("\n".join("– " + r for r in why))
+        self.verdict_why.setVisible(bool(why))
+        self.verdict_figures.setText(figures_text(a, _fmt_bytes, fmt_duration))
+        self.verdict.setVisible(True)
+
+    def _show_files(self, res) -> None:
+        """Je ZIP (und Manifest) ein Block: Name, Größe, Prüfung, Zeitstempel und alle Hashwerte vollständig –
+        markierbar und mit „Kopieren“."""
+        while self.files_lay.count():
+            item = self.files_lay.takeAt(0)
+            if item.widget():
+                item.widget().hide()
+                item.widget().deleteLater()
+        self.hash_labels = {}
+        tags = self._zip_tags(res)
+        ts_list = res.timestamps if len(res.timestamps) == len(res.zips) else [(None, "")] * len(res.zips)
+        for z, tag, (ts, err) in zip(res.zips, tags, ts_list, strict=True):
+            status = [(self.tr("✓ {0} .eml erneut gehasht, alle identisch").format(z.files), "Ok") if z.verified
+                      else ("✗ " + "; ".join(describe(p) for p in z.problems), "Error")]
+            if ts is not None:
+                status.append((self.tr("✓ Zeitstempel {0} UTC · Seriennr. {1}").format(
+                    ts.gen_time.replace("T", " ").rstrip("Z"), ts.serial), "Ok"))
+            elif err:
+                status.append((self.tr("Zeitstempel fehlgeschlagen: {0}").format(err), "Warn"))
+            self._file_block(z.path, z.size, z.hashes, tag, status)
+        if res.manifest is not None:
+            ts, err = res.manifest_timestamp
+            status = [(self.tr("Prüfanker: Hashes aller Ausgabedateien und Stand der Log-Kette"), "Muted")]
+            if ts is not None:
+                status.append((self.tr("✓ Zeitstempel {0} UTC · Seriennr. {1}").format(
+                    ts.gen_time.replace("T", " ").rstrip("Z"), ts.serial), "Ok"))
+            elif err:
+                status.append((self.tr("Zeitstempel fehlgeschlagen: {0}").format(err), "Warn"))
+            size = res.manifest.stat().st_size if res.manifest.exists() else 0
+            self._file_block(res.manifest, size, res.manifest_hashes, " · Manifest", status)
+        self.hashes.setVisible(True)
+
+    def _file_block(self, path, size: int, hashes: dict, tag: str, status: list[tuple[str, str]]) -> None:
+        from PySide6.QtGui import QGuiApplication
+
+        box = QWidget()
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(4)
+        head = ElidedLabel(f"{path.name} · {_fmt_bytes(size)}", "H2")
+        head.setToolTip(str(path))
+        v.addWidget(head)
+        for text, style in status:
+            v.addWidget(label(text, style, wrap=True))
+        g = QGridLayout()
+        g.setHorizontalSpacing(12)
+        g.setVerticalSpacing(4)
+        for row, name in enumerate(n for n in ("sha256", "md5", "sha512") if n in hashes):
+            value = hashes[name]
+            key = name.upper().replace("SHA", "SHA-")
+            g.addWidget(label(key, "Muted"), row, 0, Qt.AlignmentFlag.AlignTop)
+            lbl = label("\n".join(value[i:i + 64] for i in range(0, len(value), 64)), "Mono", selectable=True)
+            lbl.setToolTip(f"{path.name}\n{key}: {value}")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            g.addWidget(lbl, row, 1, Qt.AlignmentFlag.AlignTop)
+            btn = QPushButton(self.tr("Kopieren"))
+            btn.setObjectName("Link")
+            btn.setFlat(True)
+            btn.setToolTip(self.tr("{0} von {1} in die Zwischenablage").format(key, path.name))
+
+            def copy(_=False, v_=value, b_=btn):
+                QGuiApplication.clipboard().setText(v_)
+                b_.setText(self.tr("Kopiert ✓"))
+                QTimer.singleShot(1500, lambda: b_.setText(self.tr("Kopieren")))
+
+            btn.clicked.connect(copy)
+            g.addWidget(btn, row, 2, Qt.AlignmentFlag.AlignTop)
+            self.hash_labels[key + tag] = lbl
+        g.setColumnStretch(1, 1)
+        v.addLayout(g)
+        self.files_lay.addWidget(box)
 
     def _zip_tags(self, res) -> list[str]:
         """Kennung je ZIP für die Übersicht: „ · DF001“ bei einem ZIP je Konto, sonst leer bzw. Nummer."""

@@ -341,7 +341,7 @@ def test_report_timestamp_qualified_label(acquired):
 def test_finish_page_lists_each_zip_and_account_reports(tmp_path, imap_server, test_mails):
     """Abschlussseite bei „ein ZIP je Konto": jede ZIP-/Prüf-/Hash-Zeile je Konto (nichts überschrieben),
     voller Hash im Tooltip, „Gesamtbericht öffnen" plus je Konto „Bericht <E-Mail> öffnen"."""
-    from PySide6.QtWidgets import QApplication, QPushButton
+    from PySide6.QtWidgets import QApplication, QLabel, QPushButton
 
     from fed.gui.assistant import FinishPage, State
 
@@ -355,14 +355,19 @@ def test_finish_page_lists_each_zip_and_account_reports(tmp_path, imap_server, t
     p = FinishPage(st)
     p._done(res)
 
-    keys = set(p.check_kv.values)
-    assert {"ZIP gepackt · A-01", "ZIP gepackt · A-02", "ZIP verifiziert · A-01", "ZIP verifiziert · A-02"} <= keys
-    assert list(p.check_kv.values)[:3] == ["Vollständigkeit", "Integrität", "Kennzahlen"]  # Bewertung zuoberst
+    # oben das Ergebnis auf einen Blick, darunter je ZIP ein Block mit allen Hashwerten
     assert p.assessment.completeness == "complete" and p.assessment.integrity == "verified"
-    assert "2 Konten" in p.check_kv.values["Kennzahlen"].text()
+    assert "Vollständig" in p.verdict_lbl.text() and "Verifiziert" in p.verdict_lbl.text()
+    assert "2 Konten" in p.verdict_figures.text()
+    assert {"SHA-256 · A-01", "SHA-256 · A-02", "MD5 · A-01", "SHA-512 · A-02", "SHA-256 · Manifest"} <= set(p.hash_labels)
     full = res.zips[0].hashes["sha256"]
-    lbl = p.hash_kv.values["SHA-256 · A-01"]
+    lbl = p.hash_labels["SHA-256 · A-01"]
     assert lbl.text().replace("\n", "") == full and full in lbl.toolTip()   # komplett, nichts abgeschnitten
+    copy = next(b for b in p.files_box.findChildren(QPushButton) if b.text() == "Kopieren")
+    copy.click()
+    assert qapp.clipboard().text() == full and copy.text() == "Kopiert ✓"
+    texts = " ".join(lb.text() for lb in p.files_box.findChildren(QLabel))
+    assert res.zips[1].path.name in texts and "erneut gehasht, alle identisch" in texts
     assert p.open_pdf.text() == "Gesamtbericht öffnen"
     emails = [e for (e,) in case.conn.execute("SELECT email FROM account ORDER BY id")]
     assert [b.text() for b in p.acc_reports.findChildren(QPushButton)] == [f"Bericht {e} öffnen" for e in emails]
