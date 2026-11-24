@@ -137,6 +137,7 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "logo": snap[0] if snap else {},
         "system": _q(case, "SELECT * FROM system_check ORDER BY id DESC LIMIT 1"),
         "device": case.device_owner_history(),
+        "based_on": _based_on(case),
         "accounts": accounts,
         "overview": overview,
         "account_id": account_id,
@@ -157,6 +158,19 @@ def collect(case: Case, account_id: int | None = None) -> dict:
         "work_dir": _work_dir_state(case),
         "timestamps": timestamps,
     }
+
+
+def _based_on(case: Case) -> dict | None:
+    """Herkunft übernommener Grunddaten („Grunddaten übernehmen“ aus einem früheren Fall)."""
+    row = case.conn.execute("SELECT details FROM log WHERE event = 'case_base_data_taken_over' "
+                            "ORDER BY id LIMIT 1").fetchone()
+    if not row:
+        return None
+    try:
+        d = json.loads(row[0])
+    except (TypeError, ValueError):
+        return None
+    return d if isinstance(d, dict) else None
 
 
 def account_subset(d: dict, account_id: int, case: Case) -> dict:
@@ -323,6 +337,9 @@ def _head_sections(d: dict, L: dict) -> list[tuple[str, list[tuple[str, str]]]]:
         case_items.append((L["zip_mode"], L[f"zip_mode_{mode}"]))
     if d.get("work_dir"):
         case_items.append((L["work_dir"], _work_dir_text(d["work_dir"], L)))
+    if d.get("based_on"):
+        b = d["based_on"]
+        case_items.append((L["based_on"], f"{b.get('from_case_number') or '?'} ({b.get('from_case_path') or '?'})"))
     secs = [(L["case"], case_items)]
     device = _device_text(d.get("device") or [], L)
     if not d["system"] and d.get("device"):

@@ -225,5 +225,7 @@
   "thousands_sep": ".",
   "domain_dns_csv": "DNS-Schnappschuss der Domain – als CSV abgelegt. Vollständige Tabelle in dns_snapshot.csv (im Fallordner, mit SHA-256).",
   "dns_keys_csv": "{n} aufbewahrte DKIM-Schlüssel – als CSV abgelegt. Vollständige Liste in dns_keys.csv (im Fallordner, mit SHA-256).",
-  "ts_qualified": "Qualifizierter Zeitstempel (RFC 3161)"
+  "ts_qualified": "Qualifizierter Zeitstempel (RFC 3161)",
+  "log_case_base_data_taken_over": "Grunddaten übernommen aus Fall {from_case_number} ({from_case_path})",
+  "based_on": "Grunddaten übernommen aus Fall"
 }

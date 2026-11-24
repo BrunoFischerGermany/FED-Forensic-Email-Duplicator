@@ -94,7 +94,7 @@
   "Nur die Eckdaten (Server, Anmeldeart, Asservatennummer) werden übernommen – die Mails werden frisch erfasst. Asservatennummer anschließend prüfen.": "Only the details (server, login method, evidence number) are copied – the messages are acquired fresh. Check the evidence number afterwards.",
   "Neuer Fall": "New case",
   "Diesen Fall verlassen und einen neuen anlegen": "Leave this case and start a new one",
-  "Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. Für eine neue Sicherung unten „Neuer Fall“ wählen.": "This case is closed and can only be viewed in the history. For a new acquisition, choose “New case” below.",
+  "Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. Für eine neue Sicherung unten „Neuer Fall“ wählen – oder „Grunddaten übernehmen“, um Aktenzeichen, Prüfer und Anmerkungen weiterzuverwenden.": "This case is closed and can only be viewed in the history. For a new acquisition, choose “New case” below – or “Take over base data” to reuse case number, examiner and notes.",
   "Im gewählten Ordner wurde kein Fall gefunden (keine „case.sqlite“). Bitte den Fall-Ordner selbst wählen – oder den übergeordneten Ordner, wenn dort genau ein Fall liegt.": "No case was found in the selected folder (no “case.sqlite”). Please choose the case folder itself – or the parent folder if it contains exactly one case.",
   "Fall-Ordner öffnen": "Open case folder",
   "Aktenzeichen *": "Case number *",
@@ -698,5 +698,9 @@
   "wird geladen …": "loading …",
   "Postfach {0} wird gescannt …": "Scanning mailbox {0} …",
   "Gesamtbericht öffnen": "Open overall report",
-  "Bericht {0} öffnen": "Open report {0}"
+  "Bericht {0} öffnen": "Open report {0}",
+  "Grunddaten aus Fall „{0}“ übernommen.": "Base data taken over from case “{0}”.",
+  "Grunddaten übernehmen": "Take over base data",
+  "Neuen Fall beginnen – Aktenzeichen, Prüfer, Anmerkungen und Zielordner werden aus diesem Fall übernommen und können angepasst werden": "Start a new case – case number, examiner, notes and target folder are taken over from this case and can be adjusted",
+  "Unter diesem Aktenzeichen gibt es im Zielordner schon einen Fall – bitte Aktenzeichen oder Zielordner anpassen.": "A case with this case number already exists in the target folder – please adjust the case number or target folder."
 }

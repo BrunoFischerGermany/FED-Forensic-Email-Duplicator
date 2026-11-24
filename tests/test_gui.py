@@ -572,6 +572,55 @@ def test_ask_device_owner_session_answer_used_for_case(app, tmp_path, monkeypatc
     app.processEvents()
 
 
+def test_reuse_base_data_of_closed_case(app, tmp_path, monkeypatch):
+    """Abgeschlossener Fall geöffnet: „Grunddaten übernehmen“ belegt einen neuen Fall vor; die Herkunft
+    wird im neuen Fall protokolliert und im Bericht genannt."""
+    from fed.core import config as cfgmod
+    from fed.core.finalize import close_case
+    from fed.core.report import collect
+    from fed.gui import assistant as ga
+    from fed.gui.main_window import MainWindow
+
+    monkeypatch.setattr(ga, "ask_device_owner", lambda *a, **k: "own")
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    monkeypatch.setattr(QtWidgets.QMessageBox, "information", staticmethod(lambda *a, **k: None))
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    w = MainWindow(cfg, tmp_path)
+    a = w.assistant
+    _pump(app, lambda: a.st.system is not None)
+    p = a.p_case
+    p.case_no.setText("AZ-7")
+    p.notes.set_value("Beschluss vom 1.11.", None)
+    p._go_clicked()
+    old = a.st.case
+    old_dir = old.root
+    close_case(old)
+    a._new_case()
+    assert not p.reuse_btn.isVisibleTo(w)
+    p._open(old_dir)
+    a._show(0, 0)
+    assert p.reuse_btn.isVisibleTo(w) and not p.go.isVisibleTo(w)
+    p.reuse_btn.click()
+    assert a.st.case is None
+    assert p.case_no.text() == "AZ-7" and p.examiner.text() == "Max Mustermann"
+    assert "Beschluss" in p.notes.toPlainText() and p.target.text() == str(old_dir.parent)
+    assert not p.case_no.isReadOnly() and "schon einen Fall" in p.error.text()
+    p.case_no.setText("AZ-7-2")
+    p._go_clicked()
+    new = a.st.case
+    assert new is not None and new.root != old_dir and new.info()["case_number"] == "AZ-7-2"
+    assert collect(new)["based_on"] == {"from_case_number": "AZ-7", "from_case_path": str(old_dir)}
+    a._new_case()
+    assert p._reused_from is None
+    w.close()
+    w.deleteLater()
+    app.processEvents()
+
+
 def test_encrypt_dialog_defaults_to_no_copy(app):
     """Der Abschluss-Dialog erscheint, ist aber standardmäßig OHNE verschlüsselte Kopie (kein Passwort)."""
     from fed.gui.encrypt_dialog import EncryptDialog
