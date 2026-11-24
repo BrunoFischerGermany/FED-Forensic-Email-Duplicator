@@ -1107,3 +1107,52 @@ def test_remove_unacquired_account_from_rail_and_table(app, tmp_path, imap_serve
     w.close()
     w.deleteLater()
     app.processEvents()
+
+
+def _folder_case(tmp_path):
+    from fed.core.case import Case, CaseInfo
+
+    case = Case.create(tmp_path, CaseInfo("AZ-O", "Tester"))
+    with case.conn:
+        acc = case.conn.execute(
+            "INSERT INTO account (email, evidence_number, server, port, security, auth_method, username) "
+            "VALUES ('max@example.org', 'DF001', 'imap.example.org', 993, 'ssl', 'password', 'max@example.org')"
+        ).lastrowid
+        for name, cnt, size, flags in (("INBOX", 1234, 50_000_000, ""), ("INBOX/Rechnungen", 31, 900_000, ""),
+                                        ("Sent Items", 128, 4_000_000, "\\Sent"), ("Archiv/2024/Q1", 7, 70_000, ""),
+                                        ("Junk", 3, 9_000, "\\Junk")):
+            case.conn.execute("INSERT INTO folder (account_id, raw_name, display_name, delimiter, count_server, "
+                              "size_server, selected, flags) VALUES (?, ?, ?, '/', ?, ?, 1, ?)",
+                              (acc, name, name, cnt, size, flags))
+    return case, acc
+
+
+def test_folder_tree_imap_structure_with_counts(app, tmp_path):
+    """Ordnerbaum: IMAP-Struktur mit „Name (Mails)“, Größe, Summe inkl. Unterordnern, SPECIAL-USE-Namen,
+    Zwischenebenen; Umfang zeigt Teilsicherung bei abgewählten Ordnern bzw. Filtern."""
+    from PySide6.QtCore import Qt
+
+    from fed.core.config import Config
+    from fed.gui.assistant import UROLE, FolderPage, State
+
+    case, acc = _folder_case(tmp_path)
+    st = State(Config(), case=case)
+    st.account_id = acc
+    p = FolderPage(st)
+    p._show(None)
+    tops = {p.tree.topLevelItem(i).text(0): p.tree.topLevelItem(i) for i in range(p.tree.topLevelItemCount())}
+    inbox = next(it for t, it in tops.items() if t.startswith("INBOX"))
+    assert inbox.text(0) == "INBOX  (1.234)  · Posteingang" and inbox.childCount() == 1
+    assert inbox.child(0).text(0) == "Rechnungen  (31)"
+    assert inbox.text(2).startswith("1.265 · ")  # inkl. Unterordner
+    assert any(t.startswith("Sent Items  (128)  · Gesendet") for t in tops)
+    archiv = next(it for t, it in tops.items() if t == "Archiv")  # Zwischenebene, kein eigener Ordner
+    assert archiv.data(0, UROLE) is None and not archiv.flags() & Qt.ItemFlag.ItemIsUserCheckable
+    assert archiv.child(0).text(0) == "2024" and archiv.child(0).child(0).text(0) == "Q1  (7)"
+    assert p.summary.values["Umfang"].text() == "alle Ordner, ohne Filter"
+    assert "5 Ordner" in p.summary.values["Ausgewählt"].text()
+    next(it for t, it in tops.items() if t.startswith("Junk")).setCheckState(0, Qt.CheckState.Unchecked)
+    p.use_from.setChecked(True)
+    assert p.summary.values["Umfang"].text() == "Teilsicherung – 1 Ordner abgewählt, Zeitraum"
+    p.deleteLater()
+    case.close()
