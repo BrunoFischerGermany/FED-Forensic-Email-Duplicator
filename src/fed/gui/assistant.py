@@ -12,9 +12,9 @@ from pathlib import Path
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, QDate, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QFontDatabase
-from PySide6.QtWidgets import (QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout, QGridLayout,
+from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDateEdit, QFileDialog, QFormLayout, QGridLayout,
                                QHBoxLayout, QHeaderView, QInputDialog, QLineEdit, QMessageBox, QPlainTextEdit,
-                               QProgressBar, QPushButton, QScrollArea, QSpinBox, QStackedWidget, QTreeWidget,
+                               QProgressBar, QPushButton, QRadioButton, QScrollArea, QSpinBox, QStackedWidget, QTreeWidget,
                                QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from fed.core import acquisition as acq
@@ -1300,8 +1300,9 @@ class AccountPage(QWidget):
         row = case.conn.execute("SELECT id FROM account WHERE email = ?", (self.st.email,)).fetchone()
         self.st.account_id = row[0] if row else None
         others = case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0]
-        if self.st.account_id is None and others >= 1 and case.zip_mode() is None:
-            ask_zip_mode(self, case, self.st.cfg)  # beim 2. Konto: ZIP-Aufteilung für den Abschluss
+        preset = self.st.cfg.programm.zip_aufteilung
+        if self.st.account_id is None and others >= 1 and case.zip_mode() is None and preset in case.ZIP_MODES:
+            case.set_zip_mode(preset, source="einstellung")  # beim 2. Konto; sonst entscheidet die Prüfseite
         self.st.spec = acq.AccountSpec(
             self.st.email, self.evidence.text().strip(), self.server.text().strip(), self.port.value(),
             self.security.currentText(), normalize_email(self.user.text()) or self.st.email,
@@ -1930,6 +1931,7 @@ class FinishPage(QWidget):
     new_case = Signal()
     retry = Signal()
     back = Signal()
+    open_settings = Signal()  # „Einstellungen ändern …“ auf der Prüfseite
 
     def __init__(self, st: State) -> None:
         super().__init__()
@@ -1952,6 +1954,8 @@ class FinishPage(QWidget):
         self._spin_timer = QTimer(self)
         self._spin_timer.setInterval(350)
         self._spin_timer.timeout.connect(self._tick_spin)
+        self.review = self._build_review()
+        lay.addWidget(self.review)
         left = vbox(self.checks, self.hashes, spacing=24)
         cols.addLayout(left, 3)
         rep = Card(self.tr("Bericht"))
@@ -1971,7 +1975,10 @@ class FinishPage(QWidget):
         rep.add(self.open_dir)
         rep.lay.addStretch(1)
         cols.addWidget(rep, 2)
-        lay.addLayout(cols)
+        self.result = QWidget()  # Fortschritt und Ergebnis des Abschlusses
+        self.result.setLayout(cols)
+        cols.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(self.result)
         lay.addStretch(1)
         self.retry_btn = QPushButton(self.tr("Erneut versuchen"))
         self.retry_btn.setObjectName("Primary")
@@ -1986,9 +1993,22 @@ class FinishPage(QWidget):
         self.quit_btn.setObjectName("Primary")
         self.quit_btn.clicked.connect(lambda: self.window().close())
         self.busy = False  # True, solange der Abschluss läuft (ZIP/Hash/Zeitstempel/Bericht)
+        self.start_btn = QPushButton(self.tr("Fall abschließen"))
+        self.start_btn.setObjectName("Primary")
+        self.start_btn.clicked.connect(self.start)
+        self.start_btn.setVisible(False)
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        sc = QShortcut(QKeySequence("Ctrl+Return"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)
+        sc.activated.connect(lambda: self.start_btn.isVisible() and self.start_btn.isEnabled()
+                             and self.start_btn.animateClick())
+        self.start_btn.setToolTip(self.tr("Fall abschließen") + "  ·  "
+                                  + QKeySequence("Ctrl+Return").toString(QKeySequence.SequenceFormat.NativeText))
         nr = QHBoxLayout()
         nr.addWidget(self.back_btn)
         nr.addStretch(1)
+        nr.addWidget(self.start_btn)
         nr.addWidget(self.retry_btn)
         nr.addWidget(self.new_btn)
         nr.addWidget(self.quit_btn)
@@ -2035,59 +2055,171 @@ class FinishPage(QWidget):
         self.open_pdf.setEnabled(False)
         self.report_lbl.setText(self.tr("Kein Bericht – Abschluss nicht durchgeführt"))
 
-    def _aborted(self) -> None:
-        """Rückfrage abgebrochen: nichts abgeschlossen, Case bleibt offen."""
-        self._no_report()
-        self.title.setText(self.tr("Abschluss abgebrochen"))
-        self.sub.setText(self.tr("Der Fall ist noch offen – nichts wurde verändert."))
+    # ------------------------------------------------------------ Prüfseite vor dem Abschluss
+    def _build_review(self) -> QWidget:
+        """Alles, was vor dem Abschluss zu entscheiden ist, auf einer Seite (statt mehrerer Rückfragen)."""
+        from fed.gui.encrypt_dialog import EncryptOptions
+        from fed.gui.richedit import RichNoteEdit
+
+        box = QWidget()
+        cols = QHBoxLayout(box)
+        cols.setContentsMargins(0, 0, 0, 0)
+        cols.setSpacing(24)
+        check = Card(self.tr("Stand des Falls"))
+        self.review_kv = KeyValues()
+        self.review_kv.align = Qt.AlignmentFlag.AlignLeft  # Bewertung mit Begründung liest sich linksbündig
+        check.add(self.review_kv)
+        self.open_lbl = label("", "Warn", wrap=True)
+        check.add(self.open_lbl)
+        self.confirm_open = QCheckBox(self.tr("Trotzdem abschließen"))
+        self.confirm_open.setToolTip(self.tr("Danach kann der Fall nicht mehr ergänzt werden"))
+        self.confirm_open.toggled.connect(self._update_review)
+        check.add(self.confirm_open)
+        self.running_lbl = label("", "Error", wrap=True)
+        check.add(self.running_lbl)
+        out = Card(self.tr("Ausgabe"))
+        self.zip_row = QWidget()
+        zr = QVBoxLayout(self.zip_row)
+        zr.setContentsMargins(0, 0, 0, 0)
+        zr.addWidget(label(self.tr("ZIP-Archive"), "H2"))
+        self.zip_each = QRadioButton(self.tr("Ein ZIP je Konto"))
+        self.zip_each.setToolTip(self.tr("Je Asservat ein eigenes Archiv mit eigenem Hash und Zeitstempel – "
+                                         "einzeln weitergebbar"))
+        self.zip_all = QRadioButton(self.tr("Ein ZIP für alle Konten"))
+        self.zip_all.setToolTip(self.tr("Ein Archiv, je Konto ein Ordner darin"))
+        grp = QButtonGroup(self.zip_row)
+        grp.addButton(self.zip_each)
+        grp.addButton(self.zip_all)
+        for r in (self.zip_each, self.zip_all):
+            r.toggled.connect(self._update_review)
+            zr.addWidget(r)
+        self.zip_names = QWidget()  # künftige Dateinamen, je Zeile gekürzt (lange Namen verbreitern nichts)
+        self.zip_names_lay = QVBoxLayout(self.zip_names)
+        self.zip_names_lay.setContentsMargins(0, 0, 0, 0)
+        self.zip_names_lay.setSpacing(0)
+        zr.addWidget(self.zip_names)
+        out.add(self.zip_row)
+        out.add(label(self.tr("Arbeitsordner"), "H2"))
+        self.delete_work = QCheckBox(self.tr("„work/“ nach erfolgreicher ZIP-Verifikation löschen"))
+        out.add(self.delete_work)
+        out.add(label(self.tr("Alle Mails sind dann nur noch im geprüften ZIP enthalten (spart den doppelten "
+                              "Speicherplatz). Gelöscht wird nur, wenn jede Mail im ZIP denselben Hash hat; die "
+                              "Löschung wird protokolliert."), "Hint", wrap=True))
+        self.enc_head = label(self.tr("Weitergabe"), "H2")
+        out.add(self.enc_head)
+        self.encrypt = EncryptOptions()
+        self.encrypt.changed.connect(self._update_review)
+        out.add(self.encrypt)
+        left = vbox(check, out, spacing=24)
+        cols.addLayout(left, 3)
+        rep = Card(self.tr("Berichte"))
+        self.review_reports = label("", "Muted", wrap=True)
+        rep.add(self.review_reports)
+        settings_btn = QPushButton(self.tr("Einstellungen ändern …"))
+        settings_btn.clicked.connect(self.open_settings.emit)
+        rep.add(settings_btn)
+        rep.add(label(self.tr("Abschlussvermerk (optional)"), "H2"))
+        self.closing = RichNoteEdit()
+        self.closing.setPlaceholderText(self.tr("z. B. Übergabe an …, Besonderheiten, Abweichungen vom Auftrag, "
+                                                "Hinweise für die Auswertung"))
+        self.closing.setFixedHeight(150)
+        rep.add(self.closing)
+        rep.add(label(self.tr("Erscheint im Bericht vor der Bestätigung und wird protokolliert. Leer lassen, wenn "
+                              "nichts zu vermerken ist."), "Hint", wrap=True))
+        rep.lay.addStretch(1)
+        cols.addWidget(rep, 2, Qt.AlignmentFlag.AlignTop)
+        box.setVisible(False)
+        return box
+
+    def prepare(self) -> None:
+        """Prüfseite zeigen: Stand des Falls, offene Konten, ZIP-Aufteilung, Arbeitsordner, Weitergabe,
+        Berichte und Abschlussvermerk. „Fall abschließen“ startet erst danach."""
+        st = self.st
+        case = st.case
+        self.title.setText(self.tr("Fall abschließen"))
+        self.sub.setText(self.tr("Vor dem Abschluss prüfen – danach ist der Fall nur noch lesbar."))
         restyle(self.sub, "Muted")
         self.sub.setVisible(True)
-        self.retry_btn.setVisible(True)
+        self.review_kv.clear()
+        self._show_assessment(self.review_kv)
+        open_ = incomplete(case)
+        self.open_lbl.setText(self.tr("Nicht vollständig gesichert – nach dem Abschluss kann der Fall nicht mehr "
+                                      "ergänzt werden:") + "\n" + "\n".join(
+            f"{state_text(o)[0]}  {o['evidence']} · {o['email']} – {state_text(o)[1]}" for o in open_)
+            if open_ else "")
+        self.open_lbl.setVisible(bool(open_))
+        self.confirm_open.setChecked(False)
+        self.confirm_open.setVisible(bool(open_))
+        n = case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0]
+        mode = case.zip_mode() or st.cfg.programm.zip_aufteilung
+        (self.zip_all if mode == "gesamt" else self.zip_each).setChecked(True)  # Standard: ein ZIP je Konto
+        self.zip_row.setVisible(n > 1)
+        cfg_del = st.cfg.programm.arbeitsordner_loeschen
+        self.delete_work.setChecked(cfg_del == "ja")
+        self.encrypt.reset()
+        on = st.cfg.programm.verschluesselung != "aus"
+        self.encrypt.setVisible(on)
+        self.enc_head.setVisible(on)
+        info = case.info()
+        self.closing.set_value(info.get("closing_note") or "", info.get("closing_note_html"))
+        self.review_reports.setText(self._report_settings_text(st.cfg))
+        self.result.setVisible(False)
+        self.review.setVisible(True)
+        for b in (self.retry_btn, self.new_btn, self.quit_btn):
+            b.setVisible(False)
         self.back_btn.setVisible(True)
+        self.start_btn.setVisible(True)
+        self._update_review()
 
-    def run(self) -> None:
-        st = self.st
-        self.retry_btn.setVisible(False)
-        self.back_btn.setVisible(False)
-        # Abschlussvermerk (optional) – vor ZIP und Bericht, damit er im Bericht steht
-        from fed.gui.richedit import RichNoteDialog
+    def showEvent(self, e) -> None:  # aus den Einstellungen zurück: Bericht-Einstellungen nachziehen
+        super().showEvent(e)
+        if not self.review.isHidden():
+            self.review_reports.setText(self._report_settings_text(self.st.cfg))
 
-        info = st.case.info()
-        dlg = RichNoteDialog(
-            self, title=self.tr("Abschlussvermerk"), heading=self.tr("Abschlussvermerk für den Bericht (optional)"),
-            plain=info.get("closing_note"), html_value=info.get("closing_note_html"),
-            placeholder=self.tr("z. B. Übergabe an …, Besonderheiten, Abweichungen vom Auftrag, Hinweise für die "
-                                "Auswertung"),
-            hint=self.tr("Erscheint im Bericht vor der Bestätigung und wird protokolliert. Leer lassen, wenn nichts "
-                         "zu vermerken ist."),
-            ok_text=self.tr("Weiter zum Abschluss"))
-        accepted = dlg.exec()
-        closing = (dlg.text(), dlg.html() or None)
-        dlg.deleteLater()
-        if not accepted:
-            self._aborted()
+    def _update_review(self, *_) -> None:
+        if self.review.isHidden() or self.st.case is None:
             return
-        mode = st.cfg.programm.arbeitsordner_loeschen
-        delete = mode == "ja"
-        if mode == "fragen":
-            r = QMessageBox.question(
-                self, self.tr("Arbeitsordner"),
-                self.tr("Den Arbeitsordner „work/“ nach erfolgreicher ZIP-Verifikation löschen?\n\n"
-                        "Alle Mails sind dann nur noch im geprüften ZIP enthalten; das spart den doppelten "
-                        "Speicherplatz. Gelöscht wird nur, wenn jede Mail im ZIP denselben Hash hat. "
-                        "Die Löschung wird protokolliert und im Bericht vermerkt."),
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-            delete = r == QMessageBox.StandardButton.Yes
-        password = None
-        if st.cfg.programm.verschluesselung == "fragen":
-            from fed.gui.encrypt_dialog import EncryptDialog
+        running = self.st.jobs.running() if self.st.jobs else []
+        self.running_lbl.setText(self.tr("Es laufen noch {0} Sicherungen – Abschluss erst danach möglich.")
+                                 .format(len(running)) if running else "")
+        self.running_lbl.setVisible(bool(running))
+        if not self.zip_row.isHidden():
+            from fed.core.finalize import preview_zip_names
 
-            dlg = EncryptDialog(self)
-            if not dlg.exec():
-                self._aborted()
-                return  # Abbrechen = nicht abschließen
-            password = dlg.password
-            dlg.deleteLater()
+            mode = "je_konto" if self.zip_each.isChecked() else "gesamt"
+            if self.st.case.zip_mode() != mode and not self.st.case.closed:
+                self.st.case.set_zip_mode(mode, source="abschluss")
+            names = [f"{lbl} → {name}" if lbl else name for lbl, name in preview_zip_names(self.st.case, self.st.cfg)]
+            shown = [self.zip_names_lay.itemAt(i).widget().full_text() for i in range(self.zip_names_lay.count())]
+            if names != shown:
+                while self.zip_names_lay.count():
+                    old = self.zip_names_lay.takeAt(0).widget()
+                    old.hide()
+                    old.deleteLater()
+                for text in names:
+                    self.zip_names_lay.addWidget(ElidedLabel(text, "Hint"))
+        ok = (not running and self.encrypt.valid()
+              and (self.confirm_open.isHidden() or self.confirm_open.isChecked()))
+        self.start_btn.setEnabled(ok)
+
+    def start(self) -> None:
+        """„Fall abschließen“: Entscheidungen der Prüfseite übernehmen und den Abschluss starten."""
+        if not self.start_btn.isEnabled():
+            return
+        st = self.st
+        closing = (self.closing.toPlainText(), self.closing.html() or None)
+        delete = self.delete_work.isChecked()
+        password = None if self.encrypt.isHidden() else self.encrypt.password()
+        st.case.log("INFO", "finalize_options", {
+            "zip_mode": st.case.zip_mode() or "gesamt", "delete_work": delete,
+            "encrypted_copy": password is not None, "incomplete_confirmed": self.confirm_open.isChecked()})
+        self.review.setVisible(False)
+        self.result.setVisible(True)
+        self.start_btn.setVisible(False)
+        self.back_btn.setVisible(False)
+        self.new_btn.setVisible(True)
+        self.quit_btn.setVisible(True)
+        self.retry_btn.setVisible(False)
         self._password = password
         self.title.setText(self.tr("Fall wird abgeschlossen …"))
         self.sub.setText(self.tr("ZIP packen, prüfen, Hashes und Berichte erzeugen"))
@@ -2376,6 +2508,7 @@ STEPS = [QT_TRANSLATE_NOOP("Assistant", "Fall anlegen"), QT_TRANSLATE_NOOP("Assi
 
 class Assistant(QWidget):
     case_changed = Signal()
+    open_settings = Signal()  # z. B. „Einstellungen ändern …“ auf der Prüfseite vor dem Abschluss
 
     def __init__(self, cfg: Config) -> None:
         super().__init__()
@@ -2443,6 +2576,7 @@ class Assistant(QWidget):
         self.p_acq.picked.connect(self._rail_pick)
         self.p_acq.finished.connect(lambda _: self.case_changed.emit())
         self.p_fin.new_case.connect(self._new_case)
+        self.p_fin.open_settings.connect(self.open_settings.emit)
         self.p_fin.retry.connect(self._finish)
         self.p_fin.back.connect(self._another)
         self.p_acc.finish.connect(self._finish)
@@ -2539,21 +2673,11 @@ class Assistant(QWidget):
                 "beendet sind.").format(len(running), "\n".join(f"⟳  {j.evidence} · {j.email} – {j.percent} %"
                                                                  for j in running)))
             return
-        open_ = incomplete(self.st.case) if self.st.case else []
-        if open_:
-            lines = "\n".join(f"{state_text(o)[0]}  {o['evidence']} · {o['email']} – {state_text(o)[1]}" for o in open_)
-            r = QMessageBox.question(self, self.tr("Fall abschließen"), self.tr(
-                "Nicht alle Konten sind vollständig gesichert:\n\n{0}\n\nNach dem Abschluss kann der Fall nicht mehr "
-                "ergänzt werden. Trotzdem abschließen?").format(lines))
-            if r != QMessageBox.StandardButton.Yes:
-                return
-        case = self.st.case
-        n = case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0] if case else 0
-        if n > 1 and case.zip_mode() is None:
-            if ask_zip_mode(self, case, self.st.cfg) is None:
-                return  # „Später entscheiden“ beim Abschluss = nicht abschließen
+        if self.st.case is None or self.st.case.closed:
+            return
+        # Prüfseite: offene Konten, ZIP-Aufteilung, Arbeitsordner, Weitergabe, Vermerk – dort wird gestartet
         self._show(4, 6)
-        self.p_fin.run()
+        self.p_fin.prepare()
 
     def _after_case(self) -> None:
         self.case_changed.emit()

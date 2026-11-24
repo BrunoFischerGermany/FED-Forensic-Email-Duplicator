@@ -137,6 +137,7 @@ class KeyValues(QWidget):
         self.grid.setVerticalSpacing(10)
         self.grid.setColumnStretch(1, 1)
         self.values: dict[str, QLabel] = {}
+        self.align = Qt.AlignmentFlag.AlignRight  # Werte rechtsbündig; für Begründungstexte linksbündig setzen
 
     def set(self, key: str, value: str, state: str | None = None, mono: bool = False,
             tip: str | None = None) -> None:
@@ -144,7 +145,7 @@ class KeyValues(QWidget):
             row = self.grid.rowCount()
             self.grid.addWidget(label(key, "Muted"), row, 0, Qt.AlignmentFlag.AlignTop)
             v = label("", wrap=True, selectable=True)
-            v.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+            v.setAlignment(self.align | Qt.AlignmentFlag.AlignTop)
             v.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             v.setMinimumWidth(120)
             self.grid.addWidget(v, row, 1)
@@ -158,6 +159,7 @@ class KeyValues(QWidget):
         while self.grid.count():
             w = self.grid.takeAt(0).widget()
             if w:
+                w.hide()  # sofort weg – deleteLater wirkt erst im nächsten Ereignisdurchlauf
                 w.deleteLater()
         self.values.clear()
 

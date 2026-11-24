@@ -47,7 +47,7 @@ class Programm:
     dkim_pruefen: bool = True  # DKIM-Signaturen bei der Sicherung prüfen (braucht DNS)
     leerzeichen_ersetzen: bool = True  # Leerzeichen in Case-Ordner- und Dateinamen durch _ ersetzen
     verschluesselung: str = "fragen"  # Dialog beim Abschluss: fragen | aus (Checkbox im Dialog ist standardmäßig aus)
-    zip_aufteilung: str = "fragen"  # bei mehreren Konten: fragen | gesamt | je_konto
+    zip_aufteilung: str = "je_konto"  # bei mehreren Konten: je_konto (Standard) | gesamt | fragen (Prüfseite)
     zip_name_muster: str = DEFAULT_ZIP_PATTERN  # Muster für den ZIP-Dateinamen (Platzhalter siehe naming.zip_basename)
     arbeitsordner_loeschen: str = "fragen"  # nach verifiziertem ZIP: fragen | ja | nein  # Ruhezustand/Bildschirmsperre während der Sicherung verhindern
 

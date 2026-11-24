@@ -53,9 +53,6 @@ def test_background_acquisition_and_second_account(imap_server, tmp_path, monkey
 
     monkeypatch.setattr(acq, "run_attempt", gated)
 
-    from fed.gui import encrypt_dialog
-
-    monkeypatch.setattr(encrypt_dialog.EncryptDialog, "exec", lambda dlg: 0 if dlg.reject() else 1)
     cfg = cfgmod.Config()
     cfg.examiner_name = "Max Mustermann"
     cfg.programm.zielpfad = str(tmp_path)
@@ -130,6 +127,10 @@ def test_background_acquisition_and_second_account(imap_server, tmp_path, monkey
     rail.refresh(a.st.case)
     assert not any(it.bar.isVisibleTo(rail) for it in rail.by_id.values())
     a.p_acq.finish.emit()
+    from fed.gui.widgets import ElidedLabel
+
+    assert a.p_fin.zip_each.isChecked() and any("A-02" in e.full_text() for e in a.p_fin.zip_names.findChildren(ElidedLabel))  # Standard: ein ZIP je Konto
+    a.p_fin.start_btn.click()
     _pump(app, a.p_fin.open_pdf.isEnabled, 60)
     res = a.st.finish
     assert len(res.zips) == 2 and all(z.verified for z in res.zips)
@@ -382,33 +383,32 @@ def test_password_kept_in_session_until_quit(imap_server, tmp_path, monkeypatch)
     app.processEvents()
 
 
-def test_closing_note_dialog_before_finish(acquired, monkeypatch):
+def test_review_page_before_finish(acquired, monkeypatch):
+    """Prüfseite: Abschlussvermerk (formatiert) und Entscheidungen gehen an den Abschluss; „Zurück“ ändert
+    nichts; ohne Klick auf „Fall abschließen“ passiert nichts."""
     app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
     from fed.core.config import Config
     from fed.gui import assistant as ga
-    from fed.gui.richedit import RichNoteDialog
 
     cfg = Config()
-    cfg.programm.arbeitsordner_loeschen = "nein"
+    cfg.programm.arbeitsordner_loeschen = "ja"
     cfg.programm.verschluesselung = "aus"
     st = ga.State(cfg, case=acquired)
     page = ga.FinishPage(st)
-    # Abbrechen: nichts passiert, Case bleibt offen
     called = []
     monkeypatch.setattr(ga, "finish_case", lambda *a, **k: called.append(k) or (_ for _ in ()).throw(RuntimeError("x")))
-    monkeypatch.setattr(RichNoteDialog, "exec", lambda dlg: 0)
-    page.run()
-    assert not called and page.retry_btn.isVisibleTo(page) and "abgebrochen" in page.title.text()
-    # Weiter: Vermerk (mit Formatierung) wird an den Abschluss übergeben
-    monkeypatch.setattr(RichNoteDialog, "exec",
-                        lambda dlg: dlg.edit.set_html("<p>Übergabe an <b>KHK Muster</b></p>") or 1)
-    page.run()
+    page.prepare()
+    assert not called and page.delete_work.isChecked()  # Vorauswahl aus den Einstellungen
+    assert page.encrypt.isHidden() and page.zip_row.isHidden()  # Verschlüsselung aus, nur ein Konto
+    page.closing.set_html("<p>Übergabe an <b>KHK Muster</b></p>")
+    page.delete_work.setChecked(False)
+    page.start()
     _pump(app, lambda: bool(called))
     assert called[0]["closing_note"] == "Übergabe an KHK Muster"
     assert called[0]["closing_note_html"] == "<p>Übergabe an <b>KHK Muster</b></p>"
+    assert called[0]["delete_work"] is False and called[0]["encrypt_password"] is None
     page.deleteLater()
     app.processEvents()
-
 
 def test_workers_are_released_in_gui_thread():
     """Hintergrund-Threads werden nach dem Ende im GUI-Thread geordnet freigegeben (kein Liegenbleiben)."""

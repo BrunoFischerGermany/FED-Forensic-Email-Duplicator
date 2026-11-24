@@ -858,18 +858,6 @@ Der Fall kann erst abgeschlossen werden, wenn alle beendet sind.</source>
 The case can only be closed once all of them have ended.</translation>
     </message>
     <message>
-        <source>Nicht alle Konten sind vollständig gesichert:
-
-{0}
-
-Nach dem Abschluss kann der Fall nicht mehr ergänzt werden. Trotzdem abschließen?</source>
-        <translation>Not all accounts are completely acquired:
-
-{0}
-
-After closing, the case cannot be extended. Close anyway?</translation>
-    </message>
-    <message>
         <source>Fall abgeschlossen</source>
         <translation>Case closed</translation>
     </message>
@@ -1140,11 +1128,7 @@ Open and continue this case?</translation>
     </message>
 </context>
 <context>
-    <name>EncryptDialog</name>
-    <message>
-        <source>Verschlüsselte Kopie für die Weitergabe</source>
-        <translation>Encrypted copy for transfer</translation>
-    </message>
+    <name>EncryptOptions</name>
     <message>
         <source>Zusätzlich zum geprüften Original kann FED eine mit AES-256 verschlüsselte Kopie erstellen (Original-ZIP, Hash- und Zeitstempeldateien, log.csv, Berichte) – z. B. für USB-Stick oder Versand. Das Original bleibt unverändert. Das Passwort wird nirgends gespeichert; bitte getrennt übermitteln.</source>
         <translation>In addition to the verified original, FED can create an AES-256 encrypted copy (original ZIP, hash and timestamp files, log.csv, reports) – e.g. for a USB stick or shipping. The original stays unchanged. The password is not stored anywhere; please transmit it separately.</translation>
@@ -1237,20 +1221,68 @@ Open and continue this case?</translation>
         <translation>No report – finalisation not performed</translation>
     </message>
     <message>
-        <source>Abschluss abgebrochen</source>
-        <translation>Closing cancelled</translation>
+        <source>Stand des Falls</source>
+        <translation>Case status</translation>
     </message>
     <message>
-        <source>Der Fall ist noch offen – nichts wurde verändert.</source>
-        <translation>The case is still open – nothing was changed.</translation>
+        <source>Trotzdem abschließen</source>
+        <translation>Close anyway</translation>
     </message>
     <message>
-        <source>Abschlussvermerk</source>
-        <translation>Closing note</translation>
+        <source>Danach kann der Fall nicht mehr ergänzt werden</source>
+        <translation>The case cannot be extended afterwards</translation>
     </message>
     <message>
-        <source>Abschlussvermerk für den Bericht (optional)</source>
-        <translation>Closing note for the report (optional)</translation>
+        <source>Ausgabe</source>
+        <translation>Output</translation>
+    </message>
+    <message>
+        <source>ZIP-Archive</source>
+        <translation>ZIP archives</translation>
+    </message>
+    <message>
+        <source>Ein ZIP je Konto</source>
+        <translation>One ZIP per account</translation>
+    </message>
+    <message>
+        <source>Je Asservat ein eigenes Archiv mit eigenem Hash und Zeitstempel – einzeln weitergebbar</source>
+        <translation>One archive per evidence item with its own hash and timestamp – can be passed on separately</translation>
+    </message>
+    <message>
+        <source>Ein ZIP für alle Konten</source>
+        <translation>One ZIP for all accounts</translation>
+    </message>
+    <message>
+        <source>Ein Archiv, je Konto ein Ordner darin</source>
+        <translation>One archive with a folder per account</translation>
+    </message>
+    <message>
+        <source>Arbeitsordner</source>
+        <translation>Working folder</translation>
+    </message>
+    <message>
+        <source>„work/“ nach erfolgreicher ZIP-Verifikation löschen</source>
+        <translation>Delete “work/” after successful ZIP verification</translation>
+    </message>
+    <message>
+        <source>Alle Mails sind dann nur noch im geprüften ZIP enthalten (spart den doppelten Speicherplatz). Gelöscht wird nur, wenn jede Mail im ZIP denselben Hash hat; die Löschung wird protokolliert.</source>
+        <translation>All messages are then only contained in the verified ZIP (saves the duplicate storage). Deletion only happens if every message in the ZIP has the same hash; it is logged.</translation>
+    </message>
+    <message>
+        <source>Weitergabe</source>
+        <translation>Handover</translation>
+    </message>
+    <message>
+        <source>Berichte</source>
+        <translation>Reports</translation>
+    </message>
+    <message>
+        <source>Einstellungen ändern …</source>
+        <translation>Change settings …</translation>
+    </message>
+    <message>
+        <source>Abschlussvermerk (optional)</source>
+        <translation>Closing note (optional)</translation>
     </message>
     <message>
         <source>z. B. Übergabe an …, Besonderheiten, Abweichungen vom Auftrag, Hinweise für die Auswertung</source>
@@ -1261,20 +1293,16 @@ Open and continue this case?</translation>
         <translation>Appears in the report before the confirmation and is logged. Leave empty if there is nothing to note.</translation>
     </message>
     <message>
-        <source>Weiter zum Abschluss</source>
-        <translation>Continue to closing</translation>
+        <source>Vor dem Abschluss prüfen – danach ist der Fall nur noch lesbar.</source>
+        <translation>Review before closing – afterwards the case is read-only.</translation>
     </message>
     <message>
-        <source>Arbeitsordner</source>
-        <translation>Working folder</translation>
+        <source>Nicht vollständig gesichert – nach dem Abschluss kann der Fall nicht mehr ergänzt werden:</source>
+        <translation>Not completely acquired – the case cannot be extended after closing:</translation>
     </message>
     <message>
-        <source>Den Arbeitsordner „work/“ nach erfolgreicher ZIP-Verifikation löschen?
-
-Alle Mails sind dann nur noch im geprüften ZIP enthalten; das spart den doppelten Speicherplatz. Gelöscht wird nur, wenn jede Mail im ZIP denselben Hash hat. Die Löschung wird protokolliert und im Bericht vermerkt.</source>
-        <translation>Delete the working folder “work/” after successful ZIP verification?
-
-All messages will then only be contained in the verified ZIP; this saves the duplicate storage space. Deletion only happens if every message in the ZIP has the same hash. The deletion is logged and noted in the report.</translation>
+        <source>Es laufen noch {0} Sicherungen – Abschluss erst danach möglich.</source>
+        <translation>{0} acquisitions are still running – closing is only possible afterwards.</translation>
     </message>
     <message>
         <source>Fall wird abgeschlossen …</source>
@@ -2881,36 +2909,44 @@ Cancel and quit? Cancelled accounts can be resumed later.</translation>
         <translation>Fetch in chunks from</translation>
     </message>
     <message>
-        <source>beim Abschluss fragen</source>
-        <translation>ask when finishing</translation>
+        <source>behalten (auf der Prüfseite änderbar)</source>
+        <translation>keep (can be changed on the review page)</translation>
     </message>
     <message>
-        <source>immer löschen (nach verifiziertem ZIP)</source>
-        <translation>always delete (after verified ZIP)</translation>
+        <source>löschen (nach verifiziertem ZIP)</source>
+        <translation>delete (after verified ZIP)</translation>
     </message>
     <message>
-        <source>immer behalten</source>
-        <translation>always keep</translation>
+        <source>behalten</source>
+        <translation>kept</translation>
     </message>
     <message>
-        <source>beim 2. Konto fragen</source>
-        <translation>ask at the 2nd account</translation>
+        <source>ein ZIP je Konto (Standard)</source>
+        <translation>one ZIP per account (default)</translation>
     </message>
     <message>
-        <source>immer ein ZIP für alle Konten</source>
-        <translation>always one ZIP for all accounts</translation>
+        <source>ein ZIP für alle Konten</source>
+        <translation>one ZIP for all accounts</translation>
     </message>
     <message>
-        <source>immer ein ZIP je Konto</source>
-        <translation>always one ZIP per account</translation>
+        <source>keine Vorgabe – auf der Prüfseite wählen</source>
+        <translation>no default – choose on the review page</translation>
     </message>
     <message>
         <source>ZIP bei mehreren Konten</source>
         <translation>ZIP with several accounts</translation>
     </message>
     <message>
+        <source>Vorauswahl für die Prüfseite vor dem Abschluss; dort je Fall änderbar.</source>
+        <translation>Preselection for the review page before closing; can be changed there per case.</translation>
+    </message>
+    <message>
         <source>Muster ZIP-Name</source>
         <translation>ZIP name pattern</translation>
+    </message>
+    <message>
+        <source>auf der Prüfseite anbieten</source>
+        <translation>offer on the review page</translation>
     </message>
     <message>
         <source>aus</source>
