@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QFileDialog, QFormLayout, QGridLayout,
                                QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QRadioButton, QScrollArea,
                                QSpinBox, QVBoxLayout, QWidget)
@@ -40,10 +40,24 @@ class SettingsTab(QWidget):
         self.discard = QPushButton(self.tr("Verwerfen"))
         self.save_btn = QPushButton(self.tr("Speichern"))
         self.save_btn.setObjectName("Primary")
-        self.discard.clicked.connect(self.load)
+        self.discard.clicked.connect(self._discard)
         self.save_btn.clicked.connect(self.save)
+        # Rückmeldung neben den Knöpfen: ungespeicherte Änderungen bzw. „✓ Gespeichert um …“
+        self.state_lbl = label("", "Muted")
+        head.addWidget(self.state_lbl)
+        head.addSpacing(12)
         head.addWidget(self.discard)
         head.addWidget(self.save_btn)
+        from PySide6.QtGui import QKeySequence, QShortcut
+
+        sc = QShortcut(QKeySequence("Ctrl+S"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)  # nur solange die Einstellungen sichtbar sind
+        sc.activated.connect(lambda: self.save_btn.isEnabled() and self.save())
+        self.save_btn.setToolTip(QKeySequence("Ctrl+S").toString(QKeySequence.SequenceFormat.NativeText))
+        self._saved_at = ""  # Uhrzeit der letzten Speicherung in dieser Sitzung
+        self._dirty_timer = QTimer(self)  # Änderungen erkennen, ohne jedes Feld einzeln zu verdrahten
+        self._dirty_timer.setInterval(400)
+        self._dirty_timer.timeout.connect(self._update_state)
         lay.addLayout(head)
         lay.addWidget(ElidedLabel(self.tr("Gespeichert in {0} · gilt für neue Fälle, bestehende behalten ihre Kopie")
                                   .format(config_path), "Muted"))
@@ -336,6 +350,37 @@ class SettingsTab(QWidget):
             self.m_id.text().strip(), self.m_tenant.text().strip(),
         )
 
+    def showEvent(self, e) -> None:
+        super().showEvent(e)
+        self._update_state()
+        self._dirty_timer.start()
+
+    def hideEvent(self, e) -> None:
+        self._dirty_timer.stop()
+        super().hideEvent(e)
+
+    def _update_state(self) -> None:
+        """Knöpfe nur bei Änderungen aktiv; daneben der Stand in Worten."""
+        dirty = self.is_dirty()
+        self.save_btn.setEnabled(dirty)
+        self.discard.setEnabled(dirty)
+        if dirty:
+            self.state_lbl.setText(self.tr("● Ungespeicherte Änderungen"))
+            restyle(self.state_lbl, "Warn")
+        elif self._saved_at:
+            self.state_lbl.setText(self.tr("✓ Gespeichert um {0}").format(self._saved_at))
+            restyle(self.state_lbl, "Ok")
+        else:
+            self.state_lbl.setText(self.tr("Alle Einstellungen gespeichert"))
+            restyle(self.state_lbl, "Muted")
+
+    def _discard(self) -> None:
+        self.load()
+        self._saved_at = ""
+        self._update_state()
+        self.state_lbl.setText(self.tr("Änderungen verworfen"))
+        restyle(self.state_lbl, "Muted")
+
     def is_dirty(self) -> bool:
         """True, wenn seit dem letzten Laden/Speichern etwas geändert wurde."""
         return getattr(self, "_loaded", None) is not None and self._snapshot() != self._loaded
@@ -448,6 +493,10 @@ class SettingsTab(QWidget):
             return False
         self.cfg.raw_text, self.cfg.source_path = new.raw_text, new.source_path
         self._loaded = self._snapshot()  # gespeicherter Stand ist jetzt der neue Vergleichsstand
+        from datetime import datetime
+
+        self._saved_at = datetime.now().strftime("%H:%M:%S")
+        self._update_state()
         self.saved.emit(self.cfg)
         if p.sprache != old_language:
             QMessageBox.information(self, "FED", "Die neue Sprache gilt ab dem nächsten Start von FED.\n"

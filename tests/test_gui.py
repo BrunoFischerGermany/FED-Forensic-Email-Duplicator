@@ -1243,3 +1243,31 @@ def test_ctrl_k_on_account_page_starts_new_account(app, tmp_path, monkeypatch):
     w.close()
     w.deleteLater()
     app.processEvents()
+def test_settings_save_feedback(app, tmp_path):
+    """Einstellungen: Speichern/Verwerfen nur bei Änderungen aktiv, Stand daneben in Worten,
+    nach dem Speichern „✓ Gespeichert um …“; Strg/Cmd+S speichert."""
+    from PySide6.QtGui import QShortcut
+
+    from fed.core import config as cfgmod
+    from fed.gui.settings import SettingsTab
+
+    cfg = cfgmod.Config()
+    path = tmp_path / "config.toml"
+    cfg.source_path = path
+    st = SettingsTab(cfg, path)
+    st.show()
+    assert not st.save_btn.isEnabled() and not st.discard.isEnabled()
+    assert st.state_lbl.text() == "Alle Einstellungen gespeichert"
+    st.conns.setValue(st.conns.value() % 10 + 1)
+    st._update_state()
+    assert st.save_btn.isEnabled() and "Ungespeicherte" in st.state_lbl.text()
+    sc = next(s for s in st.findChildren(QShortcut) if s.key().toString() == "Ctrl+S")
+    sc.activated.emit()
+    assert path.exists() and st.state_lbl.text().startswith("✓ Gespeichert um")
+    assert not st.save_btn.isEnabled()
+    st.conns.setValue(st.conns.value() % 10 + 1)
+    st._update_state()
+    st.discard.click()
+    assert st.state_lbl.text() == "Änderungen verworfen" and not st.is_dirty()
+    st.hide()
+    st.deleteLater()
