@@ -1156,3 +1156,45 @@ def test_folder_tree_imap_structure_with_counts(app, tmp_path):
     assert p.summary.values["Umfang"].text() == "Teilsicherung – 1 Ordner abgewählt, Zeitraum"
     p.deleteLater()
     case.close()
+
+
+def test_rail_case_accounts_closing(app, tmp_path, monkeypatch):
+    """Linke Leiste: Fall (Stand) · Konten mit den Schritten des aktuellen Kontos · Abschluss (Stand)."""
+    from fed.core import config as cfgmod
+    from fed.gui import assistant as ga
+    from fed.gui.main_window import MainWindow
+
+    monkeypatch.setattr(ga, "ask_device_owner", lambda *a, **k: "own")
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    w = MainWindow(cfg, tmp_path)
+    a = w.assistant
+    _pump(app, lambda: a.st.system is not None)
+    assert a.case_btn.text() == "Fall anlegen" and a.case_btn.isChecked()
+    assert a.finish_step.isHidden() and a.rail_accounts.isHidden()
+    a.p_case.case_no.setText("AZ-L")
+    a.p_case._go_clicked()  # -> Konto-Seite
+    assert a.case_btn.text().startswith("AZ-L") and "Grunddaten" in a.case_btn.text()
+    assert not a.case_btn.isChecked() and not a.rail_accounts.isHidden()
+    steps = a.rail_accounts.steps
+    assert not steps.isHidden() and "<b>Verbinden</b>" in steps.text() and "neues Konto" in steps.text()
+    assert not a.finish_step.isEnabled() and "noch kein Konto" in a.finish_step.text()
+    a._show(2, 4)
+    assert "✓ Verbinden" in steps.text() and "<b>Ordner</b>" in steps.text()
+    with a.st.case.conn:
+        a.st.case.conn.execute(
+            "INSERT INTO account (email, evidence_number, server, port, security, auth_method, username) "
+            "VALUES ('max@example.org', 'DF001', 'imap.example.org', 993, 'ssl', 'password', 'max@example.org')")
+    a.refresh_accounts()
+    assert a.finish_step.isEnabled() and "0 von 1 Konten fertig" in a.finish_step.text()
+    a.case_btn.click()
+    assert a.stack.currentWidget() is a.p_case and steps.isHidden()
+    a.finish_step.click()  # Prüfseite vor dem Abschluss
+    assert a.stack.currentWidget() is a.p_fin and a.finish_step.isChecked()
+    w.close()
+    w.deleteLater()
+    app.processEvents()

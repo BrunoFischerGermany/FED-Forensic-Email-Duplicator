@@ -502,11 +502,11 @@
         <translation>{0} % · {1} of {2} messages · {3} MB/s</translation>
     </message>
     <message>
-        <source>KONTEN IM FALL</source>
-        <translation>ACCOUNTS IN CASE</translation>
+        <source>KONTEN</source>
+        <translation>ACCOUNTS</translation>
     </message>
     <message>
-        <source>+ Weiteres Konto</source>
+        <source>+ Konto hinzufügen</source>
         <translation>+ Add account</translation>
     </message>
     <message>
@@ -862,36 +862,60 @@ The choice can be changed until the case is closed.</translation>
         <translation>not decided yet – will be asked when closing</translation>
     </message>
     <message>
+        <source>Verbinden</source>
+        <translation>Connect</translation>
+    </message>
+    <message>
+        <source>Ordner</source>
+        <translation>Folder</translation>
+    </message>
+    <message>
+        <source>Sichern</source>
+        <translation>Acquire</translation>
+    </message>
+    <message>
+        <source>FALL</source>
+        <translation>CASE</translation>
+    </message>
+    <message>
+        <source>ABSCHLUSS</source>
+        <translation>CLOSING</translation>
+    </message>
+    <message>
         <source>Fall anlegen</source>
         <translation>Create case</translation>
     </message>
     <message>
-        <source>Systemprüfung</source>
-        <translation>System check</translation>
+        <source>✓ abgeschlossen</source>
+        <translation>✓ closed</translation>
     </message>
     <message>
-        <source>Konto</source>
-        <translation>Account</translation>
+        <source>✓ Grunddaten · Prüfung</source>
+        <translation>✓ Base data · check</translation>
     </message>
     <message>
-        <source>Postfach scannen</source>
-        <translation>Scan mailbox</translation>
+        <source>neues Konto</source>
+        <translation>new account</translation>
     </message>
     <message>
-        <source>Ordner wählen</source>
-        <translation>Select folders</translation>
+        <source>Fall abgeschlossen</source>
+        <translation>Case closed</translation>
     </message>
     <message>
-        <source>Sicherung</source>
-        <translation>Acquisition</translation>
+        <source>✓ Berichte und ZIP erstellt</source>
+        <translation>✓ Reports and ZIP created</translation>
     </message>
     <message>
-        <source>Abschluss</source>
-        <translation>Finish</translation>
+        <source>Fall abschließen</source>
+        <translation>Close case</translation>
     </message>
     <message>
-        <source>ABLAUF</source>
-        <translation>WORKFLOW</translation>
+        <source>{0} von {1} Konten fertig</source>
+        <translation>{0} of {1} accounts done</translation>
+    </message>
+    <message>
+        <source>noch kein Konto</source>
+        <translation>no account yet</translation>
     </message>
     <message>
         <source>Dieses Konto wird gerade gesichert – hier ist der Fortschritt.</source>
@@ -910,10 +934,6 @@ Für dieses Konto wurde noch nichts gesichert. Anlage und Entfernung bleiben im 
 Nothing has been acquired for this account yet. Its creation and removal remain recorded in the case log.</translation>
     </message>
     <message>
-        <source>Fall abschließen</source>
-        <translation>Close case</translation>
-    </message>
-    <message>
         <source>Es laufen noch {0} Sicherungen:
 
 {1}
@@ -924,10 +944,6 @@ Der Fall kann erst abgeschlossen werden, wenn alle beendet sind.</source>
 {1}
 
 The case can only be closed once all of them have ended.</translation>
-    </message>
-    <message>
-        <source>Fall abgeschlossen</source>
-        <translation>Case closed</translation>
     </message>
     <message>
         <source>Dieser Fall ist abgeschlossen und kann nur noch in der Historie angesehen werden. Für eine neue Sicherung unten „Neuer Fall“ wählen – oder „Grunddaten übernehmen“, um Aktenzeichen, Prüfer und Anmerkungen weiterzuverwenden.</source>
@@ -1664,6 +1680,10 @@ Open and continue this case?</translation>
         <translation>incl. subfolders</translation>
     </message>
     <message>
+        <source>Zusammenfassung</source>
+        <translation>Summary</translation>
+    </message>
+    <message>
         <source>Zeitraum (optional)</source>
         <translation>Date range (optional)</translation>
     </message>
@@ -1718,10 +1738,6 @@ Open and continue this case?</translation>
     <message>
         <source>Mehrere Werte mit Komma = oder; ausgefüllte Felder untereinander = und. Die Suche führt der Server aus. Mit Inhaltsfilter gilt die Sicherung als Teilsicherung; die Kriterien stehen im Bericht.</source>
         <translation>Several values separated by commas = or; filled fields combined = and. The search is performed by the server. With a content filter the acquisition counts as a partial acquisition; the criteria appear in the report.</translation>
-    </message>
-    <message>
-        <source>Zusammenfassung</source>
-        <translation>Summary</translation>
     </message>
     <message>
         <source>Zurück</source>
