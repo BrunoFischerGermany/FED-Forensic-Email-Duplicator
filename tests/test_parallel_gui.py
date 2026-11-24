@@ -499,3 +499,49 @@ def test_accounts_sorted_by_evidence_natural():
     rows = [{"evidence": "A-10"}, {"evidence": "A-2"}, {"evidence": "A-01"},
             {"evidence": "B-1"}, {"evidence": "A-3"}]
     assert [o["evidence"] for o in by_evidence(rows)] == ["A-01", "A-2", "A-3", "A-10", "B-1"]
+
+
+def test_oauth_shows_browser_hint_instead_of_testing(monkeypatch):
+    """Microsoft-Anmeldung: sobald der Browser geöffnet ist, steht statt „teste …“ ein Hinweis auf das
+    Browserfenster (mit Link zum erneuten Öffnen)."""
+    import time
+    import webbrowser
+
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    from fed.core import auth, oauth
+    from fed.core.config import Config
+    from fed.gui.assistant import AccountPage, State
+
+    url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?x=1"
+    opened = []
+    monkeypatch.setattr(webbrowser, "open", lambda u: opened.append(u) or True)
+
+    def fake_login(self, login_hint="", device_code=False, show_device_code=None, cancel=None, open_browser=None):
+        open_browser(url)
+        time.sleep(0.5)  # Anmeldung „läuft“ im Browser
+        raise oauth.OAuthError("abgebrochen")
+
+    monkeypatch.setattr(auth.OAuthSession, "login_interactive", fake_login)
+    p = AccountPage(State(Config()))
+    hints = []
+    orig = p._show_browser_hint
+    monkeypatch.setattr(p, "_show_browser_hint", lambda prov, u: (hints.append((prov, u, )), orig(prov, u),
+                                                                    hints.append(p.test_state.text())))
+    p.email.setText("max@outlook.com")
+    p.evidence.setText("DF001")
+    p.server.setText("outlook.office365.com")
+    p.method.set_value("microsoft")
+    p._method_changed("microsoft")
+    p._test()
+    t0 = time.time()
+    while not hints and time.time() - t0 < 10:
+        app.processEvents()
+        time.sleep(0.02)
+    assert opened == [url] and hints[0] == ("Microsoft", url)
+    assert "Browserfenster" in hints[1] and f'href="{url}"' in hints[1].replace("&amp;", "&")
+    t0 = time.time()
+    while not p.test_btn.isEnabled() and time.time() - t0 < 10:  # Fehler kommt danach an
+        app.processEvents()
+        time.sleep(0.02)
+    p.deleteLater()
+    app.processEvents()
