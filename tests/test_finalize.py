@@ -860,3 +860,30 @@ def test_assessment_per_account(tmp_path, imap_server, test_mails):
     assert assess(case, 1).completeness == "complete" and assess(case, 2).completeness == "incomplete"
     assert assess(case, 1).figures["accounts"] == 1
     case.close()
+
+
+def test_remove_account_only_before_first_attempt(tmp_path, imap_server, acquired):
+    """Konto ohne Sicherungsversuch lässt sich entfernen (Ordnerliste mit, Log bleibt vollständig);
+    ein Konto mit Versuch nicht."""
+    from fed.core.acquisition import accounts_overview, can_remove_account, remove_account
+
+    case = Case.create(tmp_path / "neu", CaseInfo("AZ-R", "Tester"))
+    imap = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+    imap.connect()
+    imap.login_password(imap_server.user, imap_server.password)
+    acc = register_account(case, AccountSpec(imap_server.user, "DF001", imap_server.host, imap_server.port), imap)
+    scan(case, acc, imap)
+    imap.logout()
+    assert accounts_overview(case)[0]["removable"] and can_remove_account(case, acc)
+    info = remove_account(case, acc)
+    assert info["email"] == imap_server.user and info["folders"] > 0
+    assert case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0] == 0
+    assert case.conn.execute("SELECT COUNT(*) FROM folder").fetchone()[0] == 0
+    events = [r[0] for r in case.conn.execute("SELECT event FROM log ORDER BY id")]
+    assert "account_registered" in events and events[-1] == "account_removed" and case.verify_log()[0]
+    case.close()
+    done = acquired  # hat einen Sicherungsversuch
+    acc_id = done.conn.execute("SELECT id FROM account").fetchone()[0]
+    assert not accounts_overview(done)[0]["removable"] and not can_remove_account(done, acc_id)
+    with pytest.raises(ValueError, match="Sicherungsversuch"):
+        remove_account(done, acc_id)

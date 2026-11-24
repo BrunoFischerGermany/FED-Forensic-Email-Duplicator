@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 
 from PySide6.QtCore import QT_TRANSLATE_NOOP, QCoreApplication, Qt, Signal
-from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QFrame, QHeaderView, QLabel,
-                               QProgressBar, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox, QFrame, QHBoxLayout, QHeaderView, QLabel,
+                               QProgressBar, QPushButton, QTableWidget, QTableWidgetItem, QToolButton, QVBoxLayout,
+                               QWidget)
 
 from fed.core import timefmt as tf
 from fed.core.acquisition import accounts_overview, set_account_notes
@@ -62,6 +63,7 @@ def by_evidence(rows: list[dict]) -> list[dict]:
 
 
 NOTE_COL = 8
+REMOVE_COL = 9  # „✕“: noch nicht gesichertes Konto aus dem Fall entfernen
 
 
 class NoteDialog(QDialog):
@@ -111,15 +113,17 @@ class AccountsTable(QWidget):
             QT_TRANSLATE_NOOP("AccountsTable", "Status"), QT_TRANSLATE_NOOP("AccountsTable", "Mails gesichert / Server"),
             QT_TRANSLATE_NOOP("AccountsTable", "Größe"), QT_TRANSLATE_NOOP("AccountsTable", "Ordner"),
             QT_TRANSLATE_NOOP("AccountsTable", "Versuche"), QT_TRANSLATE_NOOP("AccountsTable", "Zuletzt"),
-            QT_TRANSLATE_NOOP("AccountsTable", "Notiz"))
+            QT_TRANSLATE_NOOP("AccountsTable", "Notiz"), "")
 
     picked = Signal(dict)  # Doppelklick auf ein Konto
     notes_changed = Signal(int, str)  # account_id, neue Notiz
+    remove_requested = Signal(dict)  # „✕“ bei einem noch nicht gesicherten Konto
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.case: Case | None = None
         self._current = ""
+        self.allow_remove = False  # nur im Assistenten, nicht in der Historie
         self.table = QTableWidget(0, len(self.COLS))
         self.table.setCursor(Qt.CursorShape.PointingHandCursor)
         self.table.cellClicked.connect(self._clicked)
@@ -157,11 +161,14 @@ class AccountsTable(QWidget):
         if c == NOTE_COL:
             if self.editable:
                 self.edit_note(r)
+        elif c == REMOVE_COL:
+            if self.allow_remove and self.editable and self.rows[r].get("removable"):
+                self.remove_requested.emit(self.rows[r])
         else:  # Einfachklick wie in der linken Leiste: Konto öffnen bzw. laufende Sicherung ansehen
             self.picked.emit(self.rows[r])
 
     def _double_clicked(self, r: int, c: int) -> None:
-        if c != NOTE_COL and r < len(self.rows):
+        if c not in (NOTE_COL, REMOVE_COL) and r < len(self.rows):
             self.picked.emit(self.rows[r])
 
     def edit_note(self, r: int) -> bool:
@@ -194,7 +201,8 @@ class AccountsTable(QWidget):
             folders = f"{o['folders_selected']} / {o['folders_total']}"
             vals = [o["evidence"], o["email"] + ("  ←" if o["email"] == current_email else ""), f"{sym}  {text}",
                     mails, _fmt_bytes(o["bytes"]), folders, str(o["attempts"]),
-                    _short_time(o["last_utc"]), o["notes"].strip()]
+                    _short_time(o["last_utc"]), o["notes"].strip(),
+                    "✕" if self.allow_remove and self.editable and o.get("removable") else ""]
             for c, v in enumerate(vals):
                 it = QTableWidgetItem(v)
                 if c == 2:
@@ -210,7 +218,14 @@ class AccountsTable(QWidget):
                     it.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 if c == 7 and o["last_utc"]:
                     it.setToolTip(tf.both(o["last_utc"]))
+                if c == REMOVE_COL and v:
+                    it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    it.setForeground(QColor(t[_COLOR["Error"]]))
+                    it.setToolTip(QCoreApplication.translate(
+                        "AccountsTable", "Konto aus dem Fall entfernen – nur solange noch nichts gesichert wurde"))
                 self.table.setItem(r, c, it)
+        self.table.setColumnHidden(REMOVE_COL, not any(self.table.item(r, REMOVE_COL).text()
+                                                        for r in range(len(self.rows))))
         self._fit_height()
         done = sum(1 for o in self.rows if o["state"] == "done")
         mails = sum(o["saved"] for o in self.rows)
@@ -224,8 +239,9 @@ class _RailItem(QFrame):
     """Ein Konto in der linken Leiste; bei laufender Sicherung mit Ladebalken und Tempo."""
 
     clicked = Signal()
+    remove = Signal()
 
-    def __init__(self, text: str, name: str) -> None:
+    def __init__(self, text: str, name: str, removable: bool = False) -> None:
         super().__init__()
         self.setObjectName("RailItem")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -234,12 +250,25 @@ class _RailItem(QFrame):
         lay.setSpacing(3)
         self.label = ElidedLabel(text, name, Qt.TextElideMode.ElideRight)
         self.label.max_hint = 200
+        self.remove_btn = QToolButton()
+        self.remove_btn.setText("✕")
+        self.remove_btn.setAutoRaise(True)
+        self.remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.remove_btn.setToolTip(QCoreApplication.translate(
+            "AccountsTable", "Konto aus dem Fall entfernen – nur solange noch nichts gesichert wurde"))
+        self.remove_btn.clicked.connect(self.remove.emit)
+        self.remove_btn.setVisible(removable)
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(2)
+        row.addWidget(self.label, 1)
+        row.addWidget(self.remove_btn)
         self.bar = QProgressBar()
         self.bar.setFixedHeight(6)
         self.bar.setTextVisible(False)
         self.info = ElidedLabel("", "Hint", Qt.TextElideMode.ElideRight)
         self.info.max_hint = 200
-        lay.addWidget(self.label)
+        lay.addLayout(row)
         lay.addWidget(self.bar)
         lay.addWidget(self.info)
         self.show_progress(None)
@@ -280,6 +309,7 @@ class AccountsRail(QWidget):
 
     picked = Signal(dict)
     add_account = Signal()
+    remove_requested = Signal(dict)
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -309,7 +339,7 @@ class AccountsRail(QWidget):
         self.add_btn.setVisible(case is not None and not case.closed)
         jobs = self.jobs
         live = {j.account_id for j in jobs.running()} if jobs else set()
-        key = [(o["email"], o["state"], o["saved"], o["attempts"], o["id"] in live) for o in rows]
+        key = [(o["email"], o["state"], o["saved"], o["attempts"], o["id"] in live, o.get("removable")) for o in rows]
         if key == self._last:
             self.update_progress()
             return
@@ -323,7 +353,9 @@ class AccountsRail(QWidget):
             sym, text, style = state_text(o)
             if running:
                 sym, text, style = "⟳", _tr("Sicherung läuft"), "Accent"
-            item = _RailItem(f"{sym}  {o['evidence']} · {o['email']}", style)
+            item = _RailItem(f"{sym}  {o['evidence']} · {o['email']}", style,
+                             removable=bool(o.get("removable")) and not running)
+            item.remove.connect(lambda o=o: self.remove_requested.emit(o))
             hint = (QCoreApplication.translate("AccountsTable", "Klicken: Fortschritt ansehen") if running else
                     QCoreApplication.translate("AccountsTable", "Klicken: Konto übernehmen"))
             item.setToolTip(f"{o['email']}\n{o['evidence']} · {text}\n"

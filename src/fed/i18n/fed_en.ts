@@ -410,6 +410,10 @@
         <translation>Click: edit note</translation>
     </message>
     <message>
+        <source>Konto aus dem Fall entfernen – nur solange noch nichts gesichert wurde</source>
+        <translation>Remove account from the case – only while nothing has been acquired</translation>
+    </message>
+    <message>
         <source>{0} Konten · {1} vollständig gesichert · {2} offen · {3} Mails · {4}</source>
         <translation>{0} accounts · {1} completely acquired · {2} open · {3} messages · {4}</translation>
     </message>
@@ -824,6 +828,18 @@ The choice can be changed until the case is closed.</translation>
     <message>
         <source>Dieses Konto wird gerade gesichert – hier ist der Fortschritt.</source>
         <translation>This account is being acquired right now – here is the progress.</translation>
+    </message>
+    <message>
+        <source>Konto entfernen</source>
+        <translation>Remove account</translation>
+    </message>
+    <message>
+        <source>{0} ({1}) aus dem Fall entfernen?
+
+Für dieses Konto wurde noch nichts gesichert. Anlage und Entfernung bleiben im Log des Falls festgehalten.</source>
+        <translation>Remove {0} ({1}) from the case?
+
+Nothing has been acquired for this account yet. Its creation and removal remain recorded in the case log.</translation>
     </message>
     <message>
         <source>Fall abschließen</source>

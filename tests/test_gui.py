@@ -1044,3 +1044,55 @@ def test_history_case_check_shows_result(app, tmp_path):
     tab.deleteLater()
     app.processEvents()
     case.close()
+
+
+def test_remove_unacquired_account_from_rail_and_table(app, tmp_path, imap_server, monkeypatch):
+    """„✕“ in der linken Leiste und in der Kontentabelle nur bei noch nicht gesicherten Konten;
+    nach Rückfrage entfernt, Formular geleert; in der Historie kein „✕“."""
+    from fed.core import config as cfgmod
+    from fed.core.acquisition import AccountSpec, register_account
+    from fed.core.imap_reader import ReadOnlyImap
+    from fed.gui import assistant as ga
+    from fed.gui.accounts import REMOVE_COL, AccountsTable
+    from fed.gui.main_window import MainWindow
+
+    monkeypatch.setattr(ga, "ask_device_owner", lambda *a, **k: "own")
+    monkeypatch.setattr(QtWidgets.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    monkeypatch.setattr(QtWidgets.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: QtWidgets.QMessageBox.StandardButton.Yes))
+    cfg = cfgmod.Config()
+    cfg.examiner_name = "Max Mustermann"
+    cfg.programm.zielpfad = str(tmp_path)
+    cfg.programm.ntp = False
+    w = MainWindow(cfg, tmp_path)
+    a = w.assistant
+    _pump(app, lambda: a.st.system is not None)
+    a.p_case.case_no.setText("AZ-X")
+    a.p_case._go_clicked()
+    case = a.st.case
+    imap = ReadOnlyImap(imap_server.host, imap_server.port, cafile=str(imap_server.cafile))
+    imap.connect()
+    imap.login_password(imap_server.user, imap_server.password)
+    register_account(case, AccountSpec(imap_server.user, "DF001", imap_server.host, imap_server.port), imap)
+    imap.logout()
+    a.refresh_accounts()
+    a.p_acc.prepare()
+    a.p_acc.email.setText(imap_server.user)
+    item = a.rail_accounts.items[0]
+    assert item.remove_btn.isVisibleTo(item)
+    t = a.p_acc.accounts.table
+    assert not t.isColumnHidden(REMOVE_COL) and t.item(0, REMOVE_COL).text() == "✕"
+    hist = AccountsTable()
+    hist.refresh(case)
+    assert hist.table.isColumnHidden(REMOVE_COL)  # Historie: nur lesen
+    removed = []
+    a.p_acc.accounts.remove_requested.connect(removed.append)
+    a.p_acc.accounts._clicked(0, REMOVE_COL)
+    assert removed and case.conn.execute("SELECT COUNT(*) FROM account").fetchone()[0] == 0
+    assert a.p_acc.email.text() == "" and not a.rail_accounts.items
+    assert case.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'account_removed'").fetchone()[0] == 1
+    hist.deleteLater()
+    w.close()
+    w.deleteLater()
+    app.processEvents()
