@@ -175,6 +175,57 @@ def _mask_url(url: str) -> str:
     return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
+def redact_text(toml_text: str) -> tuple[str, list[str]]:
+    """Geheimnisse im Text einer ``config.toml`` schwärzen – Kommentare und Aufbau bleiben erhalten.
+
+    ``[oauth.google] client_secret`` -> ``"***"``, Zugangsdaten in ``[proxy] url`` -> ``http://***@host``.
+    Rückgabe: ``(Text, geschwärzte Schlüssel)``. Gleiche Schwärzung wie :func:`flat_settings`, damit der
+    Vergleich mit den wirksamen Einstellungen keine Scheinänderung ergibt.
+    """
+    import re
+
+    section, out, redacted = "", [], []
+    pattern = re.compile(r'^(\s*)([A-Za-z0-9_]+)(\s*=\s*)(["\'])(.*)\4(\s*(?:#.*)?)$')
+    for line in (toml_text or "").splitlines(keepends=True):
+        body, nl = (line[:-1], "\n") if line.endswith("\n") else (line, "")
+        head = re.match(r"^\s*\[([^\]]+)\]", body)
+        if head:
+            section = head.group(1).strip().strip('"')
+        m = pattern.match(body)
+        if m:
+            key = f"{section}.{m.group(2)}" if section else m.group(2)
+            value = m.group(5)
+            new = value
+            if key in SECRET_KEYS and value:
+                new = "***"
+            elif key == "proxy.url" and value:
+                new = _mask_url(value)
+            if new != value:
+                body = f"{m.group(1)}{m.group(2)}{m.group(3)}{m.group(4)}{new}{m.group(4)}{m.group(6)}"
+                redacted.append(key)
+        out.append(body + nl)
+    text = "".join(out)
+    # Sicherheitsnetz für ungewöhnliche Schreibweisen (Inline-Tabellen, gepunktete Schlüssel …): bleibt
+    # nach dem Parsen ein Geheimnis übrig, wird der ganze Text neu (geschwärzt, ohne Kommentare) erzeugt.
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return text, redacted
+    secret = data.get("oauth", {}).get("google", {}).get("client_secret", "")
+    url = data.get("proxy", {}).get("url", "")
+    if (secret and secret != "***") or (url and _mask_url(url) != url):
+        import tomli_w
+
+        if secret and secret != "***":
+            data["oauth"]["google"]["client_secret"] = "***"
+            redacted.append("oauth.google.client_secret")
+        if url and _mask_url(url) != url:
+            data["proxy"]["url"] = _mask_url(url)
+            redacted.append("proxy.url")
+        text = tomli_w.dumps(data)
+    return text, redacted
+
+
 def flat_settings(cfg: Config) -> dict[str, str]:
     """Wirksame Einstellungen flach (``programm.bericht_dns`` -> ``csv``), Geheimnisse geschwärzt –
     für den Vergleich mit dem Stand bei der Fallanlage."""
