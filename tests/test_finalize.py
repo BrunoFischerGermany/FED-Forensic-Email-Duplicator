@@ -661,3 +661,55 @@ def test_manifest_anchors_outputs_and_log(acquired):
     assert nxt[0] == "manifest_created" and sha in nxt[1]
     assert sha in {r[0] for r in case.conn.execute("SELECT sha256 FROM output WHERE file_name = 'manifest.json'")}
     assert "manifest.json" in res.report_txt.read_text(encoding="utf-8")  # Prüfanker im Bericht genannt
+
+
+def test_chain_of_custody_export_recomputable(acquired, tmp_path):
+    """chain_of_custody.csv: ganzes Log, ohne FED nachrechenbar (Anleitung inkl. Python-Beispiel);
+    Manipulation einer Zeile fällt auf; Datei steht im Manifest; CLI-Export."""
+    import csv as _csv
+    import json as _json
+    import os
+    import subprocess
+    import sys
+
+    from fed.cli import main
+    from fed.core import custody
+
+    case = acquired
+    res = finish_case(case, Config())
+    coc = case.root / "chain_of_custody.csv"
+    readme = case.root / "chain_of_custody_README.txt"
+    assert coc.exists() and readme.exists()
+    ok, bad, n, last = custody.verify_csv(coc)
+    assert ok and bad is None and n > 5
+    # Stand der Datei = Log bis direkt vor „chain_of_custody_written“
+    row = case.conn.execute("SELECT id FROM log WHERE entry_hash = ?", (last,)).fetchone()
+    nxt = case.conn.execute("SELECT event FROM log WHERE id = ?", (row[0] + 1,)).fetchone()[0]
+    assert nxt == "chain_of_custody_written"
+    files = {f["file"] for f in _json.loads(res.manifest.read_text(encoding="utf-8"))["files"]}
+    assert {"chain_of_custody.csv", "chain_of_custody_README.txt"} <= files
+    # Python-Beispiel aus der Anleitung läuft unverändert (nur Standardbibliothek)
+    code = readme.read_text(encoding="utf-8").split("------------------------------\n", 1)[1]
+    out = subprocess.run([sys.executable, "-I", "-c", code], cwd=case.root, capture_output=True, text=True,
+                         env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    assert out.returncode == 0 and last in out.stdout, out.stderr
+    # eine Zeile verändern -> Bruch genau dort
+    with coc.open(encoding="utf-8-sig", newline="") as f:
+        rows = list(_csv.DictReader(f, delimiter=";"))
+    rows[3]["Details"] = rows[3]["Details"] + " "
+    bad_file = tmp_path / "bad.csv"
+    with bad_file.open("w", encoding="utf-8-sig", newline="") as f:
+        w = _csv.DictWriter(f, fieldnames=custody.COLUMNS, delimiter=";")
+        w.writeheader()
+        w.writerows(rows)
+    ok, bad, _, _ = custody.verify_csv(bad_file)
+    assert not ok and bad == int(rows[3]["ID"])
+    # CLI: jederzeit exportierbar, Export wird protokolliert
+    root = case.root
+    case.close()
+    target = tmp_path / "coc.csv"
+    assert main(["custody", "--case-dir", str(root), "--out", str(target)]) == 0
+    assert custody.verify_csv(target)[0]
+    again = Case.open(root)
+    assert again.conn.execute("SELECT COUNT(*) FROM log WHERE event = 'chain_of_custody_exported'").fetchone()[0] == 1
+    again.close()

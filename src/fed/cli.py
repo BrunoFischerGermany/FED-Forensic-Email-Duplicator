@@ -99,6 +99,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     ver = sub.add_parser("verify", help=t("Hash-Kette und Dateien prüfen"))
     ver.add_argument("--case-dir", type=Path, required=True)
+
+    coc = sub.add_parser("custody", help=t("Chain-of-Custody-Protokoll (ganzes Fall-Log, nachrechenbar) exportieren"))
+    coc.add_argument("--case-dir", type=Path, required=True)
+    coc.add_argument("--out", type=Path, default=None,
+                     help=t("Zieldatei (Standard: chain_of_custody.csv im aktuellen Ordner)"))
     return p
 
 
@@ -190,6 +195,20 @@ def main(argv: list[str] | None = None) -> int:
         case.close()
         print(t("Log-Hash-Kette: OK") if ok else t("Log-Hash-Kette GEBROCHEN ab Eintrag {n}", n=bad))
         return 0 if ok else 2
+    if args.command == "custody":
+        from fed.core import custody
+        from fed.core.case import Case
+        from fed.core.hashing import hash_file
+
+        out = args.out or Path(custody.COC_NAME)
+        case = Case.open(args.case_dir)
+        state = custody.write(case, out)
+        sha = hash_file(out)["sha256"]
+        case.log("INFO", "chain_of_custody_exported", {"file": str(out), "sha256": sha, **state})
+        case.close()
+        print(t("Chain of Custody: {file} · {n} Einträge · letzter Eintrag {h} · SHA-256 {sha}",
+                file=out, n=state["entries"], h=state["last_entry_hash"], sha=sha))
+        return 0 if state["chain_ok"] else 2
     print(t("Befehl '{cmd}' ist noch nicht umgesetzt.", cmd=args.command), file=sys.stderr)
     return 1
 

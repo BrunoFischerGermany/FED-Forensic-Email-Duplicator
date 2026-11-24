@@ -240,6 +240,8 @@
   "host_tz": "Zeitzone",
   "log_finalize_started": "Abschluss gestartet",
   "anchor": "Prüfanker",
-  "anchor_text": "manifest.json – wird nach diesem Bericht erstellt und enthält die SHA-256 aller Ausgabedateien (auch dieses Berichts) sowie Anzahl und Hash des letzten Log-Eintrags; mit eingerichtetem Zeitstempeldienst zusätzlich RFC-3161-Zeitstempel manifest.json.tsr.",
-  "log_manifest_created": "Manifest {file} erstellt ({files} Dateien, Log-Stand {log_entries} Einträge, SHA-256 {sha256})"
+  "anchor_text": "manifest.json – wird nach diesem Bericht erstellt und enthält die SHA-256 aller Ausgabedateien (auch dieses Berichts) sowie Anzahl und Hash des letzten Log-Eintrags; mit eingerichtetem Zeitstempeldienst zusätzlich RFC-3161-Zeitstempel manifest.json.tsr. Das vollständige Log steht nachrechenbar in chain_of_custody.csv (Anleitung: chain_of_custody_README.txt).",
+  "log_manifest_created": "Manifest {file} erstellt ({files} Dateien, Log-Stand {log_entries} Einträge, SHA-256 {sha256})",
+  "log_chain_of_custody_written": "Chain-of-Custody-Protokoll {file} geschrieben ({entries} Einträge, SHA-256 {sha256})",
+  "log_chain_of_custody_exported": "Chain-of-Custody-Protokoll exportiert nach {file} ({entries} Einträge)"
 }
